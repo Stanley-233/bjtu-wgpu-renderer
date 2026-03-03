@@ -7,14 +7,13 @@ project(
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
-# Include webgpu directory, to define the 'webgpu' target
 add_subdirectory(ext/webgpu)
 
-add_executable(bjtu_wgpu_renderer src/main.cpp)
+add_executable(bjtu_wgpu_renderer src/main.cpp
+        src/utils.cpp
+        src/utils.h)
 
-# Add the 'webgpu' target as a dependency of our App
 target_link_libraries(bjtu_wgpu_renderer PRIVATE webgpu)
-
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,
 # so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
@@ -45,4 +44,6 @@ endif()
 if (EMSCRIPTEN)
     # Generate a full web page rather than a simple WebAssembly module
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
+    # Enable the use of emscripten_sleep()
+    target_link_options(bjtu_wgpu_renderer PRIVATE -sASYNCIFY)
 endif()
