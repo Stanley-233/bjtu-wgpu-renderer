@@ -1,0 +1,48 @@
+cmake_minimum_required(VERSION 4.1)
+project(
+    bjtu_wgpu_renderer
+    LANGUAGES C CXX
+)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+
+# Include webgpu directory, to define the 'webgpu' target
+add_subdirectory(ext/webgpu)
+
+add_executable(bjtu_wgpu_renderer src/main.cpp)
+
+# Add the 'webgpu' target as a dependency of our App
+target_link_libraries(bjtu_wgpu_renderer PRIVATE webgpu)
+
+
+# The application's binary must find wgpu.dll or libwgpu.so at runtime,
+# so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
+# next to the binary.
+target_copy_webgpu_binaries(bjtu_wgpu_renderer)
+
+set_target_properties(bjtu_wgpu_renderer PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
+        COMPILE_WARNING_AS_ERROR ON
+)
+
+if (MSVC)
+    target_compile_options(bjtu_wgpu_renderer PRIVATE /W4)
+else()
+    target_compile_options(bjtu_wgpu_renderer PRIVATE -Wall -Wextra -pedantic)
+endif()
+
+if (XCODE)
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES
+            XCODE_GENERATE_SCHEME ON
+            XCODE_SCHEME_ENABLE_GPU_FRAME_CAPTURE_MODE "Metal"
+    )
+endif()
+
+# Options that are specific to Emscripten
+if (EMSCRIPTEN)
+    # Generate a full web page rather than a simple WebAssembly module
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
+endif()

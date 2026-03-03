@@ -1,0 +1,18 @@
+cmake-build-*/
+build/
+
+# Ignore Visual Studio files
+.vs/
+*.vcxproj
+*.vcxproj.filters
+*.sln
+
+# Ignore CMake files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Ignore IDE
+.idea/
+.vscode/
