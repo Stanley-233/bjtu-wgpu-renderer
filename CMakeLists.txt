@@ -7,13 +7,26 @@ project(
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
+# Add glfw
+if (NOT EMSCRIPTEN)
+    add_subdirectory(ext/glfw)
+else()
+    # Emscripten has built-in support for GLFW but requires the `-sUSE_GLFW=3` link option:
+    add_library(glfw INTERFACE)
+    target_link_options(glfw INTERFACE -sUSE_GLFW=3)
+endif()
+
 add_subdirectory(ext/webgpu)
+
+add_subdirectory(ext/glfw3webgpu)
 
 add_executable(bjtu_wgpu_renderer src/main.cpp
         src/utils.cpp
-        src/utils.h)
+        src/utils.h
+        src/application.cpp
+        src/application.h)
 
-target_link_libraries(bjtu_wgpu_renderer PRIVATE webgpu)
+target_link_libraries(bjtu_wgpu_renderer PRIVATE webgpu glfw glfw3webgpu)
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,
 # so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
