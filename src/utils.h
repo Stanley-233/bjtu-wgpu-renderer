@@ -1,3 +1,6 @@
+#ifndef BJTU_WGPU_RENDERER_UTILS_H
+#define BJTU_WGPU_RENDERER_UTILS_H
+
 #pragma once
 
 #include <webgpu/webgpu.h>
@@ -29,3 +32,5 @@ void inspectAdapter(WGPUAdapter adapter);
  * Display information about a device
  */
 void inspectDevice(WGPUDevice device);
+
+#endif //BJTU_WGPU_RENDERER_UTILS_H

@@ -21,14 +21,18 @@ public:
     void MainLoop();
 
     // Return true as long as the main loop should keep on running
-    bool IsRunning() const;
+    [[nodiscard]] bool IsRunning() const;
 
 private:
     // We put here all the variables that are shared between init and main loop
-    GLFWwindow *window;
-    WGPUDevice device;
-    WGPUQueue queue;
-    WGPUSurface surface;
+    GLFWwindow *window = nullptr;
+    WGPUDevice device = nullptr;
+    WGPUQueue queue = nullptr;
+    WGPUSurface surface = nullptr;
+
+private:
+    [[nodiscard]] WGPUTextureView GetNextSurfaceTextureView() const;
+
 };
 
 
