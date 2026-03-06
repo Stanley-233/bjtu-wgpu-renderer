@@ -89,6 +89,10 @@ namespace wgpu::raii {
             other.m_raw = nullptr;
         }
 
+        Raw* get() {
+            return &m_raw;
+        }
+
         operator bool() const { return m_raw; }
         const Raw &operator*() const { return m_raw; }
         Raw &operator*() { return m_raw; }

@@ -67,17 +67,11 @@ bool Application::Initialize() {
 
 	surface->configure(config);
 
-	// Release the adapter only after it has been fully utilized
-	// adapter.release();
-
 	return true;
 }
 
 void Application::Terminate() {
 	surface->unconfigure();
-	/*queue.release();
-	surface.release();
-	device.release();*/
 	glfwDestroyWindow(window);
 	glfwTerminate();
 }
@@ -120,25 +114,21 @@ void Application::MainLoop() {
 	// Create the render pass and end it immediately (we only clear the screen but do not draw anything)
 	wgpu::raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
 	renderPass->end();
-	// renderPass.release();
 
 	// Finally encode and submit the render pass
 	wgpu::CommandBufferDescriptor cmdBufferDescriptor = {};
 	cmdBufferDescriptor.label = "Command buffer";
 	wgpu::raii::CommandBuffer command_buffer = encoder->finish(cmdBufferDescriptor);
-	// encoder.release();
 
 	if (enableMainLoopDebug) {
 		std::cout << "Submitting command..." << std::endl;
 	}
-	queue->submit(1, &*command_buffer);
-	// command.release();
+	queue->submit(1, command_buffer.get());
 	if (enableMainLoopDebug) {
 		std::cout << "Command submitted." << std::endl;
 	}
 
 	// At the end of the frame
-	// targetView.release();
 #ifndef __EMSCRIPTEN__
 	surface->present();
 #endif
