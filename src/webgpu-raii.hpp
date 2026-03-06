@@ -59,6 +59,7 @@ namespace wgpu::raii {
 
         // Copy semantics
         Wrapper &operator=(const Wrapper &other) {
+            if (this == &other) return *this;
             Destruct();
             assert(m_raw == nullptr);
             m_raw = other.m_raw;
@@ -77,6 +78,7 @@ namespace wgpu::raii {
 
         // Move semantics
         Wrapper &operator=(Wrapper &&other) noexcept {
+            if (this == &other) return *this;
             Destruct();
             assert(m_raw == nullptr);
             m_raw = other.m_raw;
@@ -89,11 +91,20 @@ namespace wgpu::raii {
             other.m_raw = nullptr;
         }
 
-        Raw* get() {
+        Raw* ptr() {
             return &m_raw;
         }
 
-        operator bool() const { return m_raw; }
+        friend std::ostream& operator<<(std::ostream& os, const Wrapper& wrapper) {
+            if (wrapper.m_raw) {
+                os << wrapper.m_raw;
+            } else {
+                os << "nullptr";
+            }
+            return os;
+        }
+
+        explicit operator bool() const { return m_raw != nullptr; }
         const Raw &operator*() const { return m_raw; }
         Raw &operator*() { return m_raw; }
         const Raw *operator->() const { return &m_raw; }

@@ -123,7 +123,7 @@ void Application::MainLoop() {
 	if (enableMainLoopDebug) {
 		std::cout << "Submitting command..." << std::endl;
 	}
-	queue->submit(1, command_buffer.get());
+	queue->submit(1, command_buffer.ptr());
 	if (enableMainLoopDebug) {
 		std::cout << "Command submitted." << std::endl;
 	}
