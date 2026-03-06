@@ -7,7 +7,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include <webgpu/webgpu.hpp>
+#include "webgpu-raii.hpp"
 
 class Application {
 public:
@@ -27,14 +27,14 @@ public:
     [[nodiscard]] bool IsRunning() const;
 
 private:
-    [[nodiscard]] wgpu::TextureView GetNextSurfaceTextureView();
+    [[nodiscard]] wgpu::raii::TextureView GetNextSurfaceTextureView();
 
 private:
     // We put here all the variables that are shared between init and main loop
     GLFWwindow *window = nullptr;
-    wgpu::Device device;
-    wgpu::Queue queue;
-    wgpu::Surface surface;
+    wgpu::raii::Device device;
+    wgpu::raii::Queue queue;
+    wgpu::raii::Surface surface;
     std::unique_ptr<wgpu::ErrorCallback> uncapturedErrorCallbackHandle;
 };
 
