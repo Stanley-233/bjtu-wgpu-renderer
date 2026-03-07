@@ -3,25 +3,25 @@
 #include "application.h"
 
 int main() {
-	Application app;
+    Application app;
 
-	if (!app.Initialize()) {
-		return 1;
-	}
+    if (!app.SetWindowSize(640, 480).Initialize()) {
+        return 1;
+    }
 
 #ifdef __EMSCRIPTEN__
-	auto callback = [](void *arg) {
-		Application* pApp = reinterpret_cast<Application*>(arg);
-		pApp->MainLoop();
-	};
-	emscripten_set_main_loop_arg(callback, &app, 0, true);
+    auto callback = [](void* arg) {
+        Application* p_app = reinterpret_cast<Application*>(arg);
+        p_app->MainLoop();
+    };
+    emscripten_set_main_loop_arg(callback, &app, 0, true);
 #else // __EMSCRIPTEN__
-	while (app.IsRunning()) {
-		app.MainLoop();
-	}
+    while (app.IsRunning()) {
+        app.MainLoop();
+    }
 #endif // __EMSCRIPTEN__
 
-	app.Terminate();
+    app.Terminate();
 
-	return 0;
+    return 0;
 }

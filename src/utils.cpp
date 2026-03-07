@@ -2,20 +2,20 @@
 
 #ifdef __EMSCRIPTEN__
 #  include <emscripten.h>
-#endif // __EMSCRIPTEN__
+#endif
 
 #include <iostream>
 #include <vector>
 #include <cassert>
 
-WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const * options) {
+WGPUAdapter RequestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const * options) {
 	// A simple structure holding the local information shared with the
 	// onAdapterRequestEnded callback.
 	struct UserData {
 		WGPUAdapter adapter = nullptr;
-		bool requestEnded = false;
+		bool request_ended = false;
 	};
-	UserData userData;
+	UserData user_data;
 
 	// Callback called by wgpuInstanceRequestAdapter when the request returns
 	// This is a C++ lambda function, but could be any function defined in the
@@ -25,37 +25,37 @@ WGPUAdapter requestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions 
 	// is to convey what we want to capture through the pUserData pointer,
 	// provided as the last argument of wgpuInstanceRequestAdapter and received
 	// by the callback as its last argument.
-	auto onAdapterRequestEnded = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * pUserData) {
-		UserData& userData = *reinterpret_cast<UserData*>(pUserData);
+	auto on_adapter_request_ended = [](WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * p_user_data) {
+		UserData& user_data = *reinterpret_cast<UserData*>(p_user_data);
 		if (status == WGPURequestAdapterStatus_Success) {
-			userData.adapter = adapter;
+			user_data.adapter = adapter;
 		} else {
 			std::cout << "Could not get WebGPU adapter: " << message << std::endl;
 		}
-		userData.requestEnded = true;
+		user_data.request_ended = true;
 	};
 
 	// Call to the WebGPU request adapter procedure
 	wgpuInstanceRequestAdapter(
 		instance /* equivalent of navigator.gpu */,
 		options,
-		onAdapterRequestEnded,
-		(void*)&userData
+		on_adapter_request_ended,
+		(void*)&user_data
 	);
 
 	// We wait until userData.requestEnded gets true
 #ifdef __EMSCRIPTEN__
-	while (!userData.requestEnded) {
+	while (!user_data.request_ended) {
 		emscripten_sleep(100);
 	}
 #endif // __EMSCRIPTEN__
 
 	assert(userData.requestEnded);
 
-	return userData.adapter;
+	return user_data.adapter;
 }
 
-void inspectAdapter(WGPUAdapter adapter) {
+void InspectAdapter(WGPUAdapter adapter) {
 #ifndef __EMSCRIPTEN__
 	WGPUSupportedLimits supportedLimits = {};
 	supportedLimits.nextInChain = nullptr;
@@ -78,10 +78,10 @@ void inspectAdapter(WGPUAdapter adapter) {
 
 	// Call the function a first time with a null return address, just to get
 	// the entry count.
-	size_t featureCount = wgpuAdapterEnumerateFeatures(adapter, nullptr);
+	size_t feature_count = wgpuAdapterEnumerateFeatures(adapter, nullptr);
 
 	// Allocate memory (could be a new, or a malloc() if this were a C program)
-	features.resize(featureCount);
+	features.resize(feature_count);
 
 	// Call the function a second time, with a non-null return address
 	wgpuAdapterEnumerateFeatures(adapter, features.data());
@@ -116,45 +116,45 @@ void inspectAdapter(WGPUAdapter adapter) {
 	std::cout << std::dec; // Restore decimal numbers
 }
 
-WGPUDevice requestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
+WGPUDevice RequestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor) {
 	struct UserData {
 		WGPUDevice device = nullptr;
-		bool requestEnded = false;
+		bool request_ended = false;
 	};
-	UserData userData;
+	UserData user_data;
 
-	auto onDeviceRequestEnded = [](WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * pUserData) {
-		UserData& userData = *reinterpret_cast<UserData*>(pUserData);
+	auto on_device_request_ended = [](WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * p_user_data) {
+		UserData& user_data = *reinterpret_cast<UserData*>(p_user_data);
 		if (status == WGPURequestDeviceStatus_Success) {
-			userData.device = device;
+			user_data.device = device;
 		} else {
 			std::cout << "Could not get WebGPU device: " << message << std::endl;
 		}
-		userData.requestEnded = true;
+		user_data.request_ended = true;
 	};
 
 	wgpuAdapterRequestDevice(
 		adapter,
 		descriptor,
-		onDeviceRequestEnded,
-		(void*)&userData
+		on_device_request_ended,
+		(void*)&user_data
 	);
 
 #ifdef __EMSCRIPTEN__
-	while (!userData.requestEnded) {
+	while (!user_data.request_ended) {
 		emscripten_sleep(100);
 	}
 #endif // __EMSCRIPTEN__
 
 	assert(userData.requestEnded);
 
-	return userData.device;
+	return user_data.device;
 }
 
-void inspectDevice(WGPUDevice device) {
+void InspectDevice(WGPUDevice device) {
 	std::vector<WGPUFeatureName> features;
-	size_t featureCount = wgpuDeviceEnumerateFeatures(device, nullptr);
-	features.resize(featureCount);
+	size_t feature_count = wgpuDeviceEnumerateFeatures(device, nullptr);
+	features.resize(feature_count);
 	wgpuDeviceEnumerateFeatures(device, features.data());
 
 	std::cout << "Device features:" << std::endl;
