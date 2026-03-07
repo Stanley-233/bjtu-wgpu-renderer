@@ -11,15 +11,15 @@ int main() {
 
 #ifdef __EMSCRIPTEN__
     auto callback = [](void* arg) {
-        Application* p_app = reinterpret_cast<Application*>(arg);
+        auto *p_app = reinterpret_cast<Application*>(arg);
         p_app->MainLoop();
     };
     emscripten_set_main_loop_arg(callback, &app, 0, true);
-#else // __EMSCRIPTEN__
+#else
     while (app.IsRunning()) {
         app.MainLoop();
     }
-#endif // __EMSCRIPTEN__
+#endif
 
     app.Terminate();
 

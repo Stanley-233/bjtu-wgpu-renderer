@@ -11,7 +11,7 @@
  * is roughly equivalent to
  *     const adapter = await navigator.gpu.requestAdapter(options);
  */
-WGPUAdapter RequestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const * options);
+WGPUAdapter RequestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions const* options);
 
 /**
  * Utility function to get a WebGPU device, so that
@@ -20,7 +20,7 @@ WGPUAdapter RequestAdapterSync(WGPUInstance instance, WGPURequestAdapterOptions 
  *     const device = await adapter.requestDevice(descriptor);
  * It is very similar to requestAdapter
  */
-WGPUDevice RequestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor);
+WGPUDevice RequestDeviceSync(WGPUAdapter adapter, WGPUDeviceDescriptor const* descriptor);
 
 /**
  * An example of how we can inspect the capabilities of the hardware through

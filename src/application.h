@@ -32,15 +32,19 @@ public:
 private:
     [[nodiscard]] wgpu::raii::TextureView GetNextSurfaceTextureView();
 
-private:
+    // Substep of Initialize() that creates the render pipeline
+    void InitializePipeline();
+
     // We put here all the variables that are shared between init and main loop
-    int                                  m_window_width  = 640;
-    int                                  m_window_height = 480;
-    GLFWwindow*                          m_window        = nullptr;
+    int                                  m_window_width   = 640;
+    int                                  m_window_height  = 480;
+    GLFWwindow*                          m_window         = nullptr;
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;
     wgpu::raii::Surface                  m_surface;
     std::unique_ptr<wgpu::ErrorCallback> m_uncaptured_error_callback_handle;
+    wgpu::TextureFormat                  m_surface_format = wgpu::TextureFormat::Undefined;
+    wgpu::raii::RenderPipeline           m_pipeline;
 };
 
 
