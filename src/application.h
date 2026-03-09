@@ -12,7 +12,7 @@
 class Application {
 public:
     // Whether to print debug messages about the rendering process
-    bool enable_main_loop_debug = false;
+    bool enableMainLoopDebug = false;
 
     // Set the size of the window
     Application& SetWindowSize(int width, int height);
@@ -35,15 +35,17 @@ private:
     // Substep of Initialize() that creates the render pipeline
     void InitializePipeline();
 
+    void TestBuffers();
+
     // We put here all the variables that are shared between init and main loop
-    int                                  m_window_width   = 640;
-    int                                  m_window_height  = 480;
+    int                                  m_windowWidth   = 640;
+    int                                  m_windowHeight  = 480;
     GLFWwindow*                          m_window         = nullptr;
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;
     wgpu::raii::Surface                  m_surface;
-    std::unique_ptr<wgpu::ErrorCallback> m_uncaptured_error_callback_handle;
-    wgpu::TextureFormat                  m_surface_format = wgpu::TextureFormat::Undefined;
+    std::unique_ptr<wgpu::ErrorCallback> m_uncapturedErrorCallbackHandle;
+    wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
     wgpu::raii::RenderPipeline           m_pipeline;
 };
 

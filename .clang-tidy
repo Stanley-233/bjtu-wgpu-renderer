@@ -11,25 +11,28 @@ CheckOptions:
     value: CamelCase
   # Exclude from scanning as this is an exported symbol used for fuzzing
   # throughout the code base.
-  # Allow both CamelCase and lower_case function names
-  # This regex matches lower_case functions (allowing them to bypass CamelCase check)
+  # 移除了允许纯小写+下划线(snake_case)的正则，仅保留 Fuzzer 忽略项
   - key: readability-identifier-naming.FunctionIgnoredRegexp
-    value: "LLVMFuzzerTestOneInput|^[a-z][a-z0-9_]*$"
+    value: "LLVMFuzzerTestOneInput"
+  # 【修改处】私有/受保护成员变量：改为小驼峰，并保留 m_ 前缀 (例如 m_myVariable)
   - key: readability-identifier-naming.MemberCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.MemberPrefix
     value: m_
   - key: readability-identifier-naming.PublicMemberCase
-    value: lower_case
+    value: camelBack
+  # 【修改处】函数参数：改为小驼峰
   - key: readability-identifier-naming.ParameterCase
-    value: lower_case
-  # Allow _lower_case (leading underscore) as well as lower_case
+    value: camelBack
+  # Allow _camelBack (leading underscore) as well as camelBack
+  # 【修改处】调整正则，允许带前导下划线的小驼峰 (例如 _myParam)
   - key: readability-identifier-naming.ParameterIgnoredRegexp
-    value: "^_[a-z][a-z0-9_]*$"
+    value: "^_[a-z][a-zA-Z0-9]*$"
   - key: readability-identifier-naming.UnionCase
     value: CamelCase
+  # 【修改处】普通局部/全局变量：改为小驼峰
   - key: readability-identifier-naming.VariableCase
-    value: lower_case
+    value: camelBack
   - key: readability-identifier-naming.IgnoreMainLikeFunctions
     value: 1
   - key: readability-redundant-member-init.IgnoreBaseInCopyConstructors

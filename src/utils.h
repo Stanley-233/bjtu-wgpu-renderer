@@ -4,6 +4,7 @@
 #pragma once
 
 #include <webgpu/webgpu.h>
+#include <webgpu/webgpu.hpp>
 
 /**
  * Utility function to get a WebGPU adapter, so that
@@ -32,5 +33,8 @@ void InspectAdapter(WGPUAdapter adapter);
  * Display information about a device
  */
 void InspectDevice(WGPUDevice device);
+
+// We define a function that hides implementation-specific variants of device polling:
+void wgpuPollEvents(wgpu::Device device, bool yieldToWebBrowser);
 
 #endif //BJTU_WGPU_RENDERER_UTILS_H
