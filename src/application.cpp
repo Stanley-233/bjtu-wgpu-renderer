@@ -16,16 +16,8 @@ using namespace wgpu;
 // We embed the source of the shader module here
 const char* shaderSource = R"(
 @vertex
-fn vs_main(@builtin(vertex_index) in_vertex_index: u32) -> @builtin(position) vec4f {
-	var p = vec2f(0.0, 0.0);
-	if (in_vertex_index == 0u) {
-		p = vec2f(-0.5, -0.5);
-	} else if (in_vertex_index == 1u) {
-		p = vec2f(0.5, -0.5);
-	} else {
-		p = vec2f(0.0, 0.5);
-	}
-	return vec4f(p, 0.0, 1.0);
+fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
+	return vec4f(in_vertex_position, 0.0, 1.0);
 }
 
 @fragment
@@ -71,6 +63,8 @@ bool Application::Initialize() {
             std::cout << " (" << message << ")";
         std::cout << std::endl;
     };
+    RequiredLimits requiredLimits = GetRequiredLimits(*adapter);
+    deviceDesc.requiredLimits = &requiredLimits;
     m_device = adapter->requestDevice(deviceDesc);
     std::cout << "Got device: " << m_device << std::endl;
 
@@ -103,7 +97,14 @@ bool Application::Initialize() {
 
     m_surface->configure(config);
 
+    SupportedLimits supportedLimits;
+    adapter->getLimits(&supportedLimits);
+    std::cout << "adapter.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
+    m_device->getLimits(&supportedLimits);
+    std::cout << "device.maxVertexAttributes: " << supportedLimits.limits.maxVertexAttributes << std::endl;
+
     InitializePipeline();
+    InitializeBuffers();
 
     TestBuffers();
 
@@ -157,8 +158,13 @@ void Application::MainLoop() {
     raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
     // Select which render pipeline to use
     renderPass->setPipeline(*m_pipeline);
-    // Draw 1 instance of a 3-vertices shape
-    renderPass->draw(3, 1, 0, 0);
+
+    // Set vertex buffer while encoding the render pass
+    renderPass->setVertexBuffer(0, *m_vertexBuffer, 0, m_vertexBuffer->getSize());
+
+    // We use the `vertexCount` variable instead of hard-coding the vertex count
+    renderPass->draw(m_vertexCount, 1, 0, 0);
+
     renderPass->end();
 
     // Finally encode and submit the render pass
@@ -215,6 +221,31 @@ raii::TextureView Application::GetNextSurfaceTextureView() {
     return targetView;
 }
 
+RequiredLimits Application::GetRequiredLimits(Adapter adapter) {
+    SupportedLimits supportedLimits;
+    adapter.getLimits(&supportedLimits);
+
+    // Don't forget to = Default
+    RequiredLimits requiredLimits = Default;
+
+    // We use at most 1 vertex attribute for now
+    requiredLimits.limits.maxVertexAttributes = 1;
+    // We should also tell that we use 1 vertex buffers
+    requiredLimits.limits.maxVertexBuffers = 1;
+    // Maximum size of a buffer is 6 vertices of 2 float each
+    requiredLimits.limits.maxBufferSize = 6 * 2 * sizeof(float);
+    // Maximum stride between 2 consecutive vertices in the vertex buffer
+    requiredLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float);
+
+    // These two limits are different because they are "minimum" limits,
+    // they are the only ones we are may forward from the adapter's supported
+    // limits.
+    requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
+    requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+
+    return requiredLimits;
+}
+
 void Application::InitializePipeline() {
     // Load the shader module
     ShaderModuleDescriptor shaderDesc;
@@ -236,9 +267,27 @@ void Application::InitializePipeline() {
     // Create the render pipeline
     RenderPipelineDescriptor pipelineDesc;
 
-    // We do not use any vertex buffer for this first simplistic example
-    pipelineDesc.vertex.bufferCount = 0;
-    pipelineDesc.vertex.buffers     = nullptr;
+    // Configure the vertex pipeline
+    // We use one vertex buffer
+    VertexBufferLayout vertexBufferLayout;
+    VertexAttribute positionAttrib;
+    // == For each attribute, describe its layout, i.e., how to interpret the raw data ==
+    // Corresponds to @location(...)
+    positionAttrib.shaderLocation = 0;
+    // Means vec2f in the shader
+    positionAttrib.format = VertexFormat::Float32x2;
+    // Index of the first element
+    positionAttrib.offset = 0;
+
+    vertexBufferLayout.attributeCount = 1;
+    vertexBufferLayout.attributes = &positionAttrib;
+
+    // == Common to attributes from the same buffer ==
+    vertexBufferLayout.arrayStride = 2 * sizeof(float);
+    vertexBufferLayout.stepMode = VertexStepMode::Vertex;
+
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
     // NB: We define the 'shaderModule' in the second part of this chapter.
     // Here we tell that the programmable vertex shader stage is described
@@ -309,6 +358,28 @@ void Application::InitializePipeline() {
 
     // We no longer need to access the shader module
     shaderModule.release();
+}
+
+void Application::InitializeBuffers() {
+    std::vector<float> vertexData = {
+        // Define a first triangle:
+        -0.5, -0.5,
+        +0.5, -0.5,
+        +0.0, +0.5,
+        // Add a second triangle:
+        -0.55f, -0.5,
+        -0.05f, +0.5,
+        -0.55f, +0.5
+    };
+
+    m_vertexCount = static_cast<uint32_t>(vertexData.size() / 2);
+    // Create vertex buffer
+    BufferDescriptor bufferDesc;
+    bufferDesc.size = vertexData.size() * sizeof(float);
+    bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex; // Vertex usage here!
+    bufferDesc.mappedAtCreation = false;
+    m_vertexBuffer = m_device->createBuffer(bufferDesc);
+    m_queue->writeBuffer(*m_vertexBuffer, 0, vertexData.data(), bufferDesc.size);
 }
 
 void Application::TestBuffers() {

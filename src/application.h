@@ -30,23 +30,34 @@ public:
     [[nodiscard]] bool IsRunning() const;
 
 private:
+    // Substep of MainLoop() that gets the next surface texture and creates a view for it
     [[nodiscard]] wgpu::raii::TextureView GetNextSurfaceTextureView();
 
     // Substep of Initialize() that creates the render pipeline
     void InitializePipeline();
 
+    // Substep of Initialize() that tests buffer creation, copying and mapping
     void TestBuffers();
 
-    // We put here all the variables that are shared between init and main loop
-    int                                  m_windowWidth   = 640;
-    int                                  m_windowHeight  = 480;
-    GLFWwindow*                          m_window         = nullptr;
+    // Substep of Initialize() that queries the device limits and returns a RequiredLimits struct
+    static wgpu::RequiredLimits GetRequiredLimits(wgpu::Adapter adapter);
+
+    // Initialization attributes
+    int                                  m_windowWidth  = 640;
+    int                                  m_windowHeight = 480;
+    GLFWwindow*                          m_window       = nullptr;
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;
     wgpu::raii::Surface                  m_surface;
     std::unique_ptr<wgpu::ErrorCallback> m_uncapturedErrorCallbackHandle;
     wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
     wgpu::raii::RenderPipeline           m_pipeline;
+
+    // Buffer
+    wgpu::raii::Buffer m_vertexBuffer;
+    uint32_t           m_vertexCount = 0;
+
+    void InitializeBuffers();
 };
 
 
