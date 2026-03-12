@@ -15,14 +15,27 @@ using namespace wgpu;
 
 // We embed the source of the shader module here
 const char* shaderSource = R"(
+struct VertexInput {
+    @location(0) position: vec2f,
+    @location(1) color: vec3f,
+};
+
+struct VertexOutput {
+    @builtin(position) position: vec4f,
+    @location(0) color: vec3f,
+};
+
 @vertex
-fn vs_main(@location(0) in_vertex_position: vec2f) -> @builtin(position) vec4f {
-	return vec4f(in_vertex_position, 0.0, 1.0);
+fn vs_main(in: VertexInput) -> VertexOutput {
+    var out: VertexOutput;
+    out.position = vec4f(in.position, 0.0, 1.0);
+    out.color = in.color;
+    return out;
 }
 
 @fragment
-fn fs_main() -> @location(0) vec4f {
-	return vec4f(0.0, 0.4, 1.0, 1.0);
+fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+    return vec4f(in.color, 1.0);
 }
 )";
 
@@ -52,7 +65,6 @@ bool Application::Initialize() {
     DeviceDescriptor deviceDesc         = {};
     deviceDesc.label                    = "My Device";
     deviceDesc.requiredFeatureCount     = 0;
-    deviceDesc.requiredLimits           = nullptr;
     deviceDesc.defaultQueue.nextInChain = nullptr;
     deviceDesc.defaultQueue.label       = "The default queue";
     deviceDesc.deviceLostCallback       = [](WGPUDeviceLostReason reason,
@@ -144,7 +156,7 @@ void Application::MainLoop() {
     renderPassColorAttachment.resolveTarget             = nullptr;
     renderPassColorAttachment.loadOp                    = LoadOp::Clear;
     renderPassColorAttachment.storeOp                   = StoreOp::Store;
-    renderPassColorAttachment.clearValue                = WGPUColor{0.9, 0.1, 0.2, 1.0};
+    renderPassColorAttachment.clearValue                = WGPUColor{0.05, 0.05, 0.05, 1.0};
 #ifndef WEBGPU_BACKEND_WGPU
     renderPassColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif // NOT WEBGPU_BACKEND_WGPU
@@ -229,19 +241,23 @@ RequiredLimits Application::GetRequiredLimits(Adapter adapter) {
     RequiredLimits requiredLimits = Default;
 
     // We use at most 1 vertex attribute for now
-    requiredLimits.limits.maxVertexAttributes = 1;
+    requiredLimits.limits.maxVertexAttributes = 2;
     // We should also tell that we use 1 vertex buffers
     requiredLimits.limits.maxVertexBuffers = 1;
     // Maximum size of a buffer is 6 vertices of 2 float each
-    requiredLimits.limits.maxBufferSize = 6 * 2 * sizeof(float);
+    requiredLimits.limits.maxBufferSize = 6 * 5 * sizeof(float);
     // Maximum stride between 2 consecutive vertices in the vertex buffer
-    requiredLimits.limits.maxVertexBufferArrayStride = 2 * sizeof(float);
+    requiredLimits.limits.maxVertexBufferArrayStride = 5 * sizeof(float);
 
     // These two limits are different because they are "minimum" limits,
-    // they are the only ones we are may forward from the adapter's supported
-    // limits.
+    // they are the only ones we are may forward from the adapter's supported limits.
     requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
     requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+
+#ifndef __EMSCRIPTEN__
+    // There is a maximum of 3 float forwarded from vertex to fragment shader
+    requiredLimits.limits.maxInterStageShaderComponents = 3;
+#endif
 
     return requiredLimits;
 }
@@ -279,11 +295,22 @@ void Application::InitializePipeline() {
     // Index of the first element
     positionAttrib.offset = 0;
 
-    vertexBufferLayout.attributeCount = 1;
-    vertexBufferLayout.attributes = &positionAttrib;
+    // We now have 2 attributes
+    std::vector<VertexAttribute> vertexAttribs(2);
 
-    // == Common to attributes from the same buffer ==
-    vertexBufferLayout.arrayStride = 2 * sizeof(float);
+    // Describe the position attribute
+    vertexAttribs[0].shaderLocation = 0; // @location(0)
+    vertexAttribs[0].format = VertexFormat::Float32x2;
+    vertexAttribs[0].offset = 0;
+    // Describe the color attribute
+    vertexAttribs[1].shaderLocation = 1; // @location(1)
+    vertexAttribs[1].format = VertexFormat::Float32x3; // different type!
+    vertexAttribs[1].offset = 2 * sizeof(float); // non null offset!
+
+    vertexBufferLayout.attributeCount = static_cast<uint32_t>(vertexAttribs.size());
+    vertexBufferLayout.attributes = vertexAttribs.data();
+
+    vertexBufferLayout.arrayStride = 5 * sizeof(float);
     vertexBufferLayout.stepMode = VertexStepMode::Vertex;
 
     pipelineDesc.vertex.bufferCount = 1;
@@ -362,17 +389,18 @@ void Application::InitializePipeline() {
 
 void Application::InitializeBuffers() {
     std::vector<float> vertexData = {
-        // Define a first triangle:
-        -0.5, -0.5,
-        +0.5, -0.5,
-        +0.0, +0.5,
-        // Add a second triangle:
-        -0.55f, -0.5,
-        -0.05f, +0.5,
-        -0.55f, +0.5
+        // x0,  y0,  r0,  g0,  b0
+        -0.5, -0.5, 1.0, 0.0, 0.0,
+        // x1,  y1,  r1,  g1,  b1
+        +0.5, -0.5, 0.0, 1.0, 0.0,
+        +0.0,   +0.5, 0.0, 0.0, 1.0,
+        -0.55f, -0.5, 1.0, 1.0, 0.0,
+        -0.05f, +0.5, 1.0, 0.0, 1.0,
+        -0.55f, +0.5, 0.0, 1.0, 1.0
     };
 
-    m_vertexCount = static_cast<uint32_t>(vertexData.size() / 2);
+    m_vertexCount = static_cast<uint32_t>(vertexData.size() / 5);
+
     // Create vertex buffer
     BufferDescriptor bufferDesc;
     bufferDesc.size = vertexData.size() * sizeof(float);
