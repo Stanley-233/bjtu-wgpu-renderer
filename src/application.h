@@ -54,8 +54,9 @@ private:
     wgpu::raii::RenderPipeline           m_pipeline;
 
     // Buffer
-    wgpu::raii::Buffer m_vertexBuffer;
-    uint32_t           m_vertexCount = 0;
+    wgpu::raii::Buffer m_pointBuffer;
+    wgpu::raii::Buffer m_indexBuffer;
+    uint32_t           m_indexCount = 0;
 
     void InitializeBuffers();
 };

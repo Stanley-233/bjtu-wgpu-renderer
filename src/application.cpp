@@ -28,7 +28,8 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = vec4f(in.position, 0.0, 1.0);
+    let ratio = 640.0 / 480.0;
+    out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0);
     out.color = in.color;
     return out;
 }
@@ -172,10 +173,11 @@ void Application::MainLoop() {
     renderPass->setPipeline(*m_pipeline);
 
     // Set vertex buffer while encoding the render pass
-    renderPass->setVertexBuffer(0, *m_vertexBuffer, 0, m_vertexBuffer->getSize());
+    renderPass->setVertexBuffer(0, *m_pointBuffer, 0, m_pointBuffer->getSize());
+    renderPass->setIndexBuffer(*m_indexBuffer, IndexFormat::Uint16, 0, m_indexBuffer->getSize());
 
     // We use the `vertexCount` variable instead of hard-coding the vertex count
-    renderPass->draw(m_vertexCount, 1, 0, 0);
+    renderPass->drawIndexed(m_indexCount, 1, 0, 0, 0);
 
     renderPass->end();
 
@@ -388,26 +390,40 @@ void Application::InitializePipeline() {
 }
 
 void Application::InitializeBuffers() {
-    std::vector<float> vertexData = {
-        // x0,  y0,  r0,  g0,  b0
-        -0.5, -0.5, 1.0, 0.0, 0.0,
-        // x1,  y1,  r1,  g1,  b1
-        +0.5, -0.5, 0.0, 1.0, 0.0,
-        +0.0,   +0.5, 0.0, 0.0, 1.0,
-        -0.55f, -0.5, 1.0, 1.0, 0.0,
-        -0.05f, +0.5, 1.0, 0.0, 1.0,
-        -0.55f, +0.5, 0.0, 1.0, 1.0
+    // Define point data
+    // The de-duplicated list of point positions
+    std::vector<float> pointData = {
+        // x,   y,     r,   g,   b
+        -0.5, -0.5,   1.0, 0.0, 0.0, // Point #0
+        +0.5, -0.5,   0.0, 1.0, 0.0, // Point #1
+        +0.5, +0.5,   0.0, 0.0, 1.0, // Point #2
+        -0.5, +0.5,   1.0, 1.0, 0.0  // Point #3
     };
 
-    m_vertexCount = static_cast<uint32_t>(vertexData.size() / 5);
+    // Define index data
+    // This is a list of indices referencing positions in the pointData
+    std::vector<uint16_t> indexData = {
+        0, 1, 2, // Triangle #0 connects points #0, #1 and #2
+        0, 2, 3  // Triangle #1 connects points #0, #2 and #3
+    };
 
-    // Create vertex buffer
+    m_indexCount = static_cast<uint32_t>(indexData.size());
+
+    // Create point buffer
     BufferDescriptor bufferDesc;
-    bufferDesc.size = vertexData.size() * sizeof(float);
+    bufferDesc.size = pointData.size() * sizeof(float);
     bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex; // Vertex usage here!
     bufferDesc.mappedAtCreation = false;
-    m_vertexBuffer = m_device->createBuffer(bufferDesc);
-    m_queue->writeBuffer(*m_vertexBuffer, 0, vertexData.data(), bufferDesc.size);
+    m_pointBuffer = m_device->createBuffer(bufferDesc);
+    m_queue->writeBuffer(*m_pointBuffer, 0, pointData.data(), bufferDesc.size);
+
+    // Create index buffer
+    bufferDesc.size = indexData.size() * sizeof(uint16_t);
+    bufferDesc.size = (bufferDesc.size + 3) & ~3; // round up to the next multiple of 4
+    bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+    m_indexBuffer = m_device->createBuffer(bufferDesc);
+
+    m_queue->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
 }
 
 void Application::TestBuffers() {
