@@ -1,6 +1,6 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 
-#include "application.h"
+#include "Application.h"
 
 int main() {
     Application app;

@@ -4,41 +4,16 @@
 
 #include <GLFW/glfw3.h>
 #include <glfw3webgpu.h>
+#include <magic_enum.hpp>
 
 #include <iostream>
 
-#include "application.h"
+#include "Application.h"
 
+#include "ResourceManager.h"
 #include "utils.h"
 
 using namespace wgpu;
-
-// We embed the source of the shader module here
-const char* shaderSource = R"(
-struct VertexInput {
-    @location(0) position: vec2f,
-    @location(1) color: vec3f,
-};
-
-struct VertexOutput {
-    @builtin(position) position: vec4f,
-    @location(0) color: vec3f,
-};
-
-@vertex
-fn vs_main(in: VertexInput) -> VertexOutput {
-    var out: VertexOutput;
-    let ratio = 640.0 / 480.0;
-    out.position = vec4f(in.position.x, in.position.y * ratio, 0.0, 1.0);
-    out.color = in.color;
-    return out;
-}
-
-@fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    return vec4f(in.color, 1.0);
-}
-)";
 
 Application& Application::SetWindowSize(int width, int height) {
     m_windowWidth  = width;
@@ -98,8 +73,10 @@ bool Application::Initialize() {
     config.width     = m_windowWidth;
     config.height    = m_windowHeight;
     config.usage     = TextureUsage::RenderAttachment;
-    m_surfaceFormat = m_surface->getPreferredFormat(*adapter);
+    m_surfaceFormat = TextureFormat::BGRA8Unorm;
     config.format    = m_surfaceFormat;
+
+    std::cout << "Surface format: " << magic_enum::enum_name<WGPUTextureFormat>(m_surfaceFormat) << std::endl;
 
     // And we do not need any particular view format:
     config.viewFormatCount = 0;
@@ -246,8 +223,8 @@ RequiredLimits Application::GetRequiredLimits(Adapter adapter) {
     requiredLimits.limits.maxVertexAttributes = 2;
     // We should also tell that we use 1 vertex buffers
     requiredLimits.limits.maxVertexBuffers = 1;
-    // Maximum size of a buffer is 6 vertices of 2 float each
-    requiredLimits.limits.maxBufferSize = 6 * 5 * sizeof(float);
+    // Maximum size of a buffer is 50 vertices of 2 float each
+    requiredLimits.limits.maxBufferSize = 50 * 5 * sizeof(float);
     // Maximum stride between 2 consecutive vertices in the vertex buffer
     requiredLimits.limits.maxVertexBufferArrayStride = 5 * sizeof(float);
 
@@ -265,22 +242,15 @@ RequiredLimits Application::GetRequiredLimits(Adapter adapter) {
 }
 
 void Application::InitializePipeline() {
-    // Load the shader module
-    ShaderModuleDescriptor shaderDesc;
-#ifdef WEBGPU_BACKEND_WGPU
-    shaderDesc.hintCount = 0;
-    shaderDesc.hints     = nullptr;
-#endif
+    std::cout << "Creating shader module..." << std::endl;
+    ShaderModule shaderModule = ResourceManager::LoadShaderModule(RESOURCE_DIR "/shader.wgsl", *m_device);
+    std::cout << "Shader module: " << shaderModule << std::endl;
 
-    // We use the extension mechanism to specify the WGSL part of the shader module descriptor
-    ShaderModuleWGSLDescriptor shaderCodeDesc;
-    // Set the chained struct's header
-    shaderCodeDesc.chain.next  = nullptr;
-    shaderCodeDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
-    // Connect the chain
-    shaderDesc.nextInChain    = &shaderCodeDesc.chain;
-    shaderCodeDesc.code      = shaderSource;
-    ShaderModule shaderModule = m_device->createShaderModule(shaderDesc);
+    // Check for errors
+    if (shaderModule == nullptr) {
+        std::cerr << "Could not load shader!" << std::endl;
+        exit(1);
+    }
 
     // Create the render pipeline
     RenderPipelineDescriptor pipelineDesc;
@@ -307,7 +277,7 @@ void Application::InitializePipeline() {
     // Describe the color attribute
     vertexAttribs[1].shaderLocation = 1; // @location(1)
     vertexAttribs[1].format = VertexFormat::Float32x3; // different type!
-    vertexAttribs[1].offset = 2 * sizeof(float); // non null offset!
+    vertexAttribs[1].offset = 2 * sizeof(float); // non-null offset!
 
     vertexBufferLayout.attributeCount = static_cast<uint32_t>(vertexAttribs.size());
     vertexBufferLayout.attributes = vertexAttribs.data();
@@ -390,26 +360,25 @@ void Application::InitializePipeline() {
 }
 
 void Application::InitializeBuffers() {
-    // Define point data
-    // The de-duplicated list of point positions
-    std::vector<float> pointData = {
-        // x,   y,     r,   g,   b
-        -0.5, -0.5,   1.0, 0.0, 0.0, // Point #0
-        +0.5, -0.5,   0.0, 1.0, 0.0, // Point #1
-        +0.5, +0.5,   0.0, 0.0, 1.0, // Point #2
-        -0.5, +0.5,   1.0, 1.0, 0.0  // Point #3
-    };
+    // 1. Load from disk into CPU-side vectors pointData and indexData
+    // Define data vectors, but without filling them in
+    std::vector<float> pointData;
+    std::vector<uint16_t> indexData;
 
-    // Define index data
-    // This is a list of indices referencing positions in the pointData
-    std::vector<uint16_t> indexData = {
-        0, 1, 2, // Triangle #0 connects points #0, #1 and #2
-        0, 2, 3  // Triangle #1 connects points #0, #2 and #3
-    };
+    // Here we use the new 'loadGeometry' function:
+    bool success = ResourceManager::LoadGeometry(RESOURCE_DIR "/webgpu.txt", pointData, indexData);
+    // bool success = ResourceManager::LoadGeometry( "/Users/stanley/CLionProjects/bjtu_wgpu_renderer/resources/webgpu.txt", pointData, indexData);
 
+    // Check for errors
+    if (!success) {
+        std::cerr << "Could not load geometry!" << std::endl;
+        exit(1);
+    }
+
+    // We now store the index count rather than the vertex count
     m_indexCount = static_cast<uint32_t>(indexData.size());
 
-    // Create point buffer
+    // 2. Create GPU buffers and upload data to them
     BufferDescriptor bufferDesc;
     bufferDesc.size = pointData.size() * sizeof(float);
     bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex; // Vertex usage here!
