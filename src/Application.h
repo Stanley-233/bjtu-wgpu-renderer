@@ -17,6 +17,8 @@ public:
     // Set the size of the window
     Application& SetWindowSize(int width, int height);
 
+    Application& SetSurfaceFormat(wgpu::TextureFormat format);
+
     // Initialize everything and return true if it went all right
     bool Initialize();
 

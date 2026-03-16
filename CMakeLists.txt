@@ -22,6 +22,8 @@ add_subdirectory(ext/glfw3webgpu)
 
 add_subdirectory(ext/magic_enum)
 
+add_subdirectory(ext/toml++)
+
 add_executable(bjtu_wgpu_renderer src/main.cpp
         src/utils.cpp
         src/utils.h
@@ -36,7 +38,11 @@ target_compile_definitions(bjtu_wgpu_renderer PRIVATE
         RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
 )
 
-target_link_libraries(bjtu_wgpu_renderer PRIVATE webgpu glfw glfw3webgpu magic_enum)
+target_link_libraries(bjtu_wgpu_renderer PRIVATE
+        webgpu glfw glfw3webgpu
+        magic_enum
+        toml
+)
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,
 # so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)

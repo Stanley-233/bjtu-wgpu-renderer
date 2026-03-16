@@ -21,6 +21,11 @@ Application& Application::SetWindowSize(int width, int height) {
     return *this;
 }
 
+Application& Application::SetSurfaceFormat(wgpu::TextureFormat format) {
+    m_surfaceFormat = format;
+    return *this;
+}
+
 bool Application::Initialize() {
     // Open window
     glfwInit();
@@ -73,7 +78,10 @@ bool Application::Initialize() {
     config.width     = m_windowWidth;
     config.height    = m_windowHeight;
     config.usage     = TextureUsage::RenderAttachment;
-    m_surfaceFormat = TextureFormat::BGRA8Unorm;
+    if (m_surfaceFormat == TextureFormat::Undefined) {
+        std::cout << "[Initialize] Surface format not specified, trying to get the preferred format..." << std::endl;
+        m_surfaceFormat = m_surface->getPreferredFormat(*adapter);
+    }
     config.format    = m_surfaceFormat;
 
     std::cout << "Surface format: " << magic_enum::enum_name<WGPUTextureFormat>(m_surfaceFormat) << std::endl;
