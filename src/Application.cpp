@@ -103,8 +103,7 @@ bool Application::Initialize() {
 
     InitializePipeline();
     InitializeBuffers();
-
-    TestBuffers();
+    InitializeBindGroups();
 
     return true;
 }
@@ -121,6 +120,9 @@ bool Application::IsRunning() const {
 
 void Application::MainLoop() {
     glfwPollEvents();
+    // Update uniform buffer
+    float t = static_cast<float>(glfwGetTime()); // glfwGetTime returns a double
+    m_queue->writeBuffer(*m_uniformBuffer, 0, &t, sizeof(float));
 
     // Get the next target texture view
     raii::TextureView targetView = GetNextSurfaceTextureView();
@@ -160,6 +162,9 @@ void Application::MainLoop() {
     // Set vertex buffer while encoding the render pass
     renderPass->setVertexBuffer(0, *m_pointBuffer, 0, m_pointBuffer->getSize());
     renderPass->setIndexBuffer(*m_indexBuffer, IndexFormat::Uint16, 0, m_indexBuffer->getSize());
+
+    // Set binding group here!
+    renderPass->setBindGroup(0, *m_bindGroup, 0, nullptr);
 
     // We use the `vertexCount` variable instead of hard-coding the vertex count
     renderPass->drawIndexed(m_indexCount, 1, 0, 0, 0);
@@ -240,6 +245,13 @@ RequiredLimits Application::GetRequiredLimits(Adapter adapter) {
     // they are the only ones we are may forward from the adapter's supported limits.
     requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
     requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
+
+    // We use at most 1 bind group for now
+    requiredLimits.limits.maxBindGroups = 1;
+    // We use at most 1 uniform buffer per stage
+    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
+    // Uniform structs have a size of maximum 16 float (more than what we need)
+    requiredLimits.limits.maxUniformBufferBindingSize = 16 * 4;
 
 #ifndef __EMSCRIPTEN__
     // There is a maximum of 3 float forwarded from vertex to fragment shader
@@ -359,7 +371,29 @@ void Application::InitializePipeline() {
 
     // Default value as well (irrelevant for count = 1 anyway)
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
-    pipelineDesc.layout                             = nullptr;
+
+    // Define binding layout (don't forget to = Default)
+    BindGroupLayoutEntry bindingLayout = Default;
+    // The binding index as used in the @binding attribute in the shader
+    bindingLayout.binding = 0;
+    // The stage that needs to access this resource
+    bindingLayout.visibility = ShaderStage::Vertex;
+    bindingLayout.buffer.type = BufferBindingType::Uniform;
+    bindingLayout.buffer.minBindingSize = 4 * sizeof(float);
+
+    // Create a bind group layout
+    BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+    bindGroupLayoutDesc.entryCount = 1;
+    bindGroupLayoutDesc.entries = &bindingLayout;
+    m_bindGroupLayout = m_device->createBindGroupLayout(bindGroupLayoutDesc);
+
+    // Create the pipeline layout
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.bindGroupLayoutCount = 1;
+    layoutDesc.bindGroupLayouts     = reinterpret_cast<WGPUBindGroupLayout*>(m_bindGroupLayout.ptr());
+    m_layout                        = m_device->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *m_layout;
 
     m_pipeline = m_device->createRenderPipeline(pipelineDesc);
 
@@ -401,6 +435,42 @@ void Application::InitializeBuffers() {
     m_indexBuffer = m_device->createBuffer(bufferDesc);
 
     m_queue->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
+
+    // Create uniform buffer (reusing bufferDesc from other buffer creations)
+    // The buffer will only contain 1 float with the value of uTime
+    // then 3 floats left empty but needed by alignment constraints
+    bufferDesc.size = 4 * sizeof(float);
+
+    // Make sure to flag the buffer as BufferUsage::Uniform
+    bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
+
+    // 3. Create and fill uniform buffer
+    bufferDesc.mappedAtCreation = false;
+    m_uniformBuffer = m_device->createBuffer(bufferDesc);
+    float currentTime = 1.0f;
+    m_queue->writeBuffer(*m_uniformBuffer, 0, &currentTime, sizeof(float));
+}
+
+void Application::InitializeBindGroups() {
+    // Create a binding
+    BindGroupEntry binding{};
+    // The index of the binding (the entries in bindGroupDesc can be in any order)
+    binding.binding = 0;
+    // The buffer it is actually bound to
+    binding.buffer = *m_uniformBuffer;
+    // We can specify an offset within the buffer, so that a single buffer can hold
+    // multiple uniform blocks.
+    binding.offset = 0;
+    // And we specify again the size of the buffer.
+    binding.size = 4 * sizeof(float);
+
+    // A bind group contains one or multiple bindings
+    BindGroupDescriptor bindGroupDesc{};
+    bindGroupDesc.layout = *m_bindGroupLayout;
+    // There must be as many bindings as declared in the layout!
+    bindGroupDesc.entryCount = 1;
+    bindGroupDesc.entries = &binding;
+    m_bindGroup = m_device->createBindGroup(bindGroupDesc);
 }
 
 void Application::TestBuffers() {

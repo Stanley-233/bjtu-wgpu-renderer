@@ -24,6 +24,10 @@ add_subdirectory(ext/magic_enum)
 
 add_subdirectory(ext/toml++)
 
+add_subdirectory(ext/glm)
+
+add_subdirectory(ext/tiny_obj_loader)
+
 add_executable(bjtu_wgpu_renderer src/main.cpp
         src/utils.cpp
         src/utils.h
@@ -42,6 +46,8 @@ target_link_libraries(bjtu_wgpu_renderer PRIVATE
         webgpu glfw glfw3webgpu
         magic_enum
         toml
+        glm
+        tiny_obj_loader
 )
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,

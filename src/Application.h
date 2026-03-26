@@ -51,6 +51,10 @@ private:
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;
     wgpu::raii::Surface                  m_surface;
+    wgpu::raii::Buffer                   m_uniformBuffer;
+    wgpu::raii::PipelineLayout           m_layout;
+    wgpu::raii::BindGroupLayout          m_bindGroupLayout;
+    wgpu::raii::BindGroup                m_bindGroup;
     std::unique_ptr<wgpu::ErrorCallback> m_uncapturedErrorCallbackHandle;
     wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
     wgpu::raii::RenderPipeline           m_pipeline;
@@ -61,6 +65,8 @@ private:
     uint32_t           m_indexCount = 0;
 
     void InitializeBuffers();
+
+    void InitializeBindGroups();
 };
 
 
