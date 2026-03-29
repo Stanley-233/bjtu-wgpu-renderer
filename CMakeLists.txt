@@ -47,8 +47,8 @@ add_executable(bjtu_wgpu_renderer
         src/scene/SceneManager.h
         src/scene/Scene2D.cpp
         src/scene/Scene2D.h
-        src/scene/Transform2D.cpp
-        src/scene/Transform2D.h
+        src/math/Transform2D.cpp
+        src/math/Transform2D.h
         src/resource/ResourceManager.cpp
         src/resource/ResourceManager.h
 )

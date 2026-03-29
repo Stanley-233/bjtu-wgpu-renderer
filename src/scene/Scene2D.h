@@ -2,7 +2,7 @@
 #define BJTU_WGPU_RENDERER_SCENE2D_H
 
 #include "Scene.h"
-#include "Transform2D.h"
+#include "../math/Transform2D.h"
 #include "../webgpu-raii.hpp"
 
 class Scene2D : public IScene {
