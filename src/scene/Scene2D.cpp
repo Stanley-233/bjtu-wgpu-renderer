@@ -19,10 +19,6 @@ void Scene2D::Initialize(RenderContext& ctx) {
     InitializeBindGroups(ctx);
 }
 
-void Scene2D::Update(const float dt) {
-    (void)dt;
-}
-
 void Scene2D::Render(RenderContext& ctx) {
     const float t = static_cast<float>(glfwGetTime());
     ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &t, sizeof(float));
@@ -63,6 +59,49 @@ void Scene2D::Render(RenderContext& ctx) {
 
 const char* Scene2D::Name() const {
     return "Scene2D";
+}
+
+// TODO: apply pending transform input in Update once input mapping is wired.
+void Scene2D::Update(const float dt) {
+    (void)dt;
+}
+
+// TODO: wire transform results into render-time uniform data.
+void Scene2D::OnTransformAction(ETransformAction action, float amountX, float amountY) {
+    switch (action) {
+        case ETransformAction::Translate:
+            ApplyTransform(Transform2D::Translation(amountX, amountY));
+            break;
+        case ETransformAction::Rotate:
+            ApplyTransform(Transform2D::Rotation(amountX));
+            break;
+        case ETransformAction::Scale:
+            ApplyTransform(Transform2D::Scale(amountX, amountY));
+            break;
+        case ETransformAction::Shear:
+            ApplyTransform(Transform2D::Shear(amountX, amountY));
+            break;
+        case ETransformAction::ReflectX:
+            ApplyTransform(Transform2D::ReflectionX());
+            break;
+        case ETransformAction::ReflectY:
+            ApplyTransform(Transform2D::ReflectionY());
+            break;
+        case ETransformAction::Reset:
+            ResetTransform();
+            break;
+    }
+}
+
+// TODO: upload/propagate composed transform to GPU uniform once shader supports it.
+void Scene2D::ApplyTransform(const Transform2D& t) {
+    m_transform.Combine(t);
+}
+
+// TODO: sync reset state with future transform uniform payload.
+void Scene2D::ResetTransform() {
+    m_transform.Reset();
+    m_pendingDelta.Reset();
 }
 
 void Scene2D::InitializeBuffers(RenderContext& ctx) {

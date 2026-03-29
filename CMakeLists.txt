@@ -28,10 +28,16 @@ add_subdirectory(ext/glm)
 
 add_subdirectory(ext/tiny_obj_loader)
 
+add_subdirectory(ext/entt)
+
 add_executable(bjtu_wgpu_renderer
         src/main.cpp
         src/app/Application.cpp
         src/app/Application.h
+        src/input/InputManager.cpp
+        src/input/InputManager.h
+        src/input/InputEventLogger.cpp
+        src/input/InputEventLogger.h
         src/render/RenderContext.cpp
         src/render/RenderContext.h
         src/render/PipelineLibrary.cpp
@@ -41,6 +47,8 @@ add_executable(bjtu_wgpu_renderer
         src/scene/SceneManager.h
         src/scene/Scene2D.cpp
         src/scene/Scene2D.h
+        src/scene/Transform2D.cpp
+        src/scene/Transform2D.h
         src/resource/ResourceManager.cpp
         src/resource/ResourceManager.h
 )
@@ -55,6 +63,7 @@ target_link_libraries(bjtu_wgpu_renderer PRIVATE
         toml
         glm
         tiny_obj_loader
+        entt
 )
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,

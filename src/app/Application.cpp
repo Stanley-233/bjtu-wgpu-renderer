@@ -30,12 +30,15 @@ bool Application::Initialize() {
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
     m_sceneManager.InitializeAll(m_renderContext);
     m_sceneManager.SetActiveScene(ESceneType::Scene2D);
+    m_inputManager.SetDebugEnabled(true);
+    BindInputForActiveScene();
 
     m_lastFrameTime = glfwGetTime();
     return true;
 }
 
 void Application::Terminate() {
+    UnbindInputFromActiveScene();
     m_renderContext.Terminate();
 }
 
@@ -68,16 +71,28 @@ void Application::Tick(float deltaTime) {
 }
 
 void Application::HandleKey(int key, int action, int mods) {
-    (void)mods;
-    if (action != GLFW_PRESS) {
-        return;
-    }
-
-    if (key == GLFW_KEY_1) {
+    if (action == GLFW_PRESS && key == GLFW_KEY_1) {
         SwitchScene(ESceneType::Scene2D);
     }
+
+    m_inputManager.EmitKeyEvent(key, action, mods);
 }
 
 void Application::SwitchScene(ESceneType type) {
+    UnbindInputFromActiveScene();
     m_sceneManager.SetActiveScene(type);
+    BindInputForActiveScene();
+}
+
+void Application::BindInputForActiveScene() {
+    m_boundInputScene = &m_sceneManager.ActiveScene();
+    m_inputManager.SubscribeTransformActions(*m_boundInputScene);
+}
+
+void Application::UnbindInputFromActiveScene() {
+    if (m_boundInputScene == nullptr) {
+        return;
+    }
+    m_inputManager.UnsubscribeTransformActions(*m_boundInputScene);
+    m_boundInputScene = nullptr;
 }

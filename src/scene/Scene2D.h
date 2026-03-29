@@ -2,6 +2,7 @@
 #define BJTU_WGPU_RENDERER_SCENE2D_H
 
 #include "Scene.h"
+#include "Transform2D.h"
 #include "../webgpu-raii.hpp"
 
 class Scene2D : public IScene {
@@ -14,10 +15,16 @@ public:
 
     const char* Name() const override;
 
+    void OnTransformAction(ETransformAction action, float amountX, float amountY) override;
+
 private:
     void InitializeBuffers(RenderContext& ctx);
 
     void InitializeBindGroups(RenderContext& ctx);
+
+    void ApplyTransform(const Transform2D& t);
+
+    void ResetTransform();
 
     wgpu::raii::Buffer          m_uniformBuffer;
     wgpu::raii::PipelineLayout  m_layout;
@@ -27,6 +34,8 @@ private:
     wgpu::raii::Buffer          m_pointBuffer;
     wgpu::raii::Buffer          m_indexBuffer;
     uint32_t                    m_indexCount = 0;
+    Transform2D                 m_transform;
+    Transform2D                 m_pendingDelta;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE2D_H
