@@ -1,7 +1,7 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 
 #include <toml.hpp>
-#include "Application.h"
+#include "app/Application.h"
 
 int main() {
     auto config = toml::parse_file(RESOURCE_DIR "/config.toml");
@@ -19,7 +19,7 @@ int main() {
         return 1;
     }
 
-    auto success = app
+    const auto success = app
         .SetWindowSize(width, height)
         .Initialize();
 
@@ -30,7 +30,7 @@ int main() {
 
 #ifdef __EMSCRIPTEN__
     auto callback = [](void* arg) {
-        auto *pApp = reinterpret_cast<Application*>(arg);
+        auto* pApp = reinterpret_cast<Application*>(arg);
         pApp->MainLoop();
     };
     emscripten_set_main_loop_arg(callback, &app, 0, true);

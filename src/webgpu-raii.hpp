@@ -91,7 +91,7 @@ namespace wgpu::raii {
             other.m_raw = nullptr;
         }
 
-        Raw* ptr() {
+        Raw* Ptr() {
             return &m_raw;
         }
 

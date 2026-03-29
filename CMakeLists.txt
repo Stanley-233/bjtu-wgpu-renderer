@@ -28,15 +28,22 @@ add_subdirectory(ext/glm)
 
 add_subdirectory(ext/tiny_obj_loader)
 
-add_executable(bjtu_wgpu_renderer src/main.cpp
-        src/utils.cpp
-        src/utils.h
-        src/application.cpp
-        src/application.h
-        src/ResourceManager.cpp
-        src/ResourceManager.h
-        src/ResourceManager.cpp
-        src/ResourceManager.h)
+add_executable(bjtu_wgpu_renderer
+        src/main.cpp
+        src/app/Application.cpp
+        src/app/Application.h
+        src/render/RenderContext.cpp
+        src/render/RenderContext.h
+        src/render/PipelineLibrary.cpp
+        src/render/PipelineLibrary.h
+        src/scene/Scene.h
+        src/scene/SceneManager.cpp
+        src/scene/SceneManager.h
+        src/scene/Scene2D.cpp
+        src/scene/Scene2D.h
+        src/resource/ResourceManager.cpp
+        src/resource/ResourceManager.h
+)
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
         RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
