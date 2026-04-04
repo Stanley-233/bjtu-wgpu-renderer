@@ -51,6 +51,8 @@ add_executable(bjtu_wgpu_renderer
         src/math/Transform2D.h
         src/resource/ResourceManager.cpp
         src/resource/ResourceManager.h
+        src/math/Transform3D.cpp
+        src/math/Transform3D.h
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
