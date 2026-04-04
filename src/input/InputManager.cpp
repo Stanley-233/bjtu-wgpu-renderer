@@ -4,6 +4,9 @@
 
 namespace {
 constexpr float kTranslateStep = 0.05f;
+constexpr float kRotateStep = 0.1f; // 旋转步长（弧度）
+constexpr float kScaleStep = 1.1f; // 缩放步长
+constexpr float kShearStep = 0.1f; // 剪切步长
 }
 
 InputManager::InputManager() {
@@ -53,5 +56,22 @@ void InputManager::InitializeDefaultBindings() {
     m_keyBindings.emplace(GLFW_KEY_S, TransformBinding{ETransformAction::Translate, 0.0f, -kTranslateStep});
     m_keyBindings.emplace(GLFW_KEY_A, TransformBinding{ETransformAction::Translate, -kTranslateStep, 0.0f});
     m_keyBindings.emplace(GLFW_KEY_D, TransformBinding{ETransformAction::Translate, kTranslateStep, 0.0f});
-    // TODO: 旋转、缩放等按键绑定
+    // 旋转变换
+    m_keyBindings.emplace(GLFW_KEY_Q, TransformBinding{ETransformAction::Rotate, kRotateStep, 0.0f});
+    m_keyBindings.emplace(GLFW_KEY_E, TransformBinding{ETransformAction::Rotate, -kRotateStep, 0.0f});
+    // 缩放变换
+    m_keyBindings.emplace(GLFW_KEY_Z, TransformBinding{ETransformAction::Scale, kScaleStep, kScaleStep});
+    m_keyBindings.emplace(GLFW_KEY_X, TransformBinding{ETransformAction::Scale, 1.0f / kScaleStep, 1.0f / kScaleStep});
+    // 单轴缩放变换
+    m_keyBindings.emplace(GLFW_KEY_F, TransformBinding{ETransformAction::Scale, kScaleStep, 1.0f}); // X轴放大
+    m_keyBindings.emplace(GLFW_KEY_H, TransformBinding{ETransformAction::Scale, 1.0f / kScaleStep, 1.0f}); // X轴缩小
+    m_keyBindings.emplace(GLFW_KEY_T, TransformBinding{ETransformAction::Scale, 1.0f, kScaleStep}); // Y轴放大
+    m_keyBindings.emplace(GLFW_KEY_G, TransformBinding{ETransformAction::Scale, 1.0f, 1.0f / kScaleStep}); // Y轴缩小
+    // 剪切变换
+    m_keyBindings.emplace(GLFW_KEY_J, TransformBinding{ETransformAction::Shear, kShearStep, 0.0f}); // X方向剪切
+    m_keyBindings.emplace(GLFW_KEY_L, TransformBinding{ETransformAction::Shear, -kShearStep, 0.0f}); // X方向反向剪切
+    m_keyBindings.emplace(GLFW_KEY_I, TransformBinding{ETransformAction::Shear, 0.0f, kShearStep}); // Y方向剪切
+    m_keyBindings.emplace(GLFW_KEY_K, TransformBinding{ETransformAction::Shear, 0.0f, -kShearStep}); // Y方向反向剪切
+    // 重置变换
+    m_keyBindings.emplace(GLFW_KEY_R, TransformBinding{ETransformAction::Reset, 0.0f, 0.0f});
 }

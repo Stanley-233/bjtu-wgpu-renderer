@@ -8,16 +8,19 @@ struct VertexOutput {
     @location(0) color: vec3f,
 };
 
-//@group(0) @binding(0) var<uniform> uTime: f32;
+@group(0) @binding(0) var<uniform> uTransform: mat3x3f;
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     let ratio = 640.0 / 480.0;
-    // We now move the scene depending on the time!
+    
+    // Apply transform matrix to position
     var offset = vec2f(-0.6875, -0.463);
-//    offset += 0.3 * vec2f(cos(uTime), sin(uTime));
-    out.position = vec4f(in.position.x + offset.x, (in.position.y + offset.y) * ratio, 0.0, 1.0);
+    var transformed = uTransform * vec3f(in.position+offset, 1.0);
+    var ndc_position = vec2f(transformed.x, (transformed.y) * ratio);
+    
+    out.position = vec4f(ndc_position, 0.0, 1.0);
     out.color = in.color;
     return out;
 }

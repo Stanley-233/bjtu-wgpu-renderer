@@ -1,7 +1,6 @@
 #include "Transform2D.h"
 #include <cmath>
 
-// TODO: decide whether Identity should return cached singleton or a value copy.
 Transform2D Transform2D::Identity() {
     return Transform2D{};
 }
