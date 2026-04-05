@@ -4,15 +4,13 @@
 #include "loaders/ObjLoader.h"
 #include "loaders/ShaderLoader.h"
 #include "loaders/TomlSceneLoader.h"
-#include "models/MeshData3D.h"
-#include "models/SceneDescription.h"
 
 bool ResourceManager::LoadGeometry(
     const std::filesystem::path& path,
     std::vector<float>&          pointData,
     std::vector<uint16_t>&       indexData
 ) {
-    const LegacyTxtGeometryLoader loader{};
+    constexpr LegacyTxtGeometryLoader loader{};
     return loader.Load(path, pointData, indexData);
 }
 
@@ -33,6 +31,6 @@ bool ResourceManager::LoadSceneFromToml(
 }
 
 wgpu::ShaderModule ResourceManager::LoadShaderModule(const std::filesystem::path& path, const wgpu::Device device) {
-    const ShaderLoader loader{};
+    constexpr ShaderLoader loader{};
     return loader.Load(path, device);
 }

@@ -101,6 +101,7 @@ PipelineLibrary::Pipeline2D PipelineLibrary::CreateColor2D(RenderContext& ctx) {
 }
 
 PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3D(RenderContext& ctx) {
+    // TODO: 实现 3D 渲染管线创建（shader、vertex layout、bind group layout、pipeline layout、render pipeline）。
     (void)ctx;
     return {};
 }

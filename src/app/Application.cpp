@@ -31,8 +31,8 @@ bool Application::Initialize() {
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
     m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
     m_sceneManager.InitializeAll(m_renderContext);
-    m_sceneManager.SetActiveScene(ESceneType::Scene2D);
-    m_inputManager.SetDebugEnabled(true);
+    m_sceneManager.SetActiveScene(ESceneType::Scene3D);
+    m_inputManager.SetDebugEnabled(false);
     BindInputForActiveScene();
 
     m_lastFrameTime = glfwGetTime();

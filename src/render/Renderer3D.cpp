@@ -4,7 +4,6 @@
 
 #include "PipelineLibrary.h"
 #include "RenderContext.h"
-#include "../scene/camera/Camera.h"
 #include "../scene/scene3d/Object3D.h"
 
 void Renderer3D::Initialize(RenderContext& ctx) {
@@ -15,6 +14,7 @@ void Renderer3D::Initialize(RenderContext& ctx) {
 }
 
 void Renderer3D::SyncScene(const std::vector<Object3D>& objects, const Camera& camera) {
+    // TODO: 同步场景数据到 GPU（上传顶点/索引、更新模型与相机 uniform、创建/更新 bind group）。
     (void)objects;
     (void)camera;
 }
@@ -44,6 +44,7 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
     renderPassDesc.timestampWrites            = nullptr;
 
     wgpu::raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
+    // TODO: 在此绑定 3D pipeline、bind group、vertex/index buffer，并发起 drawIndexed
     renderPass->end();
 
     ctx.SubmitAndPresent(encoder);

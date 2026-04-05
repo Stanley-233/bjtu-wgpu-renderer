@@ -17,7 +17,9 @@ public:
     [[nodiscard]] const MeshData3D& Mesh() const;
 
 private:
+    // Transform3D 本质上就是 Model 矩阵，把模型空间变换到世界空间
     Transform3D m_transform{};
+    // 存储模型空间的Mesh信息
     MeshData3D  m_mesh{};
 };
 

@@ -2,10 +2,9 @@
 
 #include <GLFW/glfw3.h>
 
-namespace {
 constexpr float kTranslateStep = 0.05f;
 
-bool ShouldSuppressNoBindingLog(const int key) {
+static bool ShouldSuppressNoBindingLog(const int key) {
     switch (key) {
         case GLFW_KEY_1:
         case GLFW_KEY_2:
@@ -15,7 +14,6 @@ bool ShouldSuppressNoBindingLog(const int key) {
         default:
             return false;
     }
-}
 }
 
 InputManager::InputManager() {

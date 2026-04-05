@@ -2,16 +2,46 @@
 
 #include <memory>
 
+#include "../../resource/ResourceManager.h"
+#include "../../resource/models/SceneDescription.h"
 #include "../camera/OrthographicCamera.h"
 #include "../camera/PerspectiveCamera.h"
 #include "../../render/RenderContext.h"
 
 void Scene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
-    SetCameraMode(ECameraMode::Perspective);
+
+    SceneDescription sceneDescription{};
+    if (!ResourceManager::LoadSceneFromToml("resources/scene3d.toml", sceneDescription)) {
+        std::cerr << "[Scene3D] Failed to load scene description from resources/scene3d.toml" << std::endl;
+        SetCameraMode(ECameraMode::Perspective);
+        m_objects.clear();
+        return;
+    }
+
+    SetCameraMode(
+        sceneDescription.camera.projectionType == ECameraProjectionType::Orthographic
+            ? ECameraMode::Orthographic
+            : ECameraMode::Perspective
+    );
+    if (m_camera != nullptr) {
+        m_camera->SetPose(
+            sceneDescription.camera.position,
+            sceneDescription.camera.target,
+            sceneDescription.camera.up
+        );
+    }
+
+    m_objects.clear();
+    m_objects.reserve(sceneDescription.objects.size());
+    for (const ObjectDescription& objectDescription : sceneDescription.objects) {
+        m_objects.emplace_back();
+        m_objects.back().SetMesh(objectDescription.mesh);
+    }
 }
 
 void Scene3D::Update(float dt) {
+    // TODO: 实现 3D 逐帧更新逻辑
     (void)dt;
 }
 
@@ -28,29 +58,11 @@ const char* Scene3D::Name() const {
     return "Scene3D";
 }
 
+// TODO: 对该场景控制的所有物体进行变换操作
 void Scene3D::OnTransformAction(const ETransformAction action, const float amountX, const float amountY) {
-    if (m_objects.empty()) {
-        return;
-    }
-
-    Transform3D delta = Transform3D::Identity();
-    switch (action) {
-        case ETransformAction::Translate:
-            delta = Transform3D::Translation(amountX, amountY, 0.0f);
-            break;
-        case ETransformAction::Rotate:
-            delta = Transform3D::RotationZ(amountX);
-            break;
-        case ETransformAction::Scale:
-            delta = Transform3D::Scale(amountX, amountY, 1.0f);
-            break;
-        case ETransformAction::Shear:
-        case ETransformAction::ReflectX:
-        case ETransformAction::ReflectY:
-        case ETransformAction::Reset:
-            break;
-    }
-    m_objects.front().Transform().Combine(delta);
+    (void)action;
+    (void)amountX;
+    (void)amountY;
 }
 
 void Scene3D::ToggleCameraMode() {

@@ -5,6 +5,7 @@ Transform3D Transform3D::Identity() {
 }
 
 Transform3D Transform3D::Translation(float tx, float ty, float tz) {
+    // TODO: 构造并返回 3D 平移矩阵
     (void)tx;
     (void)ty;
     (void)tz;
@@ -12,21 +13,25 @@ Transform3D Transform3D::Translation(float tx, float ty, float tz) {
 }
 
 Transform3D Transform3D::RotationX(float radians) {
+    // TODO: 构造并返回绕 X 轴旋转矩阵
     (void)radians;
     return Transform3D{};
 }
 
 Transform3D Transform3D::RotationY(float radians) {
+    // TODO: 构造并返回绕 Y 轴旋转矩阵
     (void)radians;
     return Transform3D{};
 }
 
 Transform3D Transform3D::RotationZ(float radians) {
+    // TODO: 构造并返回绕 Z 轴旋转矩阵
     (void)radians;
     return Transform3D{};
 }
 
 Transform3D Transform3D::Scale(float sx, float sy, float sz) {
+    // TODO: 构造并返回 3D 缩放矩阵
     (void)sx;
     (void)sy;
     (void)sz;
