@@ -43,6 +43,18 @@ void InputEventLogger::OnTransformActionEvent(const TransformActionEvent& event)
 
 const char* InputEventLogger::KeyName(const int key) {
     switch (key) {
+        case GLFW_KEY_1:
+            return "GLFW_KEY_1";
+        case GLFW_KEY_2:
+            return "GLFW_KEY_2";
+        case GLFW_KEY_3:
+            return "GLFW_KEY_3";
+        case GLFW_KEY_C:
+            return "GLFW_KEY_C";
+        case GLFW_KEY_Q:
+            return "GLFW_KEY_Q";
+        case GLFW_KEY_E:
+            return "GLFW_KEY_E";
         case GLFW_KEY_W:
             return "GLFW_KEY_W";
         case GLFW_KEY_A:

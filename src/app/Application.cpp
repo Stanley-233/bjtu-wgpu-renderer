@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "../scene/Scene2D.h"
+#include "../scene/scene3d/Scene3D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;
@@ -28,6 +29,7 @@ bool Application::Initialize() {
     glfwSetKeyCallback(m_renderContext.GetWindow(), GLFWKeyCallback);
 
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
+    m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
     m_sceneManager.InitializeAll(m_renderContext);
     m_sceneManager.SetActiveScene(ESceneType::Scene2D);
     m_inputManager.SetDebugEnabled(true);
@@ -72,7 +74,19 @@ void Application::Tick(float deltaTime) {
 
 void Application::HandleKey(int key, int action, int mods) {
     if (action == GLFW_PRESS && key == GLFW_KEY_1) {
+        std::cout << "[Application] Key 1" << std::endl;
         SwitchScene(ESceneType::Scene2D);
+        std::cout << "[Application] Switch to Scene2D" << std::endl;
+    }
+    if (action == GLFW_PRESS && key == GLFW_KEY_2) {
+        std::cout << "[Application] Key 2" << std::endl;
+        SwitchScene(ESceneType::Scene3D);
+        std::cout << "[Application] Switch to Scene3D" << std::endl;
+    }
+    if (action == GLFW_PRESS && key == GLFW_KEY_C) {
+        if (auto* scene3D = dynamic_cast<Scene3D*>(&m_sceneManager.ActiveScene()); scene3D != nullptr) {
+            scene3D->ToggleCameraMode();
+        }
     }
 
     m_inputManager.EmitKeyEvent(key, action, mods);

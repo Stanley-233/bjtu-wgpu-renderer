@@ -5,6 +5,7 @@ class RenderContext;
 
 enum class ESceneType {
     Scene2D,
+    Scene3D,
 };
 
 enum class ETransformAction {

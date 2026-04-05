@@ -5,24 +5,19 @@
 
 class Transform3D {
 public:
-    // 根据 WGSL 标准，mat4不需要padding
     static constexpr uint64_t kMat4UniformSize = sizeof(glm::mat4);
 
     static Transform3D Identity();
 
-    static Transform3D Translation(float tx, float ty);
+    static Transform3D Translation(float tx, float ty, float tz);
 
-    static Transform3D Rotation(float radians);
+    static Transform3D RotationX(float radians);
 
-    static Transform3D Scale(float sx, float sy);
+    static Transform3D RotationY(float radians);
 
-    static Transform3D Shear(float shx, float shy);
+    static Transform3D RotationZ(float radians);
 
-    enum EReflectionType {
-        ReflectX, ReflectY, ReflectZ
-    };
-
-    static Transform3D Reflection(EReflectionType type);
+    static Transform3D Scale(float sx, float sy, float sz);
 
     Transform3D& Combine(const Transform3D& rhs);
 

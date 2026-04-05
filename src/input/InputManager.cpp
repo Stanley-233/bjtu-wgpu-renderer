@@ -4,6 +4,18 @@
 
 namespace {
 constexpr float kTranslateStep = 0.05f;
+
+bool ShouldSuppressNoBindingLog(const int key) {
+    switch (key) {
+        case GLFW_KEY_1:
+        case GLFW_KEY_2:
+        case GLFW_KEY_3:
+        case GLFW_KEY_C:
+            return true;
+        default:
+            return false;
+    }
+}
 }
 
 InputManager::InputManager() {
@@ -30,7 +42,9 @@ void InputManager::EmitKeyEvent(const int key, const int action, const int mods)
 
     const auto it = m_keyBindings.find(key);
     if (it == m_keyBindings.end()) {
-        m_eventLogger.LogNoBinding(key);
+        if (!ShouldSuppressNoBindingLog(key)) {
+            m_eventLogger.LogNoBinding(key);
+        }
         return;
     }
 

@@ -13,7 +13,15 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
+    struct Pipeline3D {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
     static Pipeline2D CreateColor2D(RenderContext& ctx);
+
+    static Pipeline3D CreateColor3D(RenderContext& ctx);
 };
 
 #endif // BJTU_WGPU_RENDERER_PIPELINELIBRARY_H

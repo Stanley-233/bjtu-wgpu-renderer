@@ -4,36 +4,32 @@ Transform3D Transform3D::Identity() {
     return Transform3D{};
 }
 
-// TODO: 平移变换
-Transform3D Transform3D::Translation(float tx, float ty) {
+Transform3D Transform3D::Translation(float tx, float ty, float tz) {
     (void)tx;
     (void)ty;
+    (void)tz;
     return Transform3D{};
 }
 
-// TODO: 旋转变换
-Transform3D Transform3D::Rotation(float radians) {
+Transform3D Transform3D::RotationX(float radians) {
     (void)radians;
     return Transform3D{};
 }
 
-// TODO: 缩放变换
-Transform3D Transform3D::Scale(float sx, float sy) {
+Transform3D Transform3D::RotationY(float radians) {
+    (void)radians;
+    return Transform3D{};
+}
+
+Transform3D Transform3D::RotationZ(float radians) {
+    (void)radians;
+    return Transform3D{};
+}
+
+Transform3D Transform3D::Scale(float sx, float sy, float sz) {
     (void)sx;
     (void)sy;
-    return Transform3D{};
-}
-
-// TODO: 切变变换
-Transform3D Transform3D::Shear(float shx, float shy) {
-    (void)shx;
-    (void)shy;
-    return Transform3D{};
-}
-
-// TODO: 反转变换
-Transform3D Transform3D::Reflection(EReflectionType type) {
-    (void)type;
+    (void)sz;
     return Transform3D{};
 }
 
