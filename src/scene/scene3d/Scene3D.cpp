@@ -6,14 +6,13 @@
 #include "../../resource/models/SceneDescription.h"
 #include "../camera/OrthographicCamera.h"
 #include "../camera/PerspectiveCamera.h"
-#include "../../render/RenderContext.h"
 
 void Scene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
 
     SceneDescription sceneDescription{};
-    if (!ResourceManager::LoadSceneFromToml("resources/scene3d.toml", sceneDescription)) {
-        std::cerr << "[Scene3D] Failed to load scene description from resources/scene3d.toml" << std::endl;
+    if (!ResourceManager::LoadSceneFromToml(RESOURCE_DIR "/scene3d.toml", sceneDescription)) {
+        std::cerr << "[Scene3D] Failed to load scene description from " RESOURCE_DIR "/scene3d.toml" << std::endl;
         SetCameraMode(ECameraMode::Perspective);
         m_objects.clear();
         return;

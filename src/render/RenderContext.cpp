@@ -187,16 +187,18 @@ RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     SupportedLimits supportedLimits;
     adapter.getLimits(&supportedLimits);
 
-    RequiredLimits requiredLimits = Default;
-    requiredLimits.limits.maxVertexAttributes          = 2;
-    requiredLimits.limits.maxVertexBuffers             = 1;
-    requiredLimits.limits.maxBufferSize                = 50 * 5 * sizeof(float);
-    requiredLimits.limits.maxVertexBufferArrayStride   = 5 * sizeof(float);
-    requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.minUniformBufferOffsetAlignment;
-    requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.minStorageBufferOffsetAlignment;
-    requiredLimits.limits.maxBindGroups                = 1;
+    RequiredLimits requiredLimits                         = Default;
+    requiredLimits.limits.maxVertexAttributes             = 2;
+    requiredLimits.limits.maxVertexBuffers                = 1;
+    requiredLimits.limits.maxBufferSize                   = 50 * 6 * sizeof(float);
+    requiredLimits.limits.maxVertexBufferArrayStride      = 6 * sizeof(float);
+    requiredLimits.limits.minUniformBufferOffsetAlignment = supportedLimits.limits.
+        minUniformBufferOffsetAlignment;
+    requiredLimits.limits.minStorageBufferOffsetAlignment = supportedLimits.limits.
+        minStorageBufferOffsetAlignment;
+    requiredLimits.limits.maxBindGroups                   = 1;
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
-    requiredLimits.limits.maxUniformBufferBindingSize  = 16 * 4;
+    requiredLimits.limits.maxUniformBufferBindingSize     = 3 * 16 * sizeof(float);
 
 #ifndef __EMSCRIPTEN__
     requiredLimits.limits.maxInterStageShaderComponents = 3;
