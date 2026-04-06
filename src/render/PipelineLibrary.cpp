@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "RenderContext.h"
+#include "../math/Transform2D.h"
 #include "../resource/ResourceManager.h"
 
 using namespace wgpu;
@@ -79,7 +80,7 @@ PipelineLibrary::Pipeline2D PipelineLibrary::CreateColor2D(RenderContext& ctx) {
     bindingLayout.binding               = 0;
     bindingLayout.visibility            = ShaderStage::Vertex;
     bindingLayout.buffer.type           = BufferBindingType::Uniform;
-    bindingLayout.buffer.minBindingSize = 4 * sizeof(float);
+    bindingLayout.buffer.minBindingSize = Transform2D::kMat3UniformSize;
 
     BindGroupLayoutDescriptor bindGroupLayoutDesc{};
     bindGroupLayoutDesc.entryCount = 1;
