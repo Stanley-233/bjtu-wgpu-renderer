@@ -9,6 +9,8 @@ int main() {
     const int         width         = config["window"]["width"].value<int>().value();
     const int         height        = config["window"]["height"].value<int>().value();
     const std::string surfaceFormat = config["render"]["surface_format"].value_or("BGRA8Unorm");
+    const bool        applicationDebugEnabled = config["Debug"]["application"].value_or(false);
+    const bool        inputDebugEnabled       = config["Debug"]["input"].value_or(false);
 
     Application app;
 
@@ -21,6 +23,8 @@ int main() {
 
     const auto success = app
         .SetWindowSize(width, height)
+        .SetApplicationDebugEnabled(applicationDebugEnabled)
+        .SetInputDebugEnabled(inputDebugEnabled)
         .Initialize();
 
     if (!success) {

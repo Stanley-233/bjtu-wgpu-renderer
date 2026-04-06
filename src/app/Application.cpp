@@ -16,10 +16,20 @@ Application& Application::SetSurfaceFormat(const wgpu::TextureFormat format) {
     return *this;
 }
 
+Application& Application::SetApplicationDebugEnabled(const bool enabled) {
+    m_applicationDebugEnabled = enabled;
+    return *this;
+}
+
+Application& Application::SetInputDebugEnabled(const bool enabled) {
+    m_inputDebugEnabled = enabled;
+    return *this;
+}
+
 bool Application::Initialize() {
     m_renderContext.SetWindowSize(m_windowWidth, m_windowHeight);
     m_renderContext.SetSurfaceFormat(m_surfaceFormat);
-    m_renderContext.enableFrameDebug = enableMainLoopDebug;
+    m_renderContext.enableFrameDebug = false;
 
     if (!m_renderContext.Initialize()) {
         return false;
@@ -32,7 +42,7 @@ bool Application::Initialize() {
     m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
     m_sceneManager.InitializeAll(m_renderContext);
     m_sceneManager.SetActiveScene(ESceneType::Scene3D);
-    m_inputManager.SetDebugEnabled(false);
+    m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
     BindInputForActiveScene();
 
     m_lastFrameTime = glfwGetTime();
@@ -74,14 +84,22 @@ void Application::Tick(float deltaTime) {
 
 void Application::HandleKey(int key, int action, int mods) {
     if (action == GLFW_PRESS && key == GLFW_KEY_1) {
-        std::cout << "[Application] Key 1" << std::endl;
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Key 1" << std::endl;
+        }
         SwitchScene(ESceneType::Scene2D);
-        std::cout << "[Application] Switch to Scene2D" << std::endl;
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Switch to Scene2D" << std::endl;
+        }
     }
     if (action == GLFW_PRESS && key == GLFW_KEY_2) {
-        std::cout << "[Application] Key 2" << std::endl;
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Key 2" << std::endl;
+        }
         SwitchScene(ESceneType::Scene3D);
-        std::cout << "[Application] Switch to Scene3D" << std::endl;
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Switch to Scene3D" << std::endl;
+        }
     }
     if (action == GLFW_PRESS && key == GLFW_KEY_C) {
         if (auto* scene3D = dynamic_cast<Scene3D*>(&m_sceneManager.ActiveScene()); scene3D != nullptr) {
