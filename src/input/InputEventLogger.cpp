@@ -63,10 +63,6 @@ const char* InputEventLogger::KeyName(const int key) {
             return "GLFW_KEY_S";
         case GLFW_KEY_D:
             return "GLFW_KEY_D";
-        case GLFW_KEY_Q:
-            return "GLFW_KEY_Q";
-        case GLFW_KEY_E:
-            return "GLFW_KEY_E";
         case GLFW_KEY_Z:
             return "GLFW_KEY_Z";
         case GLFW_KEY_X:

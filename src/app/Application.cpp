@@ -119,12 +119,14 @@ void Application::SwitchScene(ESceneType type) {
 void Application::BindInputForActiveScene() {
     m_boundInputScene = &m_sceneManager.ActiveScene();
     m_inputManager.SubscribeTransformActions(*m_boundInputScene);
+    m_inputManager.SubscribeCameraMoveInput(*m_boundInputScene);
 }
 
 void Application::UnbindInputFromActiveScene() {
     if (m_boundInputScene == nullptr) {
         return;
     }
+    m_inputManager.UnsubscribeCameraMoveInput(*m_boundInputScene);
     m_inputManager.UnsubscribeTransformActions(*m_boundInputScene);
     m_boundInputScene = nullptr;
 }

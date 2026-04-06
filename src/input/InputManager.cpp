@@ -1,11 +1,12 @@
 #include "InputManager.h"
 
 #include <GLFW/glfw3.h>
+#include <algorithm>
 
 constexpr float kTranslateStep = 0.05f;
-constexpr float kRotateStep = 0.1f; // 旋转步长（弧度）
-constexpr float kScaleStep = 1.1f; // 缩放步长
-constexpr float kShearStep = 0.1f; // 剪切步长
+constexpr float kRotateStep    = 0.1f; // 旋转步长（弧度）
+constexpr float kScaleStep     = 1.1f; // 缩放步长
+constexpr float kShearStep     = 0.1f; // 剪切步长
 
 static bool ShouldSuppressNoBindingLog(const int key) {
     switch (key) {
@@ -37,6 +38,31 @@ void InputManager::SetDebugEnabled(const bool enabled) {
 void InputManager::EmitKeyEvent(const int key, const int action, const int mods) {
     m_eventLogger.LogRawKeyEvent(key, action, mods);
 
+    const bool isPressLike = action == GLFW_PRESS || action == GLFW_REPEAT;
+    const bool isRelease   = action == GLFW_RELEASE;
+    if (isPressLike || isRelease) {
+        const auto moveIt = m_cameraMoveBindings.find(key);
+        if (moveIt != m_cameraMoveBindings.end()) {
+            m_cameraMovePressed[key] = isPressLike;
+            float forward = 0.0f;
+            float right   = 0.0f;
+            float up      = 0.0f;
+            for (const auto& [boundKey, binding] : m_cameraMoveBindings) {
+                const auto pressedIt = m_cameraMovePressed.find(boundKey);
+                if (pressedIt == m_cameraMovePressed.end() || !pressedIt->second) {
+                    continue;
+                }
+                forward += binding.forward;
+                right += binding.right;
+                up += binding.up;
+            }
+            m_moveForward = std::clamp(forward, -1.0f, 1.0f);
+            m_moveRight   = std::clamp(right, -1.0f, 1.0f);
+            m_moveUp      = std::clamp(up, -1.0f, 1.0f);
+            m_dispatcher.trigger<CameraMoveInputEvent>({m_moveForward, m_moveRight, m_moveUp});
+        }
+    }
+
     if (action != GLFW_PRESS) {
         return;
     }
@@ -61,8 +87,17 @@ void InputManager::UnsubscribeTransformActions(IScene& scene) {
     m_dispatcher.sink<TransformActionEvent>().disconnect<&IScene::OnTransformInputEvent>(scene);
 }
 
+void InputManager::SubscribeCameraMoveInput(IScene& scene) {
+    m_dispatcher.sink<CameraMoveInputEvent>().connect<&IScene::OnCameraMoveInputEvent>(scene);
+}
+
+void InputManager::UnsubscribeCameraMoveInput(IScene& scene) {
+    m_dispatcher.sink<CameraMoveInputEvent>().disconnect<&IScene::OnCameraMoveInputEvent>(scene);
+}
+
 void InputManager::InitializeDefaultBindings() {
     m_keyBindings.clear();
+    m_cameraMoveBindings.clear();
     // 平移变换
     m_keyBindings.emplace(GLFW_KEY_W, TransformBinding{ETransformAction::Translate, 0.0f, kTranslateStep});
     m_keyBindings.emplace(GLFW_KEY_S, TransformBinding{ETransformAction::Translate, 0.0f, -kTranslateStep});
@@ -89,4 +124,15 @@ void InputManager::InitializeDefaultBindings() {
     m_keyBindings.emplace(GLFW_KEY_M, TransformBinding{ETransformAction::ReflectY, 0.0f, 0.0f}); // Y轴镜像
     // 重置变换
     m_keyBindings.emplace(GLFW_KEY_R, TransformBinding{ETransformAction::Reset, 0.0f, 0.0f});
+    // 相机变换
+    m_cameraMoveBindings.emplace(GLFW_KEY_W, CameraMoveBinding{1.0f, 0.0f, 0.0f});
+    m_cameraMoveBindings.emplace(GLFW_KEY_S, CameraMoveBinding{-1.0f, 0.0f, 0.0f});
+    m_cameraMoveBindings.emplace(GLFW_KEY_A, CameraMoveBinding{0.0f, -1.0f, 0.0f});
+    m_cameraMoveBindings.emplace(GLFW_KEY_D, CameraMoveBinding{0.0f, 1.0f, 0.0f});
+    m_cameraMoveBindings.emplace(GLFW_KEY_Q, CameraMoveBinding{0.0f, 0.0f, 1.0f});
+    m_cameraMoveBindings.emplace(GLFW_KEY_E, CameraMoveBinding{0.0f, 0.0f, -1.0f});
+    for (const auto& [key, binding] : m_cameraMoveBindings) {
+        (void)binding;
+        m_cameraMovePressed[key] = false;
+    }
 }

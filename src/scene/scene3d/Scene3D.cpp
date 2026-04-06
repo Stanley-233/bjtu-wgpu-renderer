@@ -1,5 +1,6 @@
 #include "Scene3D.h"
 
+#include <glm/geometric.hpp>
 #include <memory>
 
 #include "../../resource/ResourceManager.h"
@@ -36,8 +37,42 @@ void Scene3D::Initialize(RenderContext& ctx) {
 }
 
 void Scene3D::Update(float dt) {
-    // TODO: 实现 3D 逐帧更新逻辑
-    (void)dt;
+    if (m_camera == nullptr || dt <= 0.0f) {
+        return;
+    }
+
+    const glm::vec3 position = m_camera->Position();
+    const glm::vec3 target   = m_camera->Target();
+    const glm::vec3 up       = m_camera->Up();
+
+    const glm::vec3 forwardRaw = target - position;
+    const float     forwardLen = glm::length(forwardRaw);
+    if (forwardLen <= 1e-6f) {
+        return;
+    }
+    const glm::vec3 forward = forwardRaw / forwardLen;
+
+    glm::vec3 rightRaw = glm::cross(forward, up);
+    const float rightLen = glm::length(rightRaw);
+    if (rightLen <= 1e-6f) {
+        return;
+    }
+    rightRaw /= rightLen;
+
+    const float lateralSign = (m_cameraMode == ECameraMode::Orthographic) ? -1.0f : 1.0f;
+    const float verticalSign = (m_cameraMode == ECameraMode::Orthographic) ? -1.0f : 1.0f;
+    const glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
+    glm::vec3 moveDirection = forward * m_moveForward
+                              + rightRaw * (m_moveRight * lateralSign)
+                              + worldUp * (m_moveUp * verticalSign);
+    const float moveDirectionLen = glm::length(moveDirection);
+    if (moveDirectionLen <= 1e-6f) {
+        return;
+    }
+    moveDirection /= moveDirectionLen;
+
+    const glm::vec3 delta = moveDirection * (kCameraMoveSpeed * dt);
+    m_camera->SetPose(position + delta, target + delta, up);
 }
 
 void Scene3D::Render(RenderContext& ctx) {
@@ -57,6 +92,12 @@ void Scene3D::OnTransformAction(const ETransformAction action, const float amoun
     (void)action;
     (void)amountX;
     (void)amountY;
+}
+
+void Scene3D::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
+    m_moveForward = event.forward;
+    m_moveRight   = event.right;
+    m_moveUp      = event.up;
 }
 
 void Scene3D::ToggleCameraMode() {

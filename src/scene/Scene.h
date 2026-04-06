@@ -24,6 +24,12 @@ struct TransformActionEvent {
     float            amountY;
 };
 
+struct CameraMoveInputEvent {
+    float forward;
+    float right;
+    float up;
+};
+
 class IScene {
 public:
     virtual ~IScene() = default;
@@ -44,6 +50,10 @@ public:
 
     virtual void OnTransformInputEvent(const TransformActionEvent& event) {
         OnTransformAction(event.action, event.amountX, event.amountY);
+    }
+
+    virtual void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
+        (void)event;
     }
 };
 

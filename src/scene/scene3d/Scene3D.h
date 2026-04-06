@@ -26,6 +26,8 @@ public:
 
     void OnTransformAction(ETransformAction action, float amountX, float amountY) override;
 
+    void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) override;
+
     void ToggleCameraMode();
 
     [[nodiscard]] ECameraMode CameraMode() const;
@@ -33,10 +35,15 @@ public:
 private:
     void SetCameraMode(ECameraMode mode);
 
+    static constexpr float kCameraMoveSpeed = 2.5f;
+
     ECameraMode             m_cameraMode = ECameraMode::Orthographic;
     std::unique_ptr<Camera> m_camera{};
     std::vector<Object3D>   m_objects{};
     Renderer3D              m_renderer{};
+    float                   m_moveForward = 0.0f;
+    float                   m_moveRight   = 0.0f;
+    float                   m_moveUp      = 0.0f;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE3D_H
