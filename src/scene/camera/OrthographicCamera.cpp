@@ -1,5 +1,8 @@
 #include "OrthographicCamera.h"
 
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
+
 void OrthographicCamera::SetOrthographic(
     const float left,
     const float right,
@@ -17,12 +20,15 @@ void OrthographicCamera::SetOrthographic(
 }
 
 glm::mat4 OrthographicCamera::View() const {
-    // TODO: 根据相机位置/目标/up 计算并返回正交相机 View 矩阵
-    return glm::mat4(1.0f);
+    return glm::lookAtRH(m_position, m_target, m_up);
 }
 
 glm::mat4 OrthographicCamera::Projection(const float aspect) const {
-    // TODO: 按 left/right/top/bottom/near/far 计算正交投影矩阵（aspect 当前未使用）
-    (void)aspect;
-    return glm::mat4(1.0f);
+    const float safeAspect = aspect > 0.0f ? aspect : 1.0f;
+    const float centerX    = 0.5f * (m_left + m_right);
+    const float halfWidth  = 0.5f * (m_right - m_left) * safeAspect;
+    const float left       = centerX - halfWidth;
+    const float right      = centerX + halfWidth;
+    // WebGPU的NDC是[0,1]，不是opengl的[-1,1]
+    return glm::orthoRH_ZO(left, right, m_bottom, m_top, m_nearPlane, m_farPlane);
 }

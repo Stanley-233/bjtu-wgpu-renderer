@@ -9,20 +9,17 @@
 
 void Scene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
-
     SceneDescription sceneDescription{};
     if (!ResourceManager::LoadSceneFromToml(RESOURCE_DIR "/scene3d.toml", sceneDescription)) {
         std::cerr << "[Scene3D] Failed to load scene description from " RESOURCE_DIR "/scene3d.toml" << std::endl;
-        SetCameraMode(ECameraMode::Perspective);
         m_objects.clear();
         return;
     }
-
-    SetCameraMode(
-        sceneDescription.camera.projectionType == ECameraProjectionType::Orthographic
-            ? ECameraMode::Orthographic
-            : ECameraMode::Perspective
-    );
+    if (sceneDescription.camera.projectionType == ECameraProjectionType::Orthographic) {
+        SetCameraMode(ECameraMode::Orthographic);
+    } else {
+        SetCameraMode(ECameraMode::Perspective);
+    }
     if (m_camera != nullptr) {
         m_camera->SetPose(
             sceneDescription.camera.position,
@@ -30,7 +27,6 @@ void Scene3D::Initialize(RenderContext& ctx) {
             sceneDescription.camera.up
         );
     }
-
     m_objects.clear();
     m_objects.reserve(sceneDescription.objects.size());
     for (const ObjectDescription& objectDescription : sceneDescription.objects) {
@@ -48,8 +44,7 @@ void Scene3D::Render(RenderContext& ctx) {
     if (m_camera == nullptr) {
         return;
     }
-
-    m_renderer.SyncScene(m_objects, *m_camera);
+    m_renderer.SyncScene(ctx, m_objects, *m_camera);
     m_renderer.RenderFrame(ctx);
 }
 
@@ -77,10 +72,19 @@ Scene3D::ECameraMode Scene3D::CameraMode() const {
 }
 
 void Scene3D::SetCameraMode(const ECameraMode mode) {
+    glm::vec3 position = {0.0f, 0.0f, 0.0f};
+    glm::vec3 target   = {0.0f, 0.0f, -1.0f};
+    glm::vec3 up       = {0.0f, 1.0f, 0.0f};
+    if (m_camera != nullptr) {
+        position = m_camera->Position();
+        target   = m_camera->Target();
+        up       = m_camera->Up();
+    }
     m_cameraMode = mode;
     if (mode == ECameraMode::Perspective) {
         m_camera = std::make_unique<PerspectiveCamera>();
-        return;
+    } else {
+        m_camera = std::make_unique<OrthographicCamera>();
     }
-    m_camera = std::make_unique<OrthographicCamera>();
+    m_camera->SetPose(position, target, up);
 }

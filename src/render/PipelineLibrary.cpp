@@ -164,7 +164,20 @@ PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3D(RenderContext& ctx) {
     fragmentState.targetCount                       = 1;
     fragmentState.targets                           = &colorTarget;
     pipelineDesc.fragment                           = &fragmentState;
-    pipelineDesc.depthStencil                       = nullptr;
+
+    // 深度测试与模板测试
+    DepthStencilState depthStencil{};
+    depthStencil.format                             = TextureFormat::Depth24Plus;
+    depthStencil.depthWriteEnabled                  = true;
+    depthStencil.depthCompare                       = CompareFunction::Less;
+    depthStencil.stencilFront.compare               = CompareFunction::Always;
+    depthStencil.stencilBack.compare                = CompareFunction::Always;
+    depthStencil.stencilReadMask                    = 0;
+    depthStencil.stencilWriteMask                   = 0;
+    depthStencil.depthBias                          = 0;
+    depthStencil.depthBiasSlopeScale                = 0.0f;
+    depthStencil.depthBiasClamp                     = 0.0f;
+    pipelineDesc.depthStencil                       = &depthStencil;
     pipelineDesc.multisample.count                  = 1;
     pipelineDesc.multisample.mask                   = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;

@@ -33,7 +33,7 @@ public:
 private:
     void SetCameraMode(ECameraMode mode);
 
-    ECameraMode             m_cameraMode = ECameraMode::Perspective;
+    ECameraMode             m_cameraMode = ECameraMode::Orthographic;
     std::unique_ptr<Camera> m_camera{};
     std::vector<Object3D>   m_objects{};
     Renderer3D              m_renderer{};
