@@ -111,6 +111,7 @@ void Scene2D::ResetTransform() {
 }
 
 void Scene2D::UploadTransformMatrix(const glm::mat3& matrix) {
+    if (!m_context) return
     const Transform2D::Mat3Uniform uniformData = Transform2D::ToWgslMat3Uniform(matrix);
     m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &uniformData, Transform2D::kMat3UniformSize);
 }
