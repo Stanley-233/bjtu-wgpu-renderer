@@ -72,6 +72,9 @@ void InputManager::InitializeDefaultBindings() {
     m_keyBindings.emplace(GLFW_KEY_L, TransformBinding{ETransformAction::Shear, -kShearStep, 0.0f}); // X方向反向剪切
     m_keyBindings.emplace(GLFW_KEY_I, TransformBinding{ETransformAction::Shear, 0.0f, kShearStep}); // Y方向剪切
     m_keyBindings.emplace(GLFW_KEY_K, TransformBinding{ETransformAction::Shear, 0.0f, -kShearStep}); // Y方向反向剪切
+    // 镜像变换（nm）
+    m_keyBindings.emplace(GLFW_KEY_N, TransformBinding{ETransformAction::ReflectX, 0.0f, 0.0f}); // X轴镜像
+    m_keyBindings.emplace(GLFW_KEY_M, TransformBinding{ETransformAction::ReflectY, 0.0f, 0.0f}); // Y轴镜像
     // 重置变换
     m_keyBindings.emplace(GLFW_KEY_R, TransformBinding{ETransformAction::Reset, 0.0f, 0.0f});
 }

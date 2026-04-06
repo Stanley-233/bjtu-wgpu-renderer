@@ -77,6 +77,10 @@ const char* InputEventLogger::KeyName(const int key) {
             return "GLFW_KEY_L";
         case GLFW_KEY_R:
             return "GLFW_KEY_R";
+        case GLFW_KEY_N:
+            return "GLFW_KEY_N";
+        case GLFW_KEY_M:
+            return "GLFW_KEY_M";
         default:
             return "GLFW_KEY_UNKNOWN";
     }
