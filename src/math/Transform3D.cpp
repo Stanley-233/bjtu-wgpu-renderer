@@ -1,41 +1,75 @@
 #include "Transform3D.h"
 
+#include <cmath>
+
 Transform3D Transform3D::Identity() {
     return Transform3D{};
 }
 
+// 按列向量约定构造3D平移矩阵：p' = M * p
 Transform3D Transform3D::Translation(float tx, float ty, float tz) {
-    // TODO: 构造并返回 3D 平移矩阵
-    (void)tx;
-    (void)ty;
-    (void)tz;
-    return Transform3D{};
+    Transform3D transform;
+    transform.m_matrix = glm::mat4(
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        tx,   ty,   tz,   1.0f
+    );
+    return transform;
 }
 
+// 构造绕 X 轴旋转矩阵（右手坐标系，逆时针旋转）
 Transform3D Transform3D::RotationX(float radians) {
-    // TODO: 构造并返回绕 X 轴旋转矩阵
-    (void)radians;
-    return Transform3D{};
+    float cos_theta = std::cos(radians);
+    float sin_theta = std::sin(radians);
+    Transform3D transform;
+    transform.m_matrix = glm::mat4(
+        1.0f, 0.0f,      0.0f,     0.0f,
+        0.0f, cos_theta, -sin_theta, 0.0f,
+        0.0f, sin_theta, cos_theta, 0.0f,
+        0.0f, 0.0f,      0.0f,     1.0f
+    );
+    return transform;
 }
 
+// 构造绕 Y 轴旋转矩阵（右手坐标系，逆时针旋转）
 Transform3D Transform3D::RotationY(float radians) {
-    // TODO: 构造并返回绕 Y 轴旋转矩阵
-    (void)radians;
-    return Transform3D{};
+    float cos_theta = std::cos(radians);
+    float sin_theta = std::sin(radians);
+    Transform3D transform;
+    transform.m_matrix = glm::mat4(
+        cos_theta, 0.0f, sin_theta, 0.0f,
+        0.0f,      1.0f, 0.0f,      0.0f,
+        -sin_theta, 0.0f, cos_theta, 0.0f,
+        0.0f,      0.0f, 0.0f,      1.0f
+    );
+    return transform;
 }
 
+// 构造绕 Z 轴旋转矩阵（右手坐标系，逆时针旋转）
 Transform3D Transform3D::RotationZ(float radians) {
-    // TODO: 构造并返回绕 Z 轴旋转矩阵
-    (void)radians;
-    return Transform3D{};
+    float cos_theta = std::cos(radians);
+    float sin_theta = std::sin(radians);
+    Transform3D transform;
+    transform.m_matrix = glm::mat4(
+        cos_theta, -sin_theta, 0.0f, 0.0f,
+        sin_theta, cos_theta,  0.0f, 0.0f,
+        0.0f,      0.0f,       1.0f, 0.0f,
+        0.0f,      0.0f,       0.0f, 1.0f
+    );
+    return transform;
 }
 
+// 构造3D非均匀缩放矩阵
 Transform3D Transform3D::Scale(float sx, float sy, float sz) {
-    // TODO: 构造并返回 3D 缩放矩阵
-    (void)sx;
-    (void)sy;
-    (void)sz;
-    return Transform3D{};
+    Transform3D transform;
+    transform.m_matrix = glm::mat4(
+        sx, 0.0f, 0.0f, 0.0f,
+        0.0f, sy, 0.0f, 0.0f,
+        0.0f, 0.0f, sz, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    );
+    return transform;
 }
 
 Transform3D& Transform3D::Combine(const Transform3D& rhs) {
