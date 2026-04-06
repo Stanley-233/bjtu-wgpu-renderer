@@ -26,6 +26,9 @@ private:
 
     void ResetTransform();
 
+    void UploadTransformMatrix(const glm::mat3& matrix);
+
+    RenderContext*              m_context = nullptr;
     wgpu::raii::Buffer          m_uniformBuffer;
     wgpu::raii::PipelineLayout  m_layout;
     wgpu::raii::BindGroupLayout m_bindGroupLayout;

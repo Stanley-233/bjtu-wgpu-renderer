@@ -11,6 +11,7 @@
 using namespace wgpu;
 
 void Scene2D::Initialize(RenderContext& ctx) {
+    m_context             = &ctx;
     auto pipeline2D       = PipelineLibrary::CreateColor2D(ctx);
     m_bindGroupLayout     = std::move(pipeline2D.bindGroupLayout);
     m_layout              = std::move(pipeline2D.layout);
@@ -20,8 +21,6 @@ void Scene2D::Initialize(RenderContext& ctx) {
 }
 
 void Scene2D::Render(RenderContext& ctx) {
-    const float t = static_cast<float>(glfwGetTime());
-    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &t, sizeof(float));
 
     raii::TextureView targetView = ctx.AcquireNextSurfaceView();
     if (!targetView) {
@@ -61,12 +60,15 @@ const char* Scene2D::Name() const {
     return "Scene2D";
 }
 
-// TODO: apply pending transform input in Update once input mapping is wired.
 void Scene2D::Update(const float dt) {
     (void)dt;
+    // 应用累积的pending变换
+    if (m_pendingDelta.Matrix() != glm::mat3(1.0f)) {
+        ApplyTransform(m_pendingDelta);
+        m_pendingDelta.Reset();
+    }
 }
 
-// TODO: wire transform results into render-time uniform data.
 void Scene2D::OnTransformAction(ETransformAction action, float amountX, float amountY) {
     switch (action) {
         case ETransformAction::Translate:
@@ -93,15 +95,24 @@ void Scene2D::OnTransformAction(ETransformAction action, float amountX, float am
     }
 }
 
-// TODO: upload/propagate composed transform to GPU uniform once shader supports it.
 void Scene2D::ApplyTransform(const Transform2D& t) {
     m_transform.Combine(t);
+    if (m_context) {
+        UploadTransformMatrix(m_transform.Matrix());
+    }
 }
 
-// TODO: sync reset state with future transform uniform payload.
 void Scene2D::ResetTransform() {
     m_transform.Reset();
     m_pendingDelta.Reset();
+    if (m_context) {
+        UploadTransformMatrix(glm::mat3(1.0f));
+    }
+}
+
+void Scene2D::UploadTransformMatrix(const glm::mat3& matrix) {
+    const Transform2D::Mat3Uniform uniformData = Transform2D::ToWgslMat3Uniform(matrix);
+    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &uniformData, Transform2D::kMat3UniformSize);
 }
 
 void Scene2D::InitializeBuffers(RenderContext& ctx) {
@@ -128,12 +139,13 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     m_indexBuffer    = ctx.GetDevice()->createBuffer(bufferDesc);
     ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
 
-    bufferDesc.size             = 4 * sizeof(float);
+    bufferDesc.size             = Transform2D::kMat3UniformSize;
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Uniform;
     bufferDesc.mappedAtCreation = false;
     m_uniformBuffer             = ctx.GetDevice()->createBuffer(bufferDesc);
-    const float currentTime     = 1.0f;
-    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &currentTime, sizeof(float));
+    // 初始化为单位矩阵
+    const Transform2D::Mat3Uniform identityUniform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
+    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &identityUniform, Transform2D::kMat3UniformSize);
 }
 
 void Scene2D::InitializeBindGroups(RenderContext& ctx) {
@@ -141,7 +153,7 @@ void Scene2D::InitializeBindGroups(RenderContext& ctx) {
     binding.binding = 0;
     binding.buffer  = *m_uniformBuffer;
     binding.offset  = 0;
-    binding.size    = 4 * sizeof(float);
+    binding.size    = Transform2D::kMat3UniformSize;
 
     BindGroupDescriptor bindGroupDesc{};
     bindGroupDesc.layout     = *m_bindGroupLayout;
