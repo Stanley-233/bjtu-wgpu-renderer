@@ -111,15 +111,8 @@ void Scene2D::ResetTransform() {
 }
 
 void Scene2D::UploadTransformMatrix(const glm::mat3& matrix) {
-    // 将 mat3 转换为带 padding 的 12 个 float 数组
-    // WGSL mat3x3f 布局: 每列 4 个 float (vec3 + padding)
-    // 输入矩阵是行主序，需要转置为列主序
-    float paddedMatrix[12] = {
-        matrix[0][0], matrix[1][0], matrix[2][0], 0.0f,  // 第0列 ( + padding)
-        matrix[0][1], matrix[1][1], matrix[2][1], 0.0f,  // 第1列 ( + padding)
-        matrix[0][2], matrix[1][2], matrix[2][2], 0.0f   // 第2列 ( + padding)
-    };
-    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, paddedMatrix, 12 * sizeof(float));
+    const Transform2D::Mat3Uniform uniformData = Transform2D::ToWgslMat3Uniform(matrix);
+    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &uniformData, Transform2D::kMat3UniformSize);
 }
 
 void Scene2D::InitializeBuffers(RenderContext& ctx) {
@@ -146,17 +139,13 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     m_indexBuffer    = ctx.GetDevice()->createBuffer(bufferDesc);
     ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
 
-    bufferDesc.size             = 12 * sizeof(float);
+    bufferDesc.size             = Transform2D::kMat3UniformSize;
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Uniform;
     bufferDesc.mappedAtCreation = false;
     m_uniformBuffer             = ctx.GetDevice()->createBuffer(bufferDesc);
-    // 初始化单位矩阵（带padding的12个float）
-    float identityPadded[12] = {
-        1.0f, 0.0f, 0.0f, 0.0f,  // 第0列
-        0.0f, 1.0f, 0.0f, 0.0f,  // 第1列
-        0.0f, 0.0f, 1.0f, 0.0f   // 第2列
-    };
-    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, identityPadded, 12 * sizeof(float));
+    // 初始化为单位矩阵
+    const Transform2D::Mat3Uniform identityUniform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
+    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &identityUniform, Transform2D::kMat3UniformSize);
 }
 
 void Scene2D::InitializeBindGroups(RenderContext& ctx) {
@@ -164,7 +153,7 @@ void Scene2D::InitializeBindGroups(RenderContext& ctx) {
     binding.binding = 0;
     binding.buffer  = *m_uniformBuffer;
     binding.offset  = 0;
-    binding.size    = 12 * sizeof(float);
+    binding.size    = Transform2D::kMat3UniformSize;
 
     BindGroupDescriptor bindGroupDesc{};
     bindGroupDesc.layout     = *m_bindGroupLayout;
