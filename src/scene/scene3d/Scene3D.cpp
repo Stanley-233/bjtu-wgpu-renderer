@@ -59,12 +59,10 @@ void Scene3D::Update(float dt) {
     }
     rightRaw /= rightLen;
 
-    const float lateralSign = (m_cameraMode == ECameraMode::Orthographic) ? -1.0f : 1.0f;
-    const float verticalSign = (m_cameraMode == ECameraMode::Orthographic) ? -1.0f : 1.0f;
     const glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
     glm::vec3 moveDirection = forward * m_moveForward
-                              + rightRaw * (m_moveRight * lateralSign)
-                              + worldUp * (m_moveUp * verticalSign);
+                              + rightRaw * m_moveRight
+                              + worldUp * m_moveUp;
     const float moveDirectionLen = glm::length(moveDirection);
     if (moveDirectionLen <= 1e-6f) {
         return;

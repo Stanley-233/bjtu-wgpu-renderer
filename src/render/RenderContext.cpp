@@ -188,7 +188,8 @@ RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     adapter.getLimits(&supportedLimits);
 
     RequiredLimits requiredLimits = Default;
-    requiredLimits.limits = supportedLimits.limits;
+    // Emscripten 不支持
+    // requiredLimits.limits = supportedLimits.limits;
     requiredLimits.limits.maxVertexAttributes        = 2;
     requiredLimits.limits.maxVertexBuffers           = 1;
     requiredLimits.limits.maxVertexBufferArrayStride = 6 * sizeof(float);

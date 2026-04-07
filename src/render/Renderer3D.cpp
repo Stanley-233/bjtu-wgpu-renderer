@@ -178,9 +178,6 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
         depthAttachment.depthLoadOp       = wgpu::LoadOp::Clear;
         depthAttachment.depthStoreOp      = wgpu::StoreOp::Store;
         depthAttachment.depthReadOnly     = false;
-        depthAttachment.stencilClearValue = 0;
-        depthAttachment.stencilLoadOp     = wgpu::LoadOp::Clear;
-        depthAttachment.stencilStoreOp    = wgpu::StoreOp::Store;
         depthAttachment.stencilReadOnly   = true;
         renderPassDesc.depthStencilAttachment = &depthAttachment;
     } else {
