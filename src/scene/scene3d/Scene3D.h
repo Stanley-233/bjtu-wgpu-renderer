@@ -9,7 +9,7 @@
 #include "../camera/Camera.h"
 #include "Object3D.h"
 
-class Scene3D final : public IScene {
+class Scene3D final : public IScene, public ITransform3DInputSink, public ICameraMoveInputSink {
 public:
     enum class ECameraMode {
         Perspective,
@@ -24,7 +24,8 @@ public:
 
     const char* Name() const override;
 
-    void OnTransformAction(ETransformAction action, float amountX, float amountY) override;
+    void OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) override;
+    void OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) override;
 
     void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) override;
 
@@ -41,6 +42,7 @@ private:
     std::unique_ptr<Camera> m_camera{};
     std::vector<Object3D>   m_objects{};
     Renderer3D              m_renderer{};
+    ObjectTransform3DStateEvent m_objectTransformState{};
     float                   m_moveForward = 0.0f;
     float                   m_moveRight   = 0.0f;
     float                   m_moveUp      = 0.0f;

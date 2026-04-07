@@ -1,5 +1,6 @@
 #include "Scene3D.h"
 
+#include <cmath>
 #include <glm/geometric.hpp>
 #include <memory>
 
@@ -37,40 +38,80 @@ void Scene3D::Initialize(RenderContext& ctx) {
 }
 
 void Scene3D::Update(float dt) {
-    if (m_camera == nullptr || dt <= 0.0f) {
+    constexpr float kEpsilon = 1e-6f;
+    if (dt <= 0.0f) {
         return;
     }
 
-    const glm::vec3 position = m_camera->Position();
-    const glm::vec3 target   = m_camera->Target();
-    const glm::vec3 up       = m_camera->Up();
+    if (m_camera != nullptr) {
+        const glm::vec3 position = m_camera->Position();
+        const glm::vec3 target   = m_camera->Target();
+        const glm::vec3 up       = m_camera->Up();
 
-    const glm::vec3 forwardRaw = target - position;
-    const float     forwardLen = glm::length(forwardRaw);
-    if (forwardLen <= 1e-6f) {
+        const glm::vec3 forwardRaw = target - position;
+        const float     forwardLen = glm::length(forwardRaw);
+        if (forwardLen > 1e-6f) {
+            const glm::vec3 forward = forwardRaw / forwardLen;
+
+            glm::vec3 rightRaw = glm::cross(forward, up);
+            const float rightLen = glm::length(rightRaw);
+            if (rightLen > 1e-6f) {
+                rightRaw /= rightLen;
+
+                constexpr glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
+                glm::vec3 moveDirection = forward * m_moveForward
+                                          + rightRaw * m_moveRight
+                                          + worldUp * m_moveUp;
+                const float moveDirectionLen = glm::length(moveDirection);
+                if (moveDirectionLen > 1e-6f) {
+                    moveDirection /= moveDirectionLen;
+
+                    const glm::vec3 delta = moveDirection * (kCameraMoveSpeed * dt);
+                    m_camera->SetPose(position + delta, target + delta, up);
+                }
+            }
+        }
+    }
+
+    const bool hasTranslate = std::fabs(m_objectTransformState.translateX) > kEpsilon
+                              || std::fabs(m_objectTransformState.translateY) > kEpsilon
+                              || std::fabs(m_objectTransformState.translateZ) > kEpsilon;
+    const bool hasRotate = std::fabs(m_objectTransformState.rotateXRate) > kEpsilon
+                           || std::fabs(m_objectTransformState.rotateYRate) > kEpsilon
+                           || std::fabs(m_objectTransformState.rotateZRate) > kEpsilon;
+    const bool hasScale = std::fabs(m_objectTransformState.scaleXRate) > kEpsilon
+                          || std::fabs(m_objectTransformState.scaleYRate) > kEpsilon
+                          || std::fabs(m_objectTransformState.scaleZRate) > kEpsilon;
+    if (!hasTranslate && !hasRotate && !hasScale) {
         return;
     }
-    const glm::vec3 forward = forwardRaw / forwardLen;
 
-    glm::vec3 rightRaw = glm::cross(forward, up);
-    const float rightLen = glm::length(rightRaw);
-    if (rightLen <= 1e-6f) {
-        return;
+    for (Object3D& object : m_objects) {
+        if (hasTranslate) {
+            object.Transform().Combine(Transform3D::Translation(
+                m_objectTransformState.translateX * dt,
+                m_objectTransformState.translateY * dt,
+                m_objectTransformState.translateZ * dt
+            ));
+        }
+        if (hasRotate) {
+            if (std::fabs(m_objectTransformState.rotateXRate) > kEpsilon) {
+                object.Transform().Combine(Transform3D::RotationX(m_objectTransformState.rotateXRate * dt));
+            }
+            if (std::fabs(m_objectTransformState.rotateYRate) > kEpsilon) {
+                object.Transform().Combine(Transform3D::RotationY(m_objectTransformState.rotateYRate * dt));
+            }
+            if (std::fabs(m_objectTransformState.rotateZRate) > kEpsilon) {
+                object.Transform().Combine(Transform3D::RotationZ(m_objectTransformState.rotateZRate * dt));
+            }
+        }
+        if (hasScale) {
+            const float sx = std::exp(m_objectTransformState.scaleXRate * dt);
+            const float sy = std::exp(m_objectTransformState.scaleYRate * dt);
+            const float sz = std::exp(m_objectTransformState.scaleZRate * dt);
+            object.Transform().Combine(Transform3D::Scale(sx, sy, sz));
+        }
     }
-    rightRaw /= rightLen;
-
-    const glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
-    glm::vec3 moveDirection = forward * m_moveForward
-                              + rightRaw * m_moveRight
-                              + worldUp * m_moveUp;
-    const float moveDirectionLen = glm::length(moveDirection);
-    if (moveDirectionLen <= 1e-6f) {
-        return;
-    }
-    moveDirection /= moveDirectionLen;
-
-    const glm::vec3 delta = moveDirection * (kCameraMoveSpeed * dt);
-    m_camera->SetPose(position + delta, target + delta, up);
 }
 
 void Scene3D::Render(RenderContext& ctx) {
@@ -85,11 +126,17 @@ const char* Scene3D::Name() const {
     return "Scene3D";
 }
 
-// TODO: 对该场景控制的所有物体进行变换操作
-void Scene3D::OnTransformAction(const ETransformAction action, const float amountX, const float amountY) {
-    (void)action;
-    (void)amountX;
-    (void)amountY;
+void Scene3D::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) {
+    if (event.mode != EObjectTransform3DMode::Reset) {
+        return;
+    }
+    for (Object3D& object : m_objects) {
+        object.Transform().Reset();
+    }
+}
+
+void Scene3D::OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) {
+    m_objectTransformState = event;
 }
 
 void Scene3D::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {

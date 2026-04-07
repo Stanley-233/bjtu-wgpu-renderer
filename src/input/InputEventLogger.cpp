@@ -34,11 +34,63 @@ void InputEventLogger::OnTransformActionEvent(const TransformActionEvent& event)
     if (!m_enabled) {
         return;
     }
-    std::cout << "[InputManager][Dispatch] TransformActionEvent action="
+    std::cout << "[Transform2DPolicy][Dispatch] TransformActionEvent action="
               << magic_enum::enum_name(event.action)
               << "(" << static_cast<int>(event.action) << ")"
               << ", amountX=" << event.amountX
               << ", amountY=" << event.amountY << std::endl;
+}
+
+void InputEventLogger::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) const {
+    if (!m_enabled) {
+        return;
+    }
+    std::cout << "[Transform3DPolicy][Dispatch] ObjectTransform3DEvent mode="
+              << magic_enum::enum_name(event.mode)
+              << "(" << static_cast<int>(event.mode) << ")"
+              << ", x=" << event.x
+              << ", y=" << event.y
+              << ", z=" << event.z << std::endl;
+}
+
+void InputEventLogger::OnTransform2DStateEvent(const Transform2DStateEvent& event) const {
+    if (!m_enabled) {
+        return;
+    }
+    std::cout << "[Transform2DPolicy][Dispatch] Transform2DStateEvent"
+              << " tx=" << event.translateX
+              << ", ty=" << event.translateY
+              << ", r=" << event.rotateRate
+              << ", sxr=" << event.scaleXRate
+              << ", syr=" << event.scaleYRate
+              << ", shx=" << event.shearXRate
+              << ", shy=" << event.shearYRate << std::endl;
+}
+
+void InputEventLogger::OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) const {
+    if (!m_enabled) {
+        return;
+    }
+    std::cout << "[Transform3DPolicy][Dispatch] ObjectTransform3DStateEvent"
+              << " tx=" << event.translateX
+              << ", ty=" << event.translateY
+              << ", tz=" << event.translateZ
+              << ", rx=" << event.rotateXRate
+              << ", ry=" << event.rotateYRate
+              << ", rz=" << event.rotateZRate
+              << ", sxr=" << event.scaleXRate
+              << ", syr=" << event.scaleYRate
+              << ", szr=" << event.scaleZRate << std::endl;
+}
+
+void InputEventLogger::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) const {
+    if (!m_enabled) {
+        return;
+    }
+    std::cout << "[CameraMovePolicy][Dispatch] CameraMoveInputEvent"
+              << " forward=" << event.forward
+              << ", right=" << event.right
+              << ", up=" << event.up << std::endl;
 }
 
 const char* InputEventLogger::KeyName(const int key) {
@@ -51,6 +103,18 @@ const char* InputEventLogger::KeyName(const int key) {
             return "GLFW_KEY_3";
         case GLFW_KEY_C:
             return "GLFW_KEY_C";
+        case GLFW_KEY_LEFT_SHIFT:
+            return "GLFW_KEY_LEFT_SHIFT";
+        case GLFW_KEY_RIGHT_SHIFT:
+            return "GLFW_KEY_RIGHT_SHIFT";
+        case GLFW_KEY_LEFT_ALT:
+            return "GLFW_KEY_LEFT_ALT";
+        case GLFW_KEY_RIGHT_ALT:
+            return "GLFW_KEY_RIGHT_ALT";
+        case GLFW_KEY_LEFT_CONTROL:
+            return "GLFW_KEY_LEFT_CONTROL";
+        case GLFW_KEY_RIGHT_CONTROL:
+            return "GLFW_KEY_RIGHT_CONTROL";
         case GLFW_KEY_Q:
             return "GLFW_KEY_Q";
         case GLFW_KEY_E:
@@ -75,6 +139,10 @@ const char* InputEventLogger::KeyName(const int key) {
             return "GLFW_KEY_G";
         case GLFW_KEY_H:
             return "GLFW_KEY_H";
+        case GLFW_KEY_O:
+            return "GLFW_KEY_O";
+        case GLFW_KEY_U:
+            return "GLFW_KEY_U";
         case GLFW_KEY_I:
             return "GLFW_KEY_I";
         case GLFW_KEY_J:

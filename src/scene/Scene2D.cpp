@@ -1,5 +1,6 @@
 #include "Scene2D.h"
 
+#include <cmath>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -61,27 +62,42 @@ const char* Scene2D::Name() const {
 }
 
 void Scene2D::Update(const float dt) {
-    (void)dt;
-    // 应用累积的pending变换
+    constexpr float kEpsilon = 1e-6f;
+    if (dt <= 0.0f) {
+        return;
+    }
+
+    if (std::fabs(m_transformState.translateX) > kEpsilon || std::fabs(m_transformState.translateY) > kEpsilon) {
+        ApplyTransform(Transform2D::Translation(m_transformState.translateX * dt, m_transformState.translateY * dt));
+    }
+    if (std::fabs(m_transformState.rotateRate) > kEpsilon) {
+        ApplyTransform(Transform2D::Rotation(m_transformState.rotateRate * dt));
+    }
+    if (std::fabs(m_transformState.scaleXRate) > kEpsilon || std::fabs(m_transformState.scaleYRate) > kEpsilon) {
+        const float sx = std::exp(m_transformState.scaleXRate * dt);
+        const float sy = std::exp(m_transformState.scaleYRate * dt);
+        ApplyTransform(Transform2D::Scale(sx, sy));
+    }
+    if (std::fabs(m_transformState.shearXRate) > kEpsilon || std::fabs(m_transformState.shearYRate) > kEpsilon) {
+        ApplyTransform(Transform2D::Shear(m_transformState.shearXRate * dt, m_transformState.shearYRate * dt));
+    }
+
+    // 兼容已存在的一次性积累路径
     if (m_pendingDelta.Matrix() != glm::mat3(1.0f)) {
         ApplyTransform(m_pendingDelta);
         m_pendingDelta.Reset();
     }
 }
 
-void Scene2D::OnTransformAction(ETransformAction action, float amountX, float amountY) {
-    switch (action) {
+void Scene2D::OnTransformInputEvent(const TransformActionEvent& event) {
+    switch (event.action) {
         case ETransformAction::Translate:
-            ApplyTransform(Transform2D::Translation(amountX, amountY));
-            break;
         case ETransformAction::Rotate:
-            ApplyTransform(Transform2D::Rotation(amountX));
-            break;
         case ETransformAction::Scale:
-            ApplyTransform(Transform2D::Scale(amountX, amountY));
-            break;
         case ETransformAction::Shear:
-            ApplyTransform(Transform2D::Shear(amountX, amountY));
+            // 连续输入由 OnTransform2DStateEvent + Update(dt) 处理
+            (void)event.amountX;
+            (void)event.amountY;
             break;
         case ETransformAction::ReflectX:
             ApplyTransform(Transform2D::ReflectionX());
@@ -93,6 +109,10 @@ void Scene2D::OnTransformAction(ETransformAction action, float amountX, float am
             ResetTransform();
             break;
     }
+}
+
+void Scene2D::OnTransform2DStateEvent(const Transform2DStateEvent& event) {
+    m_transformState = event;
 }
 
 void Scene2D::ApplyTransform(const Transform2D& t) {

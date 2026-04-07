@@ -18,7 +18,7 @@ Transform3D Transform3D::Translation(float tx, float ty, float tz) {
     return transform;
 }
 
-// 构造绕 X 轴旋转矩阵（右手坐标系，逆时针旋转）
+// 构造绕 X 轴旋转矩阵（右手坐标系，顺时针旋转）
 Transform3D Transform3D::RotationX(float radians) {
     float cos_theta = std::cos(radians);
     float sin_theta = std::sin(radians);
@@ -32,7 +32,7 @@ Transform3D Transform3D::RotationX(float radians) {
     return transform;
 }
 
-// 构造绕 Y 轴旋转矩阵（右手坐标系，逆时针旋转）
+// 构造绕 Y 轴旋转矩阵（右手坐标系，顺时针旋转）
 Transform3D Transform3D::RotationY(float radians) {
     float cos_theta = std::cos(radians);
     float sin_theta = std::sin(radians);
@@ -46,7 +46,7 @@ Transform3D Transform3D::RotationY(float radians) {
     return transform;
 }
 
-// 构造绕 Z 轴旋转矩阵（右手坐标系，逆时针旋转）
+// 构造绕 Z 轴旋转矩阵（右手坐标系，顺时针旋转）
 Transform3D Transform3D::RotationZ(float radians) {
     float cos_theta = std::cos(radians);
     float sin_theta = std::sin(radians);

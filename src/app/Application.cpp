@@ -117,16 +117,32 @@ void Application::SwitchScene(ESceneType type) {
 }
 
 void Application::BindInputForActiveScene() {
-    m_boundInputScene = &m_sceneManager.ActiveScene();
-    m_inputManager.SubscribeTransformActions(*m_boundInputScene);
-    m_inputManager.SubscribeCameraMoveInput(*m_boundInputScene);
+    IScene& activeScene = m_sceneManager.ActiveScene();
+    if (auto* transform2DSink = dynamic_cast<ITransform2DInputSink*>(&activeScene); transform2DSink != nullptr) {
+        m_inputManager.SubscribeTransform2DInput(*transform2DSink);
+        m_boundTransform2DSink = transform2DSink;
+    }
+    if (auto* transform3DSink = dynamic_cast<ITransform3DInputSink*>(&activeScene); transform3DSink != nullptr) {
+        m_inputManager.SubscribeTransform3DInput(*transform3DSink);
+        m_boundTransform3DSink = transform3DSink;
+    }
+    if (auto* cameraSink = dynamic_cast<ICameraMoveInputSink*>(&activeScene); cameraSink != nullptr) {
+        m_inputManager.SubscribeCameraMoveInput(*cameraSink);
+        m_boundCameraSink = cameraSink;
+    }
 }
 
 void Application::UnbindInputFromActiveScene() {
-    if (m_boundInputScene == nullptr) {
-        return;
+    if (m_boundCameraSink != nullptr) {
+        m_inputManager.UnsubscribeCameraMoveInput(*m_boundCameraSink);
+        m_boundCameraSink = nullptr;
     }
-    m_inputManager.UnsubscribeCameraMoveInput(*m_boundInputScene);
-    m_inputManager.UnsubscribeTransformActions(*m_boundInputScene);
-    m_boundInputScene = nullptr;
+    if (m_boundTransform3DSink != nullptr) {
+        m_inputManager.UnsubscribeTransform3DInput(*m_boundTransform3DSink);
+        m_boundTransform3DSink = nullptr;
+    }
+    if (m_boundTransform2DSink != nullptr) {
+        m_inputManager.UnsubscribeTransform2DInput(*m_boundTransform2DSink);
+        m_boundTransform2DSink = nullptr;
+    }
 }
