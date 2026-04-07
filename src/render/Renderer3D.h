@@ -33,6 +33,8 @@ private:
     struct DrawItem {
         wgpu::raii::Buffer vertexBuffer;
         wgpu::raii::Buffer indexBuffer;
+        wgpu::raii::Buffer uniformBuffer;
+        wgpu::raii::BindGroup bindGroup;
         uint64_t           vertexBufferSize = 0;
         uint64_t           indexBufferSize  = 0;
         uint32_t           indexCount       = 0;

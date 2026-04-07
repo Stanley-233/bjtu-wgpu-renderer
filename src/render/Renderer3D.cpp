@@ -91,7 +91,9 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
     return drawItem;
 }
 
+// CPU侧计算逻辑场景
 void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
+    // 计算 MVP 矩阵
     int surfaceWidth  = 0;
     int surfaceHeight = 0;
     glfwGetWindowSize(ctx.GetWindow(), &surfaceWidth, &surfaceHeight);
@@ -105,20 +107,65 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
 
     EnsureDepthResources(ctx, surfaceWidth, surfaceHeight);
 
-    m_drawItems.clear();
-    m_drawItems.reserve(objects.size());
-    for (const Object3D& object : objects) {
+    // 初始化待绘制物体，如果物体的vertex和index没变化则不创建新的buffer
+    m_drawItems.resize(objects.size());
+    for (std::size_t i = 0; i < objects.size(); ++i) {
+        const Object3D& object = objects[i];
         const MeshData3D& mesh = object.Mesh();
         if (mesh.vertices.empty() || mesh.indices.empty()) {
+            m_drawItems[i] = {};
             continue;
         }
 
-        DrawItem drawItem = UploadMeshToGpu(ctx, object);
-        if (!drawItem.vertexBuffer || !drawItem.indexBuffer || drawItem.indexCount == 0) {
-            continue;
+        DrawItem& drawItem = m_drawItems[i];
+        const uint64_t vertexBytes = mesh.vertices.size() * sizeof(Vertex3D);
+        const uint64_t indexBytes  = mesh.indices.size() * sizeof(uint16_t);
+        const uint64_t alignedIndexBytes = (indexBytes + 3ull) & ~3ull;
+
+        const bool needUpload = !drawItem.vertexBuffer // 还没创建vertexBuffer
+                                || !drawItem.indexBuffer // 还没创建indexBuffer
+                                || drawItem.vertexBufferSize != vertexBytes // 顶点数据大小变了
+                                || drawItem.indexBufferSize != alignedIndexBytes // 索引数据大小（4字节对齐后）变了
+                                || drawItem.indexCount != mesh.indices.size(); // 索引数量变了
+        if (needUpload) {
+            DrawItem uploaded = UploadMeshToGpu(ctx, object);
+            if (!uploaded.vertexBuffer || !uploaded.indexBuffer || uploaded.indexCount == 0) {
+                drawItem = {};
+                continue;
+            }
+            drawItem.vertexBuffer     = std::move(uploaded.vertexBuffer);
+            drawItem.indexBuffer      = std::move(uploaded.indexBuffer);
+            drawItem.vertexBufferSize = uploaded.vertexBufferSize;
+            drawItem.indexBufferSize  = uploaded.indexBufferSize;
+            drawItem.indexCount       = uploaded.indexCount;
         }
 
-        m_drawItems.push_back(std::move(drawItem));
+        if (!drawItem.uniformBuffer) {
+            wgpu::BufferDescriptor uniformBufferDesc{};
+            uniformBufferDesc.size             = kSceneUniformSize;
+            uniformBufferDesc.usage            = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+            uniformBufferDesc.mappedAtCreation = false;
+            drawItem.uniformBuffer             = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+        }
+        if (!drawItem.bindGroup) {
+            wgpu::BindGroupEntry binding{};
+            binding.binding = 0;
+            binding.buffer  = *drawItem.uniformBuffer;
+            binding.offset  = 0;
+            binding.size    = kSceneUniformSize;
+
+            wgpu::BindGroupDescriptor bindGroupDesc{};
+            bindGroupDesc.layout     = *m_bindGroupLayout;
+            bindGroupDesc.entryCount = 1;
+            bindGroupDesc.entries    = &binding;
+            drawItem.bindGroup       = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+        }
+
+        if (!drawItem.uniformBuffer || !drawItem.bindGroup) {
+            drawItem = {};
+            continue;
+        }
+        drawItem.model = object.Transform().Matrix();
     }
 }
 
@@ -161,43 +208,15 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
     wgpu::raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
     renderPass->setPipeline(*m_pipeline);
 
-    // 每个物体一个 BindGroup 和 UniformBuffer
-    std::vector<wgpu::raii::Buffer> perDrawUniformBuffers{};
-    std::vector<wgpu::raii::BindGroup> perDrawBindGroups{};
-    perDrawUniformBuffers.reserve(m_drawItems.size());
-    perDrawBindGroups.reserve(m_drawItems.size());
-
-    for (const DrawItem& drawItem : m_drawItems) {
-        if (!drawItem.vertexBuffer || !drawItem.indexBuffer || drawItem.indexCount == 0) {
-            continue;
-        }
-
+    // 将待绘制物体的MVP矩阵写入Uniform Buffer
+    for (DrawItem& drawItem : m_drawItems) {
         const SceneUniform uniform{
             .model      = drawItem.model,
             .view       = m_view,
             .projection = m_projection,
         };
-
-        wgpu::BufferDescriptor uniformBufferDesc{};
-        uniformBufferDesc.size             = kSceneUniformSize;
-        uniformBufferDesc.usage            = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-        uniformBufferDesc.mappedAtCreation = false;
-        perDrawUniformBuffers.push_back(ctx.GetDevice()->createBuffer(uniformBufferDesc));
-        ctx.GetQueue()->writeBuffer(*perDrawUniformBuffers.back(), 0, &uniform, kSceneUniformSize);
-
-        wgpu::BindGroupEntry binding{};
-        binding.binding = 0;
-        binding.buffer  = *perDrawUniformBuffers.back();
-        binding.offset  = 0;
-        binding.size    = kSceneUniformSize;
-
-        wgpu::BindGroupDescriptor bindGroupDesc{};
-        bindGroupDesc.layout     = *m_bindGroupLayout;
-        bindGroupDesc.entryCount = 1;
-        bindGroupDesc.entries    = &binding;
-        perDrawBindGroups.push_back(ctx.GetDevice()->createBindGroup(bindGroupDesc));
-
-        renderPass->setBindGroup(0, *perDrawBindGroups.back(), 0, nullptr);
+        ctx.GetQueue()->writeBuffer(*drawItem.uniformBuffer, 0, &uniform, kSceneUniformSize);
+        renderPass->setBindGroup(0, *drawItem.bindGroup, 0, nullptr);
         renderPass->setVertexBuffer(0, *drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
         renderPass->setIndexBuffer(*drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
         renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);

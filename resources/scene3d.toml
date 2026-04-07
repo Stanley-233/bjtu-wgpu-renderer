@@ -1,5 +1,5 @@
 [camera]
-projectionType = "Orthographic"
+projectionType = "Perspective"
 position = [0.7, 0.45, 2.0]
 target = [0.7, 0.45, 0.0]
 up = [0.0, 1.0, 0.0]

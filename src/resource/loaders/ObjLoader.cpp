@@ -5,7 +5,9 @@
 #include <string>
 #include <vector>
 
-#define TINYOBJLOADER_IMPLEMENTATION
+#ifndef TINYOBJLOADER_IMPLEMENTATION
+    #define TINYOBJLOADER_IMPLEMENTATION
+#endif
 #include <tiny_obj_loader.h>
 
 bool ObjLoader::Load(const std::filesystem::path& path, MeshData3D& outMesh) {
@@ -20,6 +22,12 @@ bool ObjLoader::Load(const std::filesystem::path& path, MeshData3D& outMesh) {
     std::string mtlSearchPath;
     if (const std::filesystem::path parent = path.parent_path(); !parent.empty()) {
         mtlSearchPath = parent.string();
+        if (!mtlSearchPath.empty()) {
+            const char last = mtlSearchPath.back();
+            if (last != '/' && last != '\\') {
+                mtlSearchPath.push_back(std::filesystem::path::preferred_separator);
+            }
+        }
     }
 
     const bool parsed = tinyobj::LoadObj(
@@ -40,6 +48,7 @@ bool ObjLoader::Load(const std::filesystem::path& path, MeshData3D& outMesh) {
         std::cerr << "[ObjLoader] Warning for '" << path.string() << "': " << err << std::endl;
     }
 
+    // TODO: Shading
     constexpr glm::vec3 kTeapotColor{0.86f, 0.87f, 0.78f};
 
     if ((attrib.vertices.size() % 3U) != 0U) {

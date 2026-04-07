@@ -232,15 +232,15 @@ static bool TryLoadObjMesh(
 
     ObjLoader loader{};
     const std::filesystem::path rawPath = objPathRaw;
-    if (loader.Load(rawPath, outMesh)) {
-        return true;
-    }
-
     if (rawPath.is_relative()) {
         const std::filesystem::path resolved = scenePath.parent_path() / rawPath;
         if (loader.Load(resolved, outMesh)) {
             return true;
         }
+    }
+
+    if (loader.Load(rawPath, outMesh)) {
+        return true;
     }
 
     Warn(context + ".objPath failed to load '" + objPathRaw + "', skipping object.");
