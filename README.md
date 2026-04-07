@@ -25,8 +25,8 @@ cd cmake-build-release-emscripten
 python3 -m http.server 8000
 ```
 打开：`http://localhost:8000/bjtu_wgpu_renderer.html`
-方式 B：使用 `just` 一键（项目已提供）
 
+方式 B：使用 `just` 一键启动
 ```bash
 just dev-web
 ```
