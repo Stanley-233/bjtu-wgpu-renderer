@@ -8,6 +8,7 @@
 #include "../render/PipelineLibrary.h"
 #include "../render/RenderContext.h"
 #include "../resource/ResourceManager.h"
+#include "../resource/ResourcePaths.h"
 
 using namespace wgpu;
 
@@ -139,7 +140,7 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     std::vector<float>    pointData;
     std::vector<uint16_t> indexData;
 
-    if (const bool success = ResourceManager::LoadGeometry(RESOURCE_DIR "/webgpu.txt", pointData, indexData); !success) {
+    if (const bool success = ResourceManager::LoadGeometry(ResourcePaths::Resolve("webgpu.txt"), pointData, indexData); !success) {
         std::cerr << "Could not load geometry!" << std::endl;
         std::exit(1);
     }

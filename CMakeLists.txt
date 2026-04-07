@@ -77,10 +77,12 @@ add_executable(bjtu_wgpu_renderer
         src/resource/ResourceManager.h
         src/math/Transform3D.h
         src/math/Transform3D.cpp
+        src/resource/ResourcePaths.h
+        src/resource/ResourcePaths.cpp
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
-        RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources"
+        $<$<CONFIG:Debug>:RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources">
 )
 
 target_link_libraries(bjtu_wgpu_renderer PRIVATE
@@ -96,6 +98,37 @@ target_link_libraries(bjtu_wgpu_renderer PRIVATE
 # so we automatically copy it (it's called WGPU_RUNTIME_LIB in general)
 # next to the binary.
 target_copy_webgpu_binaries(bjtu_wgpu_renderer)
+
+set(BJTU_PACKAGE_ROOT "${CMAKE_BINARY_DIR}/package")
+foreach(CONFIG_TYPE Debug Release RelWithDebInfo MinSizeRel)
+    string(TOUPPER "${CONFIG_TYPE}" CONFIG_UPPER)
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${BJTU_PACKAGE_ROOT}/${CONFIG_TYPE}"
+            LIBRARY_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${BJTU_PACKAGE_ROOT}/${CONFIG_TYPE}"
+            ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${BJTU_PACKAGE_ROOT}/${CONFIG_TYPE}"
+    )
+endforeach()
+
+if (NOT EMSCRIPTEN)
+    add_custom_command(TARGET bjtu_wgpu_renderer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+            "$<TARGET_FILE_DIR:bjtu_wgpu_renderer>/resources"
+            COMMENT "Copying resources next to executable"
+    )
+endif()
+
+if (APPLE)
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES
+            BUILD_RPATH "@loader_path"
+            INSTALL_RPATH "@loader_path"
+    )
+elseif (UNIX AND NOT EMSCRIPTEN)
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES
+            BUILD_RPATH "$ORIGIN"
+            INSTALL_RPATH "$ORIGIN"
+    )
+endif()
 
 set_target_properties(bjtu_wgpu_renderer PROPERTIES
         CXX_STANDARD 20
@@ -123,6 +156,6 @@ if (EMSCRIPTEN)
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
     target_link_options(bjtu_wgpu_renderer PRIVATE
             -sASYNCIFY
-            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/resources@/resources"
     )
 endif()

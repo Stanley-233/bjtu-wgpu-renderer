@@ -2,9 +2,20 @@
 
 #include <toml.hpp>
 #include "app/Application.h"
+#include "resource/ResourcePaths.h"
 
 int main() {
-    auto config = toml::parse_file(RESOURCE_DIR "/config.toml");
+    toml::table config;
+    const std::string configPath = ResourcePaths::Resolve("config.toml").string();
+    try {
+        config = toml::parse_file(configPath);
+    } catch (const toml::parse_error& err) {
+        std::cerr << "Failed to parse config at '" << configPath << "': " << err.description() << std::endl;
+        return 1;
+    } catch (const std::exception& err) {
+        std::cerr << "Failed to load config at '" << configPath << "': " << err.what() << std::endl;
+        return 1;
+    }
 
     const int         width         = config["window"]["width"].value<int>().value();
     const int         height        = config["window"]["height"].value<int>().value();

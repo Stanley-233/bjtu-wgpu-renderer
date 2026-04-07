@@ -2,10 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <glm/geometric.hpp>
 #include <memory>
+#include <string>
 
 #include "../../resource/ResourceManager.h"
+#include "../../resource/ResourcePaths.h"
 #include "../../resource/models/SceneDescription.h"
 #include "../camera/OrthographicCamera.h"
 #include "../camera/PerspectiveCamera.h"
@@ -13,8 +16,9 @@
 void Scene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
     SceneDescription sceneDescription{};
-    if (!ResourceManager::LoadSceneFromToml(RESOURCE_DIR "/scene3d.toml", sceneDescription)) {
-        std::cerr << "[Scene3D] Failed to load scene description from " RESOURCE_DIR "/scene3d.toml" << std::endl;
+    const std::filesystem::path scenePath = ResourcePaths::Resolve("scene3d.toml");
+    if (!ResourceManager::LoadSceneFromToml(scenePath, sceneDescription)) {
+        std::cerr << "[Scene3D] Failed to load scene description from " << scenePath.string() << std::endl;
         m_objects.clear();
         m_initialObjectTransforms.clear();
         return;

@@ -6,13 +6,14 @@
 #include "RenderContext.h"
 #include "../math/Transform2D.h"
 #include "../resource/ResourceManager.h"
+#include "../resource/ResourcePaths.h"
 
 using namespace wgpu;
 
 PipelineLibrary::Pipeline2D PipelineLibrary::CreateColor2D(RenderContext& ctx) {
     std::cout << "Creating shader module..." << std::endl;
     ShaderModule shaderModule = ResourceManager::LoadShaderModule(
-        RESOURCE_DIR "/shader.wgsl",
+        ResourcePaths::Resolve("shader.wgsl"),
         *ctx.GetDevice());
     std::cout << "Shader module: " << shaderModule << std::endl;
 
@@ -106,7 +107,7 @@ PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3D(RenderContext& ctx) {
     // Shader
     std::cout << "[PipelineLibrary] Creating 3d shader module..." << std::endl;
     ShaderModule shaderModule = ResourceManager::LoadShaderModule(
-        RESOURCE_DIR "/shader3d.wgsl",
+        ResourcePaths::Resolve("shader3d.wgsl"),
         *ctx.GetDevice());
     std::cout << "[PipelineLibrary] Shader module: " << shaderModule << std::endl;
 
