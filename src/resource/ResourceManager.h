@@ -5,6 +5,9 @@
 #include <filesystem>
 #include <webgpu/webgpu.hpp>
 
+struct MeshData3D;
+struct SceneDescription;
+
 class ResourceManager {
 public:
     /**
@@ -15,6 +18,16 @@ public:
         const std::filesystem::path& path,
         std::vector<float>&          pointData,
         std::vector<uint16_t>&       indexData
+    );
+
+    static bool LoadGeometry3DFromObj(
+        const std::filesystem::path& path,
+        MeshData3D&                  outMesh
+    );
+
+    static bool LoadSceneFromToml(
+        const std::filesystem::path& path,
+        SceneDescription&            outScene
     );
 
     /**

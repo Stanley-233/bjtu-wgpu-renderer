@@ -42,15 +42,41 @@ add_executable(bjtu_wgpu_renderer
         src/render/RenderContext.h
         src/render/PipelineLibrary.cpp
         src/render/PipelineLibrary.h
+        src/render/Renderer3D.cpp
+        src/render/Renderer3D.h
         src/scene/Scene.h
         src/scene/SceneManager.cpp
         src/scene/SceneManager.h
         src/scene/Scene2D.cpp
         src/scene/Scene2D.h
+        src/scene/scene3d/Scene3D.cpp
+        src/scene/scene3d/Scene3D.h
+        src/scene/camera/Camera.cpp
+        src/scene/camera/Camera.h
+        src/scene/camera/PerspectiveCamera.cpp
+        src/scene/camera/PerspectiveCamera.h
+        src/scene/camera/OrthographicCamera.cpp
+        src/scene/camera/OrthographicCamera.h
+        src/scene/scene3d/Object3D.cpp
+        src/scene/scene3d/Object3D.h
         src/math/Transform2D.cpp
         src/math/Transform2D.h
+        src/resource/models/MeshData3D.h
+        src/resource/models/SceneDescription.h
+        src/resource/loaders/IModelLoader.h
+        src/resource/loaders/ObjLoader.cpp
+        src/resource/loaders/ObjLoader.h
+        src/resource/loaders/ISceneLoader.h
+        src/resource/loaders/TomlSceneLoader.cpp
+        src/resource/loaders/TomlSceneLoader.h
+        src/resource/loaders/ShaderLoader.cpp
+        src/resource/loaders/ShaderLoader.h
+        src/resource/loaders/LegacyTxtGeometryLoader.cpp
+        src/resource/loaders/LegacyTxtGeometryLoader.h
         src/resource/ResourceManager.cpp
         src/resource/ResourceManager.h
+        src/math/Transform3D.h
+        src/math/Transform3D.cpp
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE

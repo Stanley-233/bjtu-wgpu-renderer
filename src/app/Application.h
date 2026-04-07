@@ -9,11 +9,13 @@
 
 class Application {
 public:
-    bool enableMainLoopDebug = false;
-
     Application& SetWindowSize(int width, int height);
 
     Application& SetSurfaceFormat(wgpu::TextureFormat format);
+
+    Application& SetApplicationDebugEnabled(bool enabled);
+
+    Application& SetInputDebugEnabled(bool enabled);
 
     bool Initialize();
 
@@ -42,8 +44,12 @@ private:
     RenderContext       m_renderContext;
     SceneManager        m_sceneManager;
     InputManager        m_inputManager;
-    IScene*             m_boundInputScene = nullptr;
+    ITransform2DInputSink* m_boundTransform2DSink = nullptr;
+    ITransform3DInputSink* m_boundTransform3DSink = nullptr;
+    ICameraMoveInputSink*  m_boundCameraSink = nullptr;
     double              m_lastFrameTime = 0.0;
+    bool                m_applicationDebugEnabled = false;
+    bool                m_inputDebugEnabled       = false;
 };
 
 #endif // BJTU_WGPU_RENDERER_APPLICATION_H

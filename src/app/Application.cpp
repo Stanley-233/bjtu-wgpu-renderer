@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "../scene/Scene2D.h"
+#include "../scene/scene3d/Scene3D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;
@@ -15,10 +16,20 @@ Application& Application::SetSurfaceFormat(const wgpu::TextureFormat format) {
     return *this;
 }
 
+Application& Application::SetApplicationDebugEnabled(const bool enabled) {
+    m_applicationDebugEnabled = enabled;
+    return *this;
+}
+
+Application& Application::SetInputDebugEnabled(const bool enabled) {
+    m_inputDebugEnabled = enabled;
+    return *this;
+}
+
 bool Application::Initialize() {
     m_renderContext.SetWindowSize(m_windowWidth, m_windowHeight);
     m_renderContext.SetSurfaceFormat(m_surfaceFormat);
-    m_renderContext.enableFrameDebug = enableMainLoopDebug;
+    m_renderContext.enableFrameDebug = false;
 
     if (!m_renderContext.Initialize()) {
         return false;
@@ -28,9 +39,10 @@ bool Application::Initialize() {
     glfwSetKeyCallback(m_renderContext.GetWindow(), GLFWKeyCallback);
 
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
+    m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
     m_sceneManager.InitializeAll(m_renderContext);
-    m_sceneManager.SetActiveScene(ESceneType::Scene2D);
-    m_inputManager.SetDebugEnabled(true);
+    m_sceneManager.SetActiveScene(ESceneType::Scene3D);
+    m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
     BindInputForActiveScene();
 
     m_lastFrameTime = glfwGetTime();
@@ -72,7 +84,27 @@ void Application::Tick(float deltaTime) {
 
 void Application::HandleKey(int key, int action, int mods) {
     if (action == GLFW_PRESS && key == GLFW_KEY_1) {
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Key 1" << std::endl;
+        }
         SwitchScene(ESceneType::Scene2D);
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Switch to Scene2D" << std::endl;
+        }
+    }
+    if (action == GLFW_PRESS && key == GLFW_KEY_2) {
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Key 2" << std::endl;
+        }
+        SwitchScene(ESceneType::Scene3D);
+        if (m_applicationDebugEnabled) {
+            std::cout << "[Application] Switch to Scene3D" << std::endl;
+        }
+    }
+    if (action == GLFW_PRESS && key == GLFW_KEY_C) {
+        if (auto* scene3D = dynamic_cast<Scene3D*>(&m_sceneManager.ActiveScene()); scene3D != nullptr) {
+            scene3D->ToggleCameraMode();
+        }
     }
 
     m_inputManager.EmitKeyEvent(key, action, mods);
@@ -85,14 +117,32 @@ void Application::SwitchScene(ESceneType type) {
 }
 
 void Application::BindInputForActiveScene() {
-    m_boundInputScene = &m_sceneManager.ActiveScene();
-    m_inputManager.SubscribeTransformActions(*m_boundInputScene);
+    IScene& activeScene = m_sceneManager.ActiveScene();
+    if (auto* transform2DSink = dynamic_cast<ITransform2DInputSink*>(&activeScene); transform2DSink != nullptr) {
+        m_inputManager.SubscribeTransform2DInput(*transform2DSink);
+        m_boundTransform2DSink = transform2DSink;
+    }
+    if (auto* transform3DSink = dynamic_cast<ITransform3DInputSink*>(&activeScene); transform3DSink != nullptr) {
+        m_inputManager.SubscribeTransform3DInput(*transform3DSink);
+        m_boundTransform3DSink = transform3DSink;
+    }
+    if (auto* cameraSink = dynamic_cast<ICameraMoveInputSink*>(&activeScene); cameraSink != nullptr) {
+        m_inputManager.SubscribeCameraMoveInput(*cameraSink);
+        m_boundCameraSink = cameraSink;
+    }
 }
 
 void Application::UnbindInputFromActiveScene() {
-    if (m_boundInputScene == nullptr) {
-        return;
+    if (m_boundCameraSink != nullptr) {
+        m_inputManager.UnsubscribeCameraMoveInput(*m_boundCameraSink);
+        m_boundCameraSink = nullptr;
     }
-    m_inputManager.UnsubscribeTransformActions(*m_boundInputScene);
-    m_boundInputScene = nullptr;
+    if (m_boundTransform3DSink != nullptr) {
+        m_inputManager.UnsubscribeTransform3DInput(*m_boundTransform3DSink);
+        m_boundTransform3DSink = nullptr;
+    }
+    if (m_boundTransform2DSink != nullptr) {
+        m_inputManager.UnsubscribeTransform2DInput(*m_boundTransform2DSink);
+        m_boundTransform2DSink = nullptr;
+    }
 }
