@@ -41,6 +41,7 @@ private:
     ECameraMode             m_cameraMode = ECameraMode::Orthographic;
     std::unique_ptr<Camera> m_camera{};
     std::vector<Object3D>   m_objects{};
+    std::vector<Transform3D> m_initialObjectTransforms{};
     Renderer3D              m_renderer{};
     ObjectTransform3DStateEvent m_objectTransformState{};
     float                   m_moveForward = 0.0f;

@@ -1,11 +1,14 @@
 #include "TomlSceneLoader.h"
 
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <string>
 #include <utility>
 
 #include <toml.hpp>
+
+#include "ObjLoader.h"
 
 static void Warn(const std::string& message) {
     std::cerr << "[TomlSceneLoader] " << message << '\n';
@@ -48,6 +51,25 @@ static bool TryReadVec3(
         parsed[i] = static_cast<float>(*value);
     }
     out = parsed;
+    return true;
+}
+
+static bool TryReadString(
+    const toml::table& table,
+    const char*        key,
+    std::string&       out,
+    const std::string& context
+) {
+    const toml::node_view<const toml::node> node = table[key];
+    if (!node) {
+        return false;
+    }
+    const auto value = node.value<std::string>();
+    if (!value.has_value()) {
+        Warn(context + " field '" + key + "' must be string, using default.");
+        return false;
+    }
+    out = *value;
     return true;
 }
 
@@ -142,6 +164,89 @@ static bool TryParseIndices(
     return success;
 }
 
+static bool TryParseInlineMesh(
+    const toml::table& meshTable,
+    MeshData3D&        outMesh,
+    const std::string& context
+) {
+    outMesh.vertices.clear();
+    outMesh.indices.clear();
+
+    const toml::node_view<const toml::node> verticesNode = meshTable["vertices"];
+    if (!verticesNode) {
+        Warn(context + ".vertices missing, object keeps empty mesh.");
+    } else {
+        const toml::array* verticesArray = verticesNode.as_array();
+        if (verticesArray == nullptr) {
+            Warn(context + ".vertices is not an array, object keeps empty mesh.");
+        } else {
+            for (size_t vIdx = 0; vIdx < verticesArray->size(); ++vIdx) {
+                const toml::node* vertexNode = verticesArray->get(vIdx);
+                if (vertexNode == nullptr) {
+                    Warn(context + ".vertices[" + std::to_string(vIdx) + "] missing, skipping.");
+                    continue;
+                }
+
+                Vertex3D vertex{};
+                if (TryParseVertex(*vertexNode, vertex, context + ".vertices[" + std::to_string(vIdx) + "]")) {
+                    outMesh.vertices.push_back(vertex);
+                }
+            }
+        }
+    }
+
+    if (outMesh.vertices.empty()) {
+        Warn(context + " parsed with zero valid vertices.");
+    }
+
+    const toml::node_view<const toml::node> indicesNode = meshTable["indices"];
+    if (!indicesNode) {
+        Warn(context + ".indices missing, using empty indices.");
+    } else {
+        const toml::array* indicesArray = indicesNode.as_array();
+        if (indicesArray == nullptr) {
+            Warn(context + ".indices is not an array, using empty indices.");
+        } else {
+            bool rangeError = false;
+            TryParseIndices(*indicesArray, outMesh.vertices.size(), outMesh.indices, rangeError, context);
+            if (rangeError) {
+                outMesh.vertices.clear();
+                outMesh.indices.clear();
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool TryLoadObjMesh(
+    const std::filesystem::path& scenePath,
+    const std::string&           objPathRaw,
+    MeshData3D&                  outMesh,
+    const std::string&           context
+) {
+    if (objPathRaw.empty()) {
+        return false;
+    }
+
+    ObjLoader loader{};
+    const std::filesystem::path rawPath = objPathRaw;
+    if (loader.Load(rawPath, outMesh)) {
+        return true;
+    }
+
+    if (rawPath.is_relative()) {
+        const std::filesystem::path resolved = scenePath.parent_path() / rawPath;
+        if (loader.Load(resolved, outMesh)) {
+            return true;
+        }
+    }
+
+    Warn(context + ".objPath failed to load '" + objPathRaw + "', skipping object.");
+    return false;
+}
+
 bool TomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& outScene) {
     outScene = SceneDescription{};
 
@@ -215,50 +320,33 @@ bool TomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& 
         }
 
         ObjectDescription object{};
+        TryReadString(*objectTable, "name", object.name, objectContext);
 
-        const toml::node_view<const toml::node> verticesNode = (*meshTable)["vertices"];
-        if (!verticesNode) {
-            Warn(objectContext + ".mesh.vertices missing, object keeps empty mesh.");
-        } else {
-            const toml::array* verticesArray = verticesNode.as_array();
-            if (verticesArray == nullptr) {
-                Warn(objectContext + ".mesh.vertices is not an array, object keeps empty mesh.");
+        const toml::node_view<const toml::node> transformNode = (*objectTable)["transform"];
+        if (transformNode) {
+            const toml::table* transformTable = transformNode.as_table();
+            if (transformTable == nullptr) {
+                Warn(objectContext + ".transform is not a table, using defaults.");
             } else {
-                for (size_t vIdx = 0; vIdx < verticesArray->size(); ++vIdx) {
-                    const toml::node* vertexNode = verticesArray->get(vIdx);
-                    if (vertexNode == nullptr) {
-                        Warn(objectContext + ".mesh.vertices[" + std::to_string(vIdx) + "] missing, skipping.");
-                        continue;
-                    }
-
-                    Vertex3D vertex{};
-                    if (TryParseVertex(*vertexNode, vertex,
-                                       objectContext + ".mesh.vertices[" + std::to_string(vIdx) + "]")) {
-                        object.mesh.vertices.push_back(vertex);
-                    }
-                }
+                TryReadVec3(*transformTable, "translation", object.translation, objectContext + ".transform");
+                TryReadVec3(*transformTable, "rotation", object.rotation, objectContext + ".transform");
+                TryReadVec3(*transformTable, "scale", object.scale, objectContext + ".transform");
             }
         }
 
-        if (object.mesh.vertices.empty()) {
-            Warn(objectContext + " parsed with zero valid vertices.");
+        std::string objPathRaw{};
+        (void)TryReadString(*meshTable, "objPath", objPathRaw, objectContext + ".mesh");
+
+        bool loadedMesh = false;
+        if (!objPathRaw.empty()) {
+            loadedMesh = TryLoadObjMesh(path, objPathRaw, object.mesh, objectContext + ".mesh");
+        } else {
+            loadedMesh = TryParseInlineMesh(*meshTable, object.mesh, objectContext + ".mesh");
         }
 
-        const toml::node_view<const toml::node> indicesNode = (*meshTable)["indices"];
-        if (!indicesNode) {
-            Warn(objectContext + ".mesh.indices missing, using empty indices.");
-        } else {
-            const toml::array* indicesArray = indicesNode.as_array();
-            if (indicesArray == nullptr) {
-                Warn(objectContext + ".mesh.indices is not an array, using empty indices.");
-            } else {
-                bool rangeError = false;
-                TryParseIndices(*indicesArray, object.mesh.vertices.size(), object.mesh.indices, rangeError, objectContext + ".mesh");
-                if (rangeError) {
-                    outScene = SceneDescription{};
-                    return false;
-                }
-            }
+        if (!loadedMesh || object.mesh.vertices.empty() || object.mesh.indices.empty()) {
+            Warn(objectContext + " mesh is empty or failed to load, skipping object.");
+            continue;
         }
 
         parsedScene.objects.push_back(std::move(object));

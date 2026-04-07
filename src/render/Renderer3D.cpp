@@ -21,30 +21,6 @@ void Renderer3D::Initialize(RenderContext& ctx) {
     m_pipeline        = std::move(pipeline3D.pipeline);
 }
 
-void Renderer3D::EnsureUniformResources(RenderContext& ctx) {
-    if (!m_uniformBuffer) {
-        wgpu::BufferDescriptor bufferDesc{};
-        bufferDesc.size             = kSceneUniformSize;
-        bufferDesc.usage            = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-        bufferDesc.mappedAtCreation = false;
-        m_uniformBuffer             = ctx.GetDevice()->createBuffer(bufferDesc);
-    }
-
-    if (!m_bindGroup) {
-        wgpu::BindGroupEntry binding{};
-        binding.binding = 0;
-        binding.buffer  = *m_uniformBuffer;
-        binding.offset  = 0;
-        binding.size    = kSceneUniformSize;
-
-        wgpu::BindGroupDescriptor bindGroupDesc{};
-        bindGroupDesc.layout     = *m_bindGroupLayout;
-        bindGroupDesc.entryCount = 1;
-        bindGroupDesc.entries    = &binding;
-        m_bindGroup              = ctx.GetDevice()->createBindGroup(bindGroupDesc);
-    }
-}
-
 void Renderer3D::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
@@ -89,7 +65,7 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
     drawItem.vertexBufferSize = vertexBufferDesc.size;
 
     wgpu::BufferDescriptor indexBufferDesc{};
-    // 原始索引数据字节数（每个索引是 uint16_t，占 2 字节）
+    // 原始索引数据字节数
     const uint64_t indexBytes = mesh.indices.size() * sizeof(uint16_t);
     // WebGPU 要求拷贝/缓冲区大小按 4 字节对齐：把 indexBytes 向上取整到最近的 4 的倍数
     const uint64_t alignedIndexBytes = (indexBytes + 3ull) & ~3ull;
@@ -98,8 +74,8 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
     indexBufferDesc.mappedAtCreation = false;
     drawItem.indexBuffer             = ctx.GetDevice()->createBuffer(indexBufferDesc);
 
-    // WebGPU 要求 writeBuffer 的拷贝字节数满足 COPY_BUFFER_ALIGNMENT(4字节对齐)
-    // 当 uint16_t 索引个数为奇数时，原始字节数会是 2 的倍数但不是 4 的倍数，此处补一个索引位做 padding
+    // WebGPU 要求 writeBuffer 的拷贝字节数满足4字节对齐
+    // 当 uint16_t 索引个数为奇数时，原始字节数会是2的倍数但不是4的倍数，此处补一个索引位做 padding
     std::vector<uint16_t> paddedIndices = mesh.indices;
     if ((paddedIndices.size() & 1u) != 0u) {
         paddedIndices.push_back(0);
@@ -116,8 +92,6 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
 }
 
 void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
-    EnsureUniformResources(ctx);
-
     int surfaceWidth  = 0;
     int surfaceHeight = 0;
     glfwGetWindowSize(ctx.GetWindow(), &surfaceWidth, &surfaceHeight);
@@ -186,7 +160,12 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
 
     wgpu::raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
     renderPass->setPipeline(*m_pipeline);
-    renderPass->setBindGroup(0, *m_bindGroup, 0, nullptr);
+
+    // 每个物体一个 BindGroup 和 UniformBuffer
+    std::vector<wgpu::raii::Buffer> perDrawUniformBuffers{};
+    std::vector<wgpu::raii::BindGroup> perDrawBindGroups{};
+    perDrawUniformBuffers.reserve(m_drawItems.size());
+    perDrawBindGroups.reserve(m_drawItems.size());
 
     for (const DrawItem& drawItem : m_drawItems) {
         if (!drawItem.vertexBuffer || !drawItem.indexBuffer || drawItem.indexCount == 0) {
@@ -198,8 +177,27 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
             .view       = m_view,
             .projection = m_projection,
         };
-        ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &uniform, kSceneUniformSize);
 
+        wgpu::BufferDescriptor uniformBufferDesc{};
+        uniformBufferDesc.size             = kSceneUniformSize;
+        uniformBufferDesc.usage            = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        uniformBufferDesc.mappedAtCreation = false;
+        perDrawUniformBuffers.push_back(ctx.GetDevice()->createBuffer(uniformBufferDesc));
+        ctx.GetQueue()->writeBuffer(*perDrawUniformBuffers.back(), 0, &uniform, kSceneUniformSize);
+
+        wgpu::BindGroupEntry binding{};
+        binding.binding = 0;
+        binding.buffer  = *perDrawUniformBuffers.back();
+        binding.offset  = 0;
+        binding.size    = kSceneUniformSize;
+
+        wgpu::BindGroupDescriptor bindGroupDesc{};
+        bindGroupDesc.layout     = *m_bindGroupLayout;
+        bindGroupDesc.entryCount = 1;
+        bindGroupDesc.entries    = &binding;
+        perDrawBindGroups.push_back(ctx.GetDevice()->createBindGroup(bindGroupDesc));
+
+        renderPass->setBindGroup(0, *perDrawBindGroups.back(), 0, nullptr);
         renderPass->setVertexBuffer(0, *drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
         renderPass->setIndexBuffer(*drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
         renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
@@ -214,10 +212,8 @@ void Renderer3D::SetClearColor(const double r, const double g, const double b, c
 }
 
 void Renderer3D::ResetGpuResources() {
-    m_uniformBuffer   = {};
     m_layout          = {};
     m_bindGroupLayout = {};
-    m_bindGroup       = {};
     m_pipeline        = {};
     m_depthTexture    = {};
     m_depthView       = {};

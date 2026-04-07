@@ -1,5 +1,6 @@
 #include "Scene3D.h"
 
+#include <algorithm>
 #include <cmath>
 #include <glm/geometric.hpp>
 #include <memory>
@@ -15,6 +16,7 @@ void Scene3D::Initialize(RenderContext& ctx) {
     if (!ResourceManager::LoadSceneFromToml(RESOURCE_DIR "/scene3d.toml", sceneDescription)) {
         std::cerr << "[Scene3D] Failed to load scene description from " RESOURCE_DIR "/scene3d.toml" << std::endl;
         m_objects.clear();
+        m_initialObjectTransforms.clear();
         return;
     }
     if (sceneDescription.camera.projectionType == ECameraProjectionType::Orthographic) {
@@ -30,10 +32,30 @@ void Scene3D::Initialize(RenderContext& ctx) {
         );
     }
     m_objects.clear();
+    m_initialObjectTransforms.clear();
     m_objects.reserve(sceneDescription.objects.size());
+    m_initialObjectTransforms.reserve(sceneDescription.objects.size());
     for (const ObjectDescription& objectDescription : sceneDescription.objects) {
         m_objects.emplace_back();
-        m_objects.back().SetMesh(objectDescription.mesh);
+        Object3D& object = m_objects.back();
+        object.SetMesh(objectDescription.mesh);
+
+        Transform3D initialTransform = Transform3D::Identity();
+        initialTransform.Combine(Transform3D::Scale(
+            objectDescription.scale.x,
+            objectDescription.scale.y,
+            objectDescription.scale.z
+        ));
+        initialTransform.Combine(Transform3D::RotationX(objectDescription.rotation.x));
+        initialTransform.Combine(Transform3D::RotationY(objectDescription.rotation.y));
+        initialTransform.Combine(Transform3D::RotationZ(objectDescription.rotation.z));
+        initialTransform.Combine(Transform3D::Translation(
+            objectDescription.translation.x,
+            objectDescription.translation.y,
+            objectDescription.translation.z
+        ));
+        object.SetTransform(initialTransform);
+        m_initialObjectTransforms.push_back(initialTransform);
     }
 }
 
@@ -130,8 +152,12 @@ void Scene3D::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) {
     if (event.mode != EObjectTransform3DMode::Reset) {
         return;
     }
-    for (Object3D& object : m_objects) {
-        object.Transform().Reset();
+    const size_t count = std::min(m_objects.size(), m_initialObjectTransforms.size());
+    for (size_t i = 0; i < count; ++i) {
+        m_objects[i].SetTransform(m_initialObjectTransforms[i]);
+    }
+    for (size_t i = count; i < m_objects.size(); ++i) {
+        m_objects[i].Transform().Reset();
     }
 }
 

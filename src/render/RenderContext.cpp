@@ -30,10 +30,10 @@ bool RenderContext::Initialize() {
     raii::Instance instance = Instance(wgpuCreateInstance(nullptr));
 
     std::cout << "Requesting adapter..." << std::endl;
-    m_surface                          = Surface(glfwGetWGPUSurface(*instance, m_window));
+    m_surface                         = Surface(glfwGetWGPUSurface(*instance, m_window));
     RequestAdapterOptions adapterOpts = {};
     adapterOpts.compatibleSurface     = *m_surface;
-    raii::Adapter adapter              = instance->requestAdapter(adapterOpts);
+    raii::Adapter adapter             = instance->requestAdapter(adapterOpts);
     std::cout << "Got adapter: " << adapter << std::endl;
 
     std::cout << "Requesting device..." << std::endl;

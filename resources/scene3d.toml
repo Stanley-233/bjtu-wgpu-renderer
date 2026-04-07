@@ -5,8 +5,23 @@ target = [0.7, 0.45, 0.0]
 up = [0.0, 1.0, 0.0]
 
 [[objects]]
-[objects.mesh]
+name = "teapot"
+[objects.transform]
+translation = [1.05, -0.25, -0.15]
+rotation = [0.0, 0.0, 0.0]
+scale = [0.01, 0.01, 0.01]
 
+[objects.mesh]
+objPath = "teapot/teapot.obj"
+
+[[objects]]
+name = "logo"
+[objects.transform]
+translation = [-0.35, 0.55, 0.0]
+rotation = [0.0, 0.0, 0.0]
+scale = [1.0, 1.0, 1.0]
+
+[objects.mesh]
 vertices = [
     { position = [0.5, 0.0, 0.0], color = [0.0, 0.353, 0.612] },
     { position = [1.0, 0.866, 0.0], color = [0.0, 0.353, 0.612] },

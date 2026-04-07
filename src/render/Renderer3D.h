@@ -39,15 +39,12 @@ private:
         glm::mat4          model{1.0f};
     };
 
-    void EnsureUniformResources(RenderContext& ctx);
     void EnsureDepthResources(RenderContext& ctx, int width, int height);
 
     static DrawItem UploadMeshToGpu(RenderContext& ctx, const Object3D& object);
 
-    wgpu::raii::Buffer          m_uniformBuffer;
     wgpu::raii::PipelineLayout  m_layout;
     wgpu::raii::BindGroupLayout m_bindGroupLayout;
-    wgpu::raii::BindGroup       m_bindGroup;
     wgpu::raii::RenderPipeline  m_pipeline;
     wgpu::raii::Texture         m_depthTexture;
     wgpu::raii::TextureView     m_depthView;
