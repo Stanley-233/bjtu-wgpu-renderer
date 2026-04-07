@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 3.31.6)
 project(
     bjtu_wgpu_renderer
     LANGUAGES C CXX
@@ -134,13 +134,13 @@ set_target_properties(bjtu_wgpu_renderer PROPERTIES
         CXX_STANDARD 20
         CXX_STANDARD_REQUIRED ON
         CXX_EXTENSIONS OFF
-        COMPILE_WARNING_AS_ERROR ON
 )
 
 if (MSVC)
     target_compile_options(bjtu_wgpu_renderer PRIVATE /W4)
 else()
     target_compile_options(bjtu_wgpu_renderer PRIVATE -Wall -Wextra -pedantic)
+    set_target_properties(bjtu_wgpu_renderer PROPERTIES COMPILE_WARNING_AS_ERROR ON)
 endif()
 
 if (XCODE)

@@ -37,8 +37,8 @@ static bool TryReadVec3(
     }
 
     glm::vec3 parsed{};
-    for (size_t i = 0; i < 3U; ++i) {
-        const toml::node* elem = arr->get(i);
+    for (glm::vec3::length_type i = 0; i < 3; ++i) {
+        const toml::node* elem = arr->get(static_cast<size_t>(i));
         if (elem == nullptr) {
             Warn(context + " field '" + key + "' has missing element, using default.");
             return false;

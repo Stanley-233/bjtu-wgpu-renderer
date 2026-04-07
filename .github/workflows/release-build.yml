@@ -1,0 +1,137 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (CMake)
+        run: cmake -S . -B build-macos -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (CMake)
+        run: cmake --build build-macos --target bjtu_wgpu_renderer --config Release
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          ARCH="$(echo "${RUNNER_ARCH}" | tr '[:upper:]' '[:lower:]')"
+          tar -czf "dist/bjtu-wgpu-renderer-macos-${ARCH}-${GITHUB_REF_NAME}.tar.gz" -C build-macos/package/Release .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos-${{ runner.arch }}
+          path: dist/*.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (CMake)
+        run: cmake -S . -B build-windows -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (CMake)
+        run: cmake --build build-windows --target bjtu_wgpu_renderer --config Release -- /p:TreatWarningsAsErrors=false
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          $tag = $env:GITHUB_REF_NAME
+          $arch = $env:RUNNER_ARCH.ToLower()
+          $output = "dist/bjtu-wgpu-renderer-windows-$arch-$tag.zip"
+          Compress-Archive -Path "build-windows/package/Release/*" -DestinationPath $output -Force
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows-${{ runner.arch }}
+          path: dist/*.zip
+
+  build-web:
+    name: Build Web (Emscripten)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.61
+
+      - name: Configure (emcmake + CMake)
+        run: emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (CMake)
+        run: cmake --build build-web --target bjtu_wgpu_renderer --config Release
+
+      - name: Package
+        run: |
+          mkdir -p dist/web
+          cp build-web/package/Release/bjtu_wgpu_renderer.html dist/web/
+          cp build-web/package/Release/bjtu_wgpu_renderer.js dist/web/
+          cp build-web/package/Release/bjtu_wgpu_renderer.wasm dist/web/
+          if [ -f build-web/package/Release/bjtu_wgpu_renderer.data ]; then
+            cp build-web/package/Release/bjtu_wgpu_renderer.data dist/web/
+          fi
+          tar -czf "dist/bjtu-wgpu-renderer-web-${GITHUB_REF_NAME}.tar.gz" -C dist/web .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-web
+          path: dist/*.tar.gz
+
+  release:
+    name: Publish Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-macos
+      - build-windows
+      - build-web
+    steps:
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-macos-*
+          merge-multiple: true
+          path: dist/macos
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-windows-*
+          merge-multiple: true
+          path: dist/windows
+
+      - name: Download Web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-web
+          path: dist/web
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            dist/macos/*.tar.gz
+            dist/windows/*.zip
+            dist/web/*.tar.gz
+          fail_on_unmatched_files: true

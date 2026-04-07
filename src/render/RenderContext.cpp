@@ -157,6 +157,9 @@ void RenderContext::SubmitAndPresent(raii::CommandEncoder& encoder) {
     }
 
 #ifndef __EMSCRIPTEN__
+    // 在浏览器里，当前帧的显示时机由浏览器自己的渲染循环控制
+    // 代码只需要拿当前纹理、画进去、提交命令，浏览器会在合适的时候把结果展示出来
+    // 见 main.cpp 设置 callback
     m_surface->present();
 #endif
 
