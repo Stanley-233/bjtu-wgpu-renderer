@@ -5,10 +5,10 @@
 
 #include <glm/mat4x4.hpp>
 
+#include "../scene/scene3d/Object3D.h"
 #include "../webgpu-raii.hpp"
 
 class Camera;
-class Object3D;
 class RenderContext;
 
 class Renderer3D {
@@ -35,19 +35,22 @@ private:
         wgpu::raii::Buffer indexBuffer;
         wgpu::raii::Buffer uniformBuffer;
         wgpu::raii::BindGroup bindGroup;
-        uint64_t           vertexBufferSize = 0;
-        uint64_t           indexBufferSize  = 0;
-        uint32_t           indexCount       = 0;
-        glm::mat4          model{1.0f};
+        uint64_t                vertexBufferSize = 0;
+        uint64_t                indexBufferSize  = 0;
+        uint32_t                indexCount       = 0;
+        Object3D::ERenderMode   renderMode       = Object3D::ERenderMode::Solid;
+        glm::mat4               model{1.0f};
     };
 
     void EnsureDepthResources(RenderContext& ctx, int width, int height);
 
     static DrawItem UploadMeshToGpu(RenderContext& ctx, const Object3D& object);
 
-    wgpu::raii::PipelineLayout  m_layout;
+    wgpu::raii::PipelineLayout  m_solidLayout;
+    wgpu::raii::PipelineLayout  m_wireframeLayout;
     wgpu::raii::BindGroupLayout m_bindGroupLayout;
-    wgpu::raii::RenderPipeline  m_pipeline;
+    wgpu::raii::RenderPipeline  m_solidPipeline;
+    wgpu::raii::RenderPipeline  m_wireframePipeline;
     wgpu::raii::Texture         m_depthTexture;
     wgpu::raii::TextureView     m_depthView;
     int                         m_depthWidth  = 0;
@@ -55,7 +58,7 @@ private:
     glm::mat4                   m_view{1.0f};
     glm::mat4                   m_projection{1.0f};
     std::vector<DrawItem>       m_drawItems;
-    wgpu::Color                 m_clearColor{0.03, 0.04, 0.06, 1.0};
+    wgpu::Color                 m_clearColor{0.12, 0.12, 0.12, 1.0};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERER3D_H

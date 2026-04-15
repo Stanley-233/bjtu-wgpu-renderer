@@ -13,6 +13,65 @@
 #include "../camera/OrthographicCamera.h"
 #include "../camera/PerspectiveCamera.h"
 
+namespace {
+MeshData3D CreateSolidCubeMesh() {
+    MeshData3D mesh{};
+    constexpr glm::vec3 backColor{0.95f, 0.35f, 0.25f};
+    constexpr glm::vec3 frontColor{0.20f, 0.65f, 0.95f};
+    constexpr glm::vec3 bottomColor{0.95f, 0.85f, 0.25f};
+    constexpr glm::vec3 topColor{0.35f, 0.85f, 0.45f};
+    constexpr glm::vec3 leftColor{0.70f, 0.45f, 0.95f};
+    constexpr glm::vec3 rightColor{0.95f, 0.55f, 0.80f};
+    mesh.vertices = {
+        // back
+        {{-0.5f, -0.5f, -0.5f}, backColor},
+        {{0.5f, -0.5f, -0.5f}, backColor},
+        {{0.5f, 0.5f, -0.5f}, backColor},
+        {{-0.5f, 0.5f, -0.5f}, backColor},
+        // front
+        {{-0.5f, -0.5f, 0.5f}, frontColor},
+        {{0.5f, -0.5f, 0.5f}, frontColor},
+        {{0.5f, 0.5f, 0.5f}, frontColor},
+        {{-0.5f, 0.5f, 0.5f}, frontColor},
+        // bottom
+        {{-0.5f, -0.5f, -0.5f}, bottomColor},
+        {{0.5f, -0.5f, -0.5f}, bottomColor},
+        {{0.5f, -0.5f, 0.5f}, bottomColor},
+        {{-0.5f, -0.5f, 0.5f}, bottomColor},
+        // top
+        {{-0.5f, 0.5f, -0.5f}, topColor},
+        {{0.5f, 0.5f, -0.5f}, topColor},
+        {{0.5f, 0.5f, 0.5f}, topColor},
+        {{-0.5f, 0.5f, 0.5f}, topColor},
+        // left
+        {{-0.5f, -0.5f, -0.5f}, leftColor},
+        {{-0.5f, 0.5f, -0.5f}, leftColor},
+        {{-0.5f, 0.5f, 0.5f}, leftColor},
+        {{-0.5f, -0.5f, 0.5f}, leftColor},
+        // right
+        {{0.5f, -0.5f, -0.5f}, rightColor},
+        {{0.5f, 0.5f, -0.5f}, rightColor},
+        {{0.5f, 0.5f, 0.5f}, rightColor},
+        {{0.5f, -0.5f, 0.5f}, rightColor},
+    };
+    mesh.indices = {
+        0, 1, 2, 0, 2, 3, // back
+        4, 6, 5, 4, 7, 6, // front
+        8, 10, 9, 8, 11, 10, // bottom
+        12, 13, 14, 12, 14, 15, // top
+        16, 17, 18, 16, 18, 19, // left
+        20, 22, 21, 20, 23, 22, // right
+    };
+    return mesh;
+}
+
+void SetMeshColor(MeshData3D& mesh, const glm::vec3 color) {
+    for (Vertex3D& vertex : mesh.vertices) {
+        vertex.color = color;
+    }
+}
+} // namespace
+
 void Scene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
     SceneDescription sceneDescription{};
@@ -43,6 +102,12 @@ void Scene3D::Initialize(RenderContext& ctx) {
         m_objects.emplace_back();
         Object3D& object = m_objects.back();
         object.SetMesh(objectDescription.mesh);
+        if (objectDescription.name == "teapot") {
+            object.SetRenderMode(Object3D::ERenderMode::Wireframe);
+            MeshData3D teapotMesh = object.Mesh();
+            SetMeshColor(teapotMesh, {0.97f, 0.97f, 0.97f});
+            object.SetMesh(teapotMesh);
+        }
 
         Transform3D initialTransform = Transform3D::Identity();
         initialTransform.Combine(Transform3D::Scale(
@@ -61,6 +126,16 @@ void Scene3D::Initialize(RenderContext& ctx) {
         object.SetTransform(initialTransform);
         m_initialObjectTransforms.push_back(initialTransform);
     }
+
+    Object3D cube{};
+    cube.SetMesh(CreateSolidCubeMesh());
+    cube.SetRenderMode(Object3D::ERenderMode::Solid);
+    Transform3D cubeTransform = Transform3D::Identity();
+    cubeTransform.Combine(Transform3D::Scale(0.28f, 0.28f, 0.28f));
+    cubeTransform.Combine(Transform3D::Translation(-0.35f, -0.25f, -0.05f));
+    cube.SetTransform(cubeTransform);
+    m_objects.push_back(cube);
+    m_initialObjectTransforms.push_back(cubeTransform);
 }
 
 void Scene3D::Update(float dt) {
