@@ -11,7 +11,7 @@
 using namespace wgpu;
 
 namespace {
-PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext& ctx, const PrimitiveTopology topology) {
+PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext &ctx, WGPUPrimitiveTopology topology) {
     std::cout << "[PipelineLibrary] Creating 3d shader module..." << std::endl;
     ShaderModule shaderModule = ResourceManager::LoadShaderModule(
         ResourcePaths::Resolve("shader3d.wgsl"),
