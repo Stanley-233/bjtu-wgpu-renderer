@@ -24,6 +24,8 @@ public:
     static Pipeline3D CreateColor3D(RenderContext& ctx);
 
     static Pipeline3D CreateColor3DWireframe(RenderContext& ctx);
+
+    static Pipeline3D CreateColor3DWireframeDepthPrepass(RenderContext& ctx);
 };
 
 #endif // BJTU_WGPU_RENDERER_PIPELINELIBRARY_H

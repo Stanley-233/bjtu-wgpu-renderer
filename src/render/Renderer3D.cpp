@@ -15,13 +15,16 @@
 constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
 
 void Renderer3D::Initialize(RenderContext& ctx) {
-    auto pipeline3D   = PipelineLibrary::CreateColor3D(ctx);
-    auto wireframe3D  = PipelineLibrary::CreateColor3DWireframe(ctx);
-    m_bindGroupLayout = std::move(pipeline3D.bindGroupLayout);
-    m_solidLayout     = std::move(pipeline3D.layout);
-    m_solidPipeline   = std::move(pipeline3D.pipeline);
-    m_wireframeLayout = std::move(wireframe3D.layout);
-    m_wireframePipeline = std::move(wireframe3D.pipeline);
+    auto pipeline3D             = PipelineLibrary::CreateColor3D(ctx);
+    auto wireframe3D            = PipelineLibrary::CreateColor3DWireframe(ctx);
+    auto wireframeDepthPrepass3D = PipelineLibrary::CreateColor3DWireframeDepthPrepass(ctx);
+    m_bindGroupLayout            = std::move(pipeline3D.bindGroupLayout);
+    m_solidLayout                = std::move(pipeline3D.layout);
+    m_solidPipeline              = std::move(pipeline3D.pipeline);
+    m_wireframeLayout            = std::move(wireframe3D.layout);
+    m_wireframePipeline          = std::move(wireframe3D.pipeline);
+    m_wireframeDepthPrepassLayout   = std::move(wireframeDepthPrepass3D.layout);
+    m_wireframeDepthPrepassPipeline = std::move(wireframeDepthPrepass3D.pipeline);
 }
 
 void Renderer3D::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
@@ -69,6 +72,7 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
     drawItem.vertexBufferSize = vertexBufferDesc.size;
 
     std::vector<uint16_t> indexData;
+    std::vector<uint16_t> wireframeDepthIndexData;
     if (renderMode == Object3D::ERenderMode::Wireframe) {
         if ((mesh.indices.size() % 3U) != 0U) {
             return {};
@@ -85,6 +89,7 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
             indexData.push_back(i2);
             indexData.push_back(i0);
         }
+        wireframeDepthIndexData = mesh.indices;
     } else {
         indexData = mesh.indices;
     }
@@ -110,6 +115,34 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
     ctx.GetQueue()->writeBuffer(*drawItem.indexBuffer, 0, paddedIndices.data(), writeSize);
     drawItem.indexBufferSize = indexBufferDesc.size;
     drawItem.indexCount      = static_cast<uint32_t>(indexData.size());
+
+    if (renderMode == Object3D::ERenderMode::Wireframe) {
+        wgpu::BufferDescriptor wireframeDepthIndexBufferDesc{};
+        const uint64_t wireframeDepthIndexBytes = wireframeDepthIndexData.size() * sizeof(uint16_t);
+        const uint64_t alignedWireframeDepthIndexBytes = (wireframeDepthIndexBytes + 3ull) & ~3ull;
+        wireframeDepthIndexBufferDesc.size             = alignedWireframeDepthIndexBytes;
+        wireframeDepthIndexBufferDesc.usage            = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Index;
+        wireframeDepthIndexBufferDesc.mappedAtCreation = false;
+        drawItem.wireframeDepthIndexBuffer             = ctx.GetDevice()->createBuffer(wireframeDepthIndexBufferDesc);
+
+        std::vector<uint16_t> paddedWireframeDepthIndices = wireframeDepthIndexData;
+        if ((paddedWireframeDepthIndices.size() & 1u) != 0u) {
+            paddedWireframeDepthIndices.push_back(0);
+        }
+        const std::size_t wireframeDepthWriteSize = std::min<std::size_t>(
+            paddedWireframeDepthIndices.size() * sizeof(uint16_t),
+            wireframeDepthIndexBufferDesc.size);
+        ctx.GetQueue()->writeBuffer(
+            *drawItem.wireframeDepthIndexBuffer,
+            0,
+            paddedWireframeDepthIndices.data(),
+            wireframeDepthWriteSize);
+        drawItem.wireframeDepthIndexBufferSize = wireframeDepthIndexBufferDesc.size;
+        drawItem.wireframeDepthIndexCount      = static_cast<uint32_t>(wireframeDepthIndexData.size());
+    }
+
+    drawItem.sourceVertexCount = static_cast<uint32_t>(mesh.vertices.size());
+    drawItem.sourceIndexCount  = static_cast<uint32_t>(mesh.indices.size());
     drawItem.renderMode      = renderMode;
     drawItem.model           = object.Transform().Matrix();
 
@@ -144,19 +177,14 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
 
         DrawItem& drawItem = m_drawItems[i];
         const uint64_t vertexBytes = mesh.vertices.size() * sizeof(Vertex3D);
-        const uint64_t indexBytes  = (object.RenderMode() == Object3D::ERenderMode::Wireframe)
-            ? mesh.indices.size() * 2U * sizeof(uint16_t)
-            : mesh.indices.size() * sizeof(uint16_t);
-        const uint64_t alignedIndexBytes = (indexBytes + 3ull) & ~3ull;
-        const uint32_t indexCount = (object.RenderMode() == Object3D::ERenderMode::Wireframe)
-            ? static_cast<uint32_t>(mesh.indices.size() * 2U)
-            : static_cast<uint32_t>(mesh.indices.size());
+        const uint32_t sourceVertexCount = static_cast<uint32_t>(mesh.vertices.size());
+        const uint32_t sourceIndexCount  = static_cast<uint32_t>(mesh.indices.size());
 
         const bool needUpload = !drawItem.vertexBuffer // 还没创建vertexBuffer
                                 || !drawItem.indexBuffer // 还没创建indexBuffer
                                 || drawItem.vertexBufferSize != vertexBytes // 顶点数据大小变了
-                                || drawItem.indexBufferSize != alignedIndexBytes // 索引数据大小（4字节对齐后）变了
-                                || drawItem.indexCount != indexCount // 索引数量变了
+                                || drawItem.sourceVertexCount != sourceVertexCount // 顶点数量变了
+                                || drawItem.sourceIndexCount != sourceIndexCount // 索引数量变了
                                 || drawItem.renderMode != object.RenderMode(); // 渲染模式变了
         if (needUpload) {
             DrawItem uploaded = UploadMeshToGpu(ctx, object);
@@ -169,6 +197,11 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
             drawItem.vertexBufferSize = uploaded.vertexBufferSize;
             drawItem.indexBufferSize  = uploaded.indexBufferSize;
             drawItem.indexCount       = uploaded.indexCount;
+            drawItem.wireframeDepthIndexBuffer = std::move(uploaded.wireframeDepthIndexBuffer);
+            drawItem.wireframeDepthIndexBufferSize = uploaded.wireframeDepthIndexBufferSize;
+            drawItem.wireframeDepthIndexCount = uploaded.wireframeDepthIndexCount;
+            drawItem.sourceVertexCount = uploaded.sourceVertexCount;
+            drawItem.sourceIndexCount  = uploaded.sourceIndexCount;
             drawItem.renderMode       = uploaded.renderMode;
         }
 
@@ -238,27 +271,9 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
     }
 
     wgpu::raii::RenderPassEncoder renderPass = encoder->beginRenderPass(renderPassDesc);
-    Object3D::ERenderMode currentMode = Object3D::ERenderMode::Solid;
-    if (m_solidPipeline) {
-        renderPass->setPipeline(*m_solidPipeline);
-    }
 
     // 将待绘制物体的MVP矩阵写入Uniform Buffer
     for (DrawItem& drawItem : m_drawItems) {
-        if (drawItem.renderMode != currentMode) {
-            if (drawItem.renderMode == Object3D::ERenderMode::Wireframe) {
-                if (!m_wireframePipeline) {
-                    continue;
-                }
-                renderPass->setPipeline(*m_wireframePipeline);
-            } else {
-                if (!m_solidPipeline) {
-                    continue;
-                }
-                renderPass->setPipeline(*m_solidPipeline);
-            }
-            currentMode = drawItem.renderMode;
-        }
         const SceneUniform uniform{
             .model      = drawItem.model,
             .view       = m_view,
@@ -267,6 +282,31 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
         ctx.GetQueue()->writeBuffer(*drawItem.uniformBuffer, 0, &uniform, kSceneUniformSize);
         renderPass->setBindGroup(0, *drawItem.bindGroup, 0, nullptr);
         renderPass->setVertexBuffer(0, *drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
+
+        if (drawItem.renderMode == Object3D::ERenderMode::Wireframe) {
+            if (m_wireframeDepthPrepassPipeline
+                && drawItem.wireframeDepthIndexBuffer
+                && drawItem.wireframeDepthIndexCount > 0) {
+                renderPass->setPipeline(*m_wireframeDepthPrepassPipeline);
+                renderPass->setIndexBuffer(
+                    *drawItem.wireframeDepthIndexBuffer,
+                    wgpu::IndexFormat::Uint16,
+                    0,
+                    drawItem.wireframeDepthIndexBufferSize);
+                renderPass->drawIndexed(drawItem.wireframeDepthIndexCount, 1, 0, 0, 0);
+            }
+
+            if (!m_wireframePipeline) {
+                continue;
+            }
+            renderPass->setPipeline(*m_wireframePipeline);
+        } else {
+            if (!m_solidPipeline) {
+                continue;
+            }
+            renderPass->setPipeline(*m_solidPipeline);
+        }
+
         renderPass->setIndexBuffer(*drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
         renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
     }
@@ -280,16 +320,18 @@ void Renderer3D::SetClearColor(const double r, const double g, const double b, c
 }
 
 void Renderer3D::ResetGpuResources() {
-    m_solidLayout     = {};
-    m_wireframeLayout = {};
-    m_bindGroupLayout = {};
-    m_solidPipeline   = {};
-    m_wireframePipeline = {};
-    m_depthTexture    = {};
-    m_depthView       = {};
-    m_depthWidth      = 0;
-    m_depthHeight     = 0;
-    m_view            = glm::mat4(1.0f);
-    m_projection      = glm::mat4(1.0f);
+    m_solidLayout                = {};
+    m_wireframeLayout            = {};
+    m_wireframeDepthPrepassLayout = {};
+    m_bindGroupLayout            = {};
+    m_solidPipeline              = {};
+    m_wireframePipeline          = {};
+    m_wireframeDepthPrepassPipeline = {};
+    m_depthTexture               = {};
+    m_depthView                  = {};
+    m_depthWidth                 = 0;
+    m_depthHeight                = 0;
+    m_view                       = glm::mat4(1.0f);
+    m_projection                 = glm::mat4(1.0f);
     m_drawItems.clear();
 }

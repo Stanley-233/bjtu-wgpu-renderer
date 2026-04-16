@@ -11,7 +11,13 @@
 using namespace wgpu;
 
 namespace {
-PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext &ctx, WGPUPrimitiveTopology topology) {
+PipelineLibrary::Pipeline3D CreateColor3DInternal(
+    RenderContext&          ctx,
+    WGPUPrimitiveTopology   topology,
+    WGPUCullMode            cullMode,
+    bool                    depthWriteEnabled,
+    WGPUCompareFunction     depthCompare,
+    WGPUColorWriteMaskFlags colorWriteMask) {
     std::cout << "[PipelineLibrary] Creating 3d shader module..." << std::endl;
     ShaderModule shaderModule = ResourceManager::LoadShaderModule(
         ResourcePaths::Resolve("shader3d.wgsl"),
@@ -48,7 +54,7 @@ PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext &ctx, WGPUPrimit
     pipelineDesc.primitive.topology         = topology;
     pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
     pipelineDesc.primitive.frontFace        = FrontFace::CCW;
-    pipelineDesc.primitive.cullMode         = CullMode::None;
+    pipelineDesc.primitive.cullMode         = cullMode;
 
     FragmentState fragmentState{};
     fragmentState.module        = shaderModule;
@@ -67,7 +73,7 @@ PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext &ctx, WGPUPrimit
     ColorTargetState colorTarget{};
     colorTarget.format    = ctx.GetSurfaceFormat();
     colorTarget.blend     = &blendState;
-    colorTarget.writeMask = ColorWriteMask::All;
+    colorTarget.writeMask = colorWriteMask;
 
     fragmentState.targetCount                       = 1;
     fragmentState.targets                           = &colorTarget;
@@ -75,8 +81,8 @@ PipelineLibrary::Pipeline3D CreateColor3DInternal(RenderContext &ctx, WGPUPrimit
 
     DepthStencilState depthStencil{};
     depthStencil.format                             = TextureFormat::Depth24Plus;
-    depthStencil.depthWriteEnabled                  = true;
-    depthStencil.depthCompare                       = CompareFunction::Less;
+    depthStencil.depthWriteEnabled                  = depthWriteEnabled;
+    depthStencil.depthCompare                       = depthCompare;
     depthStencil.stencilFront.compare               = CompareFunction::Always;
     depthStencil.stencilBack.compare                = CompareFunction::Always;
     depthStencil.stencilReadMask                    = 0;
@@ -208,9 +214,31 @@ PipelineLibrary::Pipeline2D PipelineLibrary::CreateColor2D(RenderContext& ctx) {
 
 // 3D 渲染管线创建
 PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3D(RenderContext& ctx) {
-    return CreateColor3DInternal(ctx, PrimitiveTopology::TriangleList);
+    return CreateColor3DInternal(
+        ctx,
+        PrimitiveTopology::TriangleList,
+        CullMode::None,
+        true,
+        CompareFunction::Less,
+        ColorWriteMask::All);
 }
 
 PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3DWireframe(RenderContext& ctx) {
-    return CreateColor3DInternal(ctx, PrimitiveTopology::LineList);
+    return CreateColor3DInternal(
+        ctx,
+        PrimitiveTopology::LineList,
+        CullMode::None,
+        false,
+        CompareFunction::LessEqual,
+        ColorWriteMask::All);
+}
+
+PipelineLibrary::Pipeline3D PipelineLibrary::CreateColor3DWireframeDepthPrepass(RenderContext& ctx) {
+    return CreateColor3DInternal(
+        ctx,
+        PrimitiveTopology::TriangleList,
+        CullMode::Back,
+        true,
+        CompareFunction::Less,
+        ColorWriteMask::None);
 }
