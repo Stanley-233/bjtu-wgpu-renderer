@@ -1,6 +1,12 @@
 #include "RenderContext.h"
 
+#include <algorithm>
 #include <iostream>
+
+#ifdef __EMSCRIPTEN__
+#include <cmath>
+#include <emscripten/html5.h>
+#endif
 
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
@@ -9,6 +15,48 @@
 #include <backends/imgui_impl_wgpu.h>
 
 using namespace wgpu;
+
+#ifdef __EMSCRIPTEN__
+namespace {
+void ConfigureCanvasForHighDpi(const int windowWidth, const int windowHeight) {
+    // Keep CSS size in logical pixels while increasing backing store resolution.
+    emscripten_set_element_css_size("#canvas", static_cast<double>(windowWidth), static_cast<double>(windowHeight));
+
+    double cssWidth  = static_cast<double>(windowWidth);
+    double cssHeight = static_cast<double>(windowHeight);
+    if (emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight) != EMSCRIPTEN_RESULT_SUCCESS
+        || cssWidth <= 0.0 || cssHeight <= 0.0) {
+        cssWidth  = static_cast<double>(windowWidth);
+        cssHeight = static_cast<double>(windowHeight);
+    }
+
+    const double dpr = std::max(1.0, emscripten_get_device_pixel_ratio());
+    const int pixelWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
+    const int pixelHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
+    emscripten_set_canvas_element_size("#canvas", pixelWidth, pixelHeight);
+}
+
+void UpdateCanvasBackingStoreForCurrentDpr() {
+    double cssWidth  = 0.0;
+    double cssHeight = 0.0;
+    if (emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight) != EMSCRIPTEN_RESULT_SUCCESS
+        || cssWidth <= 0.0 || cssHeight <= 0.0) {
+        return;
+    }
+
+    const double dpr = std::max(1.0, emscripten_get_device_pixel_ratio());
+    const int desiredWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
+    const int desiredHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
+
+    int currentWidth  = 0;
+    int currentHeight = 0;
+    if (emscripten_get_canvas_element_size("#canvas", &currentWidth, &currentHeight) != EMSCRIPTEN_RESULT_SUCCESS
+        || currentWidth != desiredWidth || currentHeight != desiredHeight) {
+        emscripten_set_canvas_element_size("#canvas", desiredWidth, desiredHeight);
+    }
+}
+} // namespace
+#endif
 
 RenderContext& RenderContext::SetWindowSize(int width, int height) {
     m_windowWidth  = width;
@@ -29,6 +77,10 @@ bool RenderContext::Initialize() {
     if (m_window == nullptr) {
         return false;
     }
+
+#ifdef __EMSCRIPTEN__
+    ConfigureCanvasForHighDpi(m_windowWidth, m_windowHeight);
+#endif
 
     raii::Instance instance = Instance(wgpuCreateInstance(nullptr));
 
@@ -68,23 +120,18 @@ bool RenderContext::Initialize() {
 
     m_queue = m_device->getQueue();
 
-    SurfaceConfiguration config = {};
-    config.width                = m_windowWidth;
-    config.height               = m_windowHeight;
-    config.usage                = TextureUsage::RenderAttachment;
+    int framebufferWidth  = 0;
+    int framebufferHeight = 0;
+    GetDrawableSize(framebufferWidth, framebufferHeight);
+
     if (m_surfaceFormat == TextureFormat::Undefined) {
         std::cout << "[Initialize] Surface format not specified, trying to get the preferred format..." << std::endl;
         m_surfaceFormat = m_surface->getPreferredFormat(*adapter);
     }
-    config.format          = m_surfaceFormat;
-    config.viewFormatCount = 0;
-    config.viewFormats     = nullptr;
-    config.device          = *m_device;
-    config.presentMode     = PresentMode::Fifo;
-    config.alphaMode       = CompositeAlphaMode::Auto;
-
     std::cout << "Surface format: " << magic_enum::enum_name<WGPUTextureFormat>(m_surfaceFormat) << std::endl;
-    m_surface->configure(config);
+    ConfigureSurface(
+        static_cast<uint32_t>(std::max(1, framebufferWidth)),
+        static_cast<uint32_t>(std::max(1, framebufferHeight)));
 
     SupportedLimits supportedLimits;
     adapter->getLimits(&supportedLimits);
@@ -100,11 +147,50 @@ void RenderContext::Terminate() {
     if (m_surface) {
         m_surface->unconfigure();
     }
+    m_surfaceWidth  = 0;
+    m_surfaceHeight = 0;
     if (m_window != nullptr) {
         glfwDestroyWindow(m_window);
         m_window = nullptr;
     }
     glfwTerminate();
+}
+
+void RenderContext::ConfigureSurface(const uint32_t width, const uint32_t height) {
+    if (!m_surface || !m_device || width == 0 || height == 0) {
+        return;
+    }
+
+    SurfaceConfiguration config = {};
+    config.width                = width;
+    config.height               = height;
+    config.usage                = TextureUsage::RenderAttachment;
+    config.format               = m_surfaceFormat;
+    config.viewFormatCount      = 0;
+    config.viewFormats          = nullptr;
+    config.device               = *m_device;
+    config.presentMode          = PresentMode::Fifo;
+    config.alphaMode            = CompositeAlphaMode::Auto;
+
+    m_surface->configure(config);
+    m_surfaceWidth  = width;
+    m_surfaceHeight = height;
+    std::cout << "Surface size: " << width << "x" << height << std::endl;
+}
+
+void RenderContext::UpdateSurfaceConfigurationIfNeeded() {
+#ifdef __EMSCRIPTEN__
+    UpdateCanvasBackingStoreForCurrentDpr();
+#endif
+    int drawableWidth  = 0;
+    int drawableHeight = 0;
+    GetDrawableSize(drawableWidth, drawableHeight);
+    const uint32_t targetWidth  = static_cast<uint32_t>(std::max(1, drawableWidth));
+    const uint32_t targetHeight = static_cast<uint32_t>(std::max(1, drawableHeight));
+    if (targetWidth == m_surfaceWidth && targetHeight == m_surfaceHeight) {
+        return;
+    }
+    ConfigureSurface(targetWidth, targetHeight);
 }
 
 void RenderContext::PollEvents() {
@@ -116,6 +202,7 @@ bool RenderContext::IsRunning() const {
 }
 
 raii::TextureView RenderContext::AcquireNextSurfaceView() {
+    UpdateSurfaceConfigurationIfNeeded();
     SurfaceTexture surfaceTexture;
     m_surface->getCurrentTexture(&surfaceTexture);
     if (surfaceTexture.status != SurfaceGetCurrentTextureStatus::Success) {
@@ -190,6 +277,25 @@ TextureFormat RenderContext::GetSurfaceFormat() const {
     return m_surfaceFormat;
 }
 
+void RenderContext::GetDrawableSize(int& width, int& height) const {
+    width  = 0;
+    height = 0;
+#ifdef __EMSCRIPTEN__
+    if (emscripten_get_canvas_element_size("#canvas", &width, &height) == EMSCRIPTEN_RESULT_SUCCESS
+        && width > 0 && height > 0) {
+        return;
+    }
+#endif
+
+    glfwGetFramebufferSize(m_window, &width, &height);
+    if (width <= 0) {
+        width = m_windowWidth;
+    }
+    if (height <= 0) {
+        height = m_windowHeight;
+    }
+}
+
 bool RenderContext::InitializeImGui(GLFWwindow* window, raii::Device& device, const TextureFormat surfaceFormat) {
     if (m_imguiInitialized) {
         return true;
@@ -229,7 +335,15 @@ void RenderContext::BeginImGuiFrame(const char* activeSceneName) {
     ImGui_ImplWGPU_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::GetIO().DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+    int windowWidth  = 0;
+    int windowHeight = 0;
+    int framebufferWidth  = 0;
+    int framebufferHeight = 0;
+    glfwGetWindowSize(m_window, &windowWidth, &windowHeight);
+    GetDrawableSize(framebufferWidth, framebufferHeight);
+    const float scaleX = (windowWidth > 0) ? static_cast<float>(framebufferWidth) / static_cast<float>(windowWidth) : 1.0f;
+    const float scaleY = (windowHeight > 0) ? static_cast<float>(framebufferHeight) / static_cast<float>(windowHeight) : 1.0f;
+    ImGui::GetIO().DisplayFramebufferScale = ImVec2(scaleX, scaleY);
 
     ImGui::Begin("Hello, world!");
     ImGui::Text("Active scene: %s", m_imguiActiveSceneName.c_str());

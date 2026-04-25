@@ -38,6 +38,8 @@ public:
 
     [[nodiscard]] wgpu::TextureFormat GetSurfaceFormat() const;
 
+    void GetDrawableSize(int& width, int& height) const;
+
     bool InitializeImGui(GLFWwindow* window, wgpu::raii::Device& device, wgpu::TextureFormat surfaceFormat);
 
     void BeginImGuiFrame(const char* activeSceneName);
@@ -50,6 +52,8 @@ public:
 
 private:
     static wgpu::RequiredLimits GetRequiredLimits(wgpu::Adapter adapter);
+    void ConfigureSurface(uint32_t width, uint32_t height);
+    void UpdateSurfaceConfigurationIfNeeded();
 
     int                                  m_windowWidth  = 640;
     int                                  m_windowHeight = 480;
@@ -59,6 +63,8 @@ private:
     wgpu::raii::Surface                  m_surface;
     std::unique_ptr<wgpu::ErrorCallback> m_uncapturedErrorCallbackHandle;
     wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
+    uint32_t                             m_surfaceWidth  = 0;
+    uint32_t                             m_surfaceHeight = 0;
     bool                                 m_imguiInitialized = false;
     bool                                 m_imguiDrawDataReady = false;
     int                                  m_imguiButtonClickCount = 0;

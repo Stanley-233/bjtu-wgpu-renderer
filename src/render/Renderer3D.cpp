@@ -154,7 +154,10 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
     // 计算 MVP 矩阵
     int surfaceWidth  = 0;
     int surfaceHeight = 0;
-    glfwGetWindowSize(ctx.GetWindow(), &surfaceWidth, &surfaceHeight);
+    ctx.GetDrawableSize(surfaceWidth, surfaceHeight);
+    if (surfaceWidth <= 0) {
+        surfaceWidth = 1;
+    }
     if (surfaceHeight <= 0) {
         surfaceHeight = 1;
     }
