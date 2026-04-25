@@ -220,6 +220,17 @@ static bool TryParseInlineMesh(
     return true;
 }
 
+static bool TryApplyTransformTable(
+    const toml::table&  transformTable,
+    ObjectDescription&  outObject,
+    const std::string&  context
+) {
+    TryReadVec3(transformTable, "translation", outObject.translation, context);
+    TryReadVec3(transformTable, "rotation", outObject.rotation, context);
+    TryReadVec3(transformTable, "scale", outObject.scale, context);
+    return true;
+}
+
 static bool TryLoadObjMesh(
     const std::filesystem::path& scenePath,
     const std::string&           objPathRaw,
@@ -291,6 +302,7 @@ bool TomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& 
         outScene = parsedScene;
         return true;
     }
+    const toml::table& rootConst = root;
 
     for (size_t objIdx = 0; objIdx < objectsArray->size(); ++objIdx) {
         const std::string objectContext = "objects[" + std::to_string(objIdx) + "]";
@@ -307,31 +319,64 @@ bool TomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& 
             continue;
         }
 
-        const toml::node_view<const toml::node> meshNode = (*objectTable)["mesh"];
-        if (!meshNode) {
-            Warn(objectContext + ".mesh missing, skipping object.");
-            continue;
-        }
-
-        const toml::table* meshTable = meshNode.as_table();
-        if (meshTable == nullptr) {
-            Warn(objectContext + ".mesh is not a table, skipping object.");
-            continue;
-        }
-
         ObjectDescription object{};
         TryReadString(*objectTable, "name", object.name, objectContext);
 
+        bool hasInlineTransform = false;
         const toml::node_view<const toml::node> transformNode = (*objectTable)["transform"];
         if (transformNode) {
             const toml::table* transformTable = transformNode.as_table();
             if (transformTable == nullptr) {
                 Warn(objectContext + ".transform is not a table, using defaults.");
             } else {
-                TryReadVec3(*transformTable, "translation", object.translation, objectContext + ".transform");
-                TryReadVec3(*transformTable, "rotation", object.rotation, objectContext + ".transform");
-                TryReadVec3(*transformTable, "scale", object.scale, objectContext + ".transform");
+                hasInlineTransform = true;
+                TryApplyTransformTable(*transformTable, object, objectContext + ".transform");
             }
+        }
+
+        if (!hasInlineTransform && !object.name.empty()) {
+            const toml::node_view<const toml::node> namedObjectNode = rootConst[object.name];
+            if (namedObjectNode) {
+                const toml::table* namedObjectTable = namedObjectNode.as_table();
+                if (namedObjectTable == nullptr) {
+                    Warn(object.name + " is not a table, transform keeps defaults.");
+                } else {
+                    const toml::node_view<const toml::node> namedTransformNode = (*namedObjectTable)["transform"];
+                    if (namedTransformNode) {
+                        const toml::table* namedTransformTable = namedTransformNode.as_table();
+                        if (namedTransformTable == nullptr) {
+                            Warn(object.name + ".transform is not a table, using defaults.");
+                        } else {
+                            TryApplyTransformTable(*namedTransformTable, object, object.name + ".transform");
+                        }
+                    }
+                }
+            }
+        }
+
+        const toml::table* meshTable = nullptr;
+        if (!object.name.empty()) {
+            const toml::node_view<const toml::node> namedObjectNode = rootConst[object.name];
+            if (namedObjectNode) {
+                const toml::table* namedObjectTable = namedObjectNode.as_table();
+                if (namedObjectTable == nullptr) {
+                    Warn(object.name + " is not a table, skipping object.");
+                    continue;
+                }
+                const toml::node_view<const toml::node> namedMeshNode = (*namedObjectTable)["mesh"];
+                if (namedMeshNode) {
+                    meshTable = namedMeshNode.as_table();
+                    if (meshTable == nullptr) {
+                        Warn(object.name + ".mesh is not a table, skipping object.");
+                        continue;
+                    }
+                }
+            }
+        }
+
+        if (meshTable == nullptr) {
+            Warn(objectContext + " mesh missing in [" + object.name + ".mesh], skipping object.");
+            continue;
         }
 
         std::string objPathRaw{};

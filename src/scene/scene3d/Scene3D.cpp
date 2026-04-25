@@ -127,15 +127,7 @@ void Scene3D::Initialize(RenderContext& ctx) {
         m_initialObjectTransforms.push_back(initialTransform);
     }
 
-    Object3D cube{};
-    cube.SetMesh(CreateSolidCubeMesh());
-    cube.SetRenderMode(Object3D::ERenderMode::Solid);
-    Transform3D cubeTransform = Transform3D::Identity();
-    cubeTransform.Combine(Transform3D::Scale(0.28f, 0.28f, 0.28f));
-    cubeTransform.Combine(Transform3D::Translation(-0.35f, -0.25f, -0.05f));
-    cube.SetTransform(cubeTransform);
-    m_objects.push_back(cube);
-    m_initialObjectTransforms.push_back(cubeTransform);
+    AppendBuiltinCube();
 }
 
 void Scene3D::Update(float dt) {
@@ -278,4 +270,16 @@ void Scene3D::SetCameraMode(const ECameraMode mode) {
         m_camera = std::make_unique<OrthographicCamera>();
     }
     m_camera->SetPose(position, target, up);
+}
+
+void Scene3D::AppendBuiltinCube() {
+    Object3D cube{};
+    cube.SetMesh(CreateSolidCubeMesh());
+    cube.SetRenderMode(Object3D::ERenderMode::Solid);
+    Transform3D cubeTransform = Transform3D::Identity();
+    cubeTransform.Combine(Transform3D::Scale(0.28f, 0.28f, 0.28f));
+    cubeTransform.Combine(Transform3D::Translation(-0.35f, -0.25f, -0.05f));
+    cube.SetTransform(cubeTransform);
+    m_objects.push_back(cube);
+    m_initialObjectTransforms.push_back(cubeTransform);
 }

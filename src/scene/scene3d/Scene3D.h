@@ -35,6 +35,7 @@ public:
 
 private:
     void SetCameraMode(ECameraMode mode);
+    void AppendBuiltinCube();
 
     static constexpr float kCameraMoveSpeed = 2.5f;
 
