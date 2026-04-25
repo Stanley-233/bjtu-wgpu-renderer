@@ -4,6 +4,9 @@
 
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_wgpu.h>
 
 using namespace wgpu;
 
@@ -93,6 +96,7 @@ bool RenderContext::Initialize() {
 }
 
 void RenderContext::Terminate() {
+    ShutdownImGui();
     if (m_surface) {
         m_surface->unconfigure();
     }
@@ -186,6 +190,91 @@ TextureFormat RenderContext::GetSurfaceFormat() const {
     return m_surfaceFormat;
 }
 
+bool RenderContext::InitializeImGui(GLFWwindow* window, raii::Device& device, const TextureFormat surfaceFormat) {
+    if (m_imguiInitialized) {
+        return true;
+    }
+    if (window == nullptr || !device) {
+        return false;
+    }
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    if (!ImGui_ImplGlfw_InitForOther(window, true)) {
+        ImGui::DestroyContext();
+        return false;
+    }
+
+    TextureFormat imguiSurfaceFormat = surfaceFormat;
+    if (!ImGui_ImplWGPU_Init(*device, 3, static_cast<WGPUTextureFormat>(imguiSurfaceFormat))) {
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+        return false;
+    }
+
+    m_imguiInitialized = true;
+    return true;
+}
+
+void RenderContext::BeginImGuiFrame(const char* activeSceneName) {
+    if (!m_imguiInitialized) {
+        return;
+    }
+
+    m_imguiDrawDataReady = false;
+    m_imguiActiveSceneName = activeSceneName == nullptr ? "Unknown" : activeSceneName;
+
+    ImGui_ImplWGPU_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::GetIO().DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+
+    ImGui::Begin("Hello, world!");
+    ImGui::Text("Active scene: %s", m_imguiActiveSceneName.c_str());
+    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
+                1000.0f / ImGui::GetIO().Framerate,
+                ImGui::GetIO().Framerate);
+    if (ImGui::Button("Button")) {
+        ++m_imguiButtonClickCount;
+    }
+    ImGui::SameLine();
+    ImGui::Text("clicks = %d", m_imguiButtonClickCount);
+    ImGui::Checkbox("Sample checkbox", &m_imguiCheckboxEnabled);
+    ImGui::End();
+
+    ImGui::Render();
+    m_imguiDrawDataReady = true;
+}
+
+void RenderContext::RenderImGui(raii::RenderPassEncoder& renderPass) {
+    if (!m_imguiInitialized || !m_imguiDrawDataReady || !renderPass) {
+        return;
+    }
+    ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), *renderPass);
+    m_imguiDrawDataReady = false;
+}
+
+void RenderContext::ShutdownImGui() {
+    if (!m_imguiInitialized) {
+        return;
+    }
+    ImGui_ImplWGPU_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    m_imguiInitialized = false;
+    m_imguiDrawDataReady = false;
+}
+
+bool RenderContext::WantCaptureKeyboard() const {
+    if (!m_imguiInitialized) {
+        return false;
+    }
+    const ImGuiIO& io = ImGui::GetIO();
+    return io.WantCaptureKeyboard;
+}
+
 RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     SupportedLimits supportedLimits;
     adapter.getLimits(&supportedLimits);
@@ -193,15 +282,15 @@ RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     RequiredLimits requiredLimits = Default;
     // Emscripten 不支持
     // requiredLimits.limits = supportedLimits.limits;
-    requiredLimits.limits.maxVertexAttributes        = 2;
+    requiredLimits.limits.maxVertexAttributes        = 3;
     requiredLimits.limits.maxVertexBuffers           = 1;
     requiredLimits.limits.maxVertexBufferArrayStride = 6 * sizeof(float);
-    requiredLimits.limits.maxBindGroups              = 1;
+    requiredLimits.limits.maxBindGroups              = 2;
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
     requiredLimits.limits.maxUniformBufferBindingSize = 3 * 16 * sizeof(float);
 
 #ifndef __EMSCRIPTEN__
-    requiredLimits.limits.maxInterStageShaderComponents = 3;
+    requiredLimits.limits.maxInterStageShaderComponents = 6;
 #endif
 
     return requiredLimits;

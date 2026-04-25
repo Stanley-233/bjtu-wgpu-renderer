@@ -35,5 +35,6 @@ void SceneManager::UpdateActive(float dt) {
 }
 
 void SceneManager::RenderActive(RenderContext& ctx) {
+    ctx.BeginImGuiFrame(ActiveScene().Name());
     ActiveScene().Render(ctx);
 }

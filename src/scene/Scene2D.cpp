@@ -53,6 +53,7 @@ void Scene2D::Render(RenderContext& ctx) {
     renderPass->setIndexBuffer(*m_indexBuffer, IndexFormat::Uint16, 0, m_indexBuffer->getSize());
     renderPass->setBindGroup(0, *m_bindGroup, 0, nullptr);
     renderPass->drawIndexed(m_indexCount, 1, 0, 0, 0);
+    ctx.RenderImGui(renderPass);
     renderPass->end();
 
     ctx.SubmitAndPresent(encoder);

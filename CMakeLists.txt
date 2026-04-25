@@ -30,6 +30,8 @@ add_subdirectory(ext/tiny_obj_loader)
 
 add_subdirectory(ext/entt)
 
+add_subdirectory(ext/imgui)
+
 add_executable(bjtu_wgpu_renderer
         src/main.cpp
         src/app/Application.cpp
@@ -92,6 +94,7 @@ target_link_libraries(bjtu_wgpu_renderer PRIVATE
         glm
         tiny_obj_loader
         entt
+        imgui
 )
 
 # The application's binary must find wgpu.dll or libwgpu.so at runtime,

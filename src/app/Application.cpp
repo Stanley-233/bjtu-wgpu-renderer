@@ -37,6 +37,12 @@ bool Application::Initialize() {
 
     glfwSetWindowUserPointer(m_renderContext.GetWindow(), this);
     glfwSetKeyCallback(m_renderContext.GetWindow(), GLFWKeyCallback);
+    if (!m_renderContext.InitializeImGui(
+        m_renderContext.GetWindow(),
+        m_renderContext.GetDevice(),
+        m_renderContext.GetSurfaceFormat())) {
+        return false;
+    }
 
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
     m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
@@ -107,6 +113,9 @@ void Application::HandleKey(int key, int action, int mods) {
         }
     }
 
+    if (m_renderContext.WantCaptureKeyboard()) {
+        return;
+    }
     m_inputManager.EmitKeyEvent(key, action, mods);
 }
 

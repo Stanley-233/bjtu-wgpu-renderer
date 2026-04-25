@@ -312,6 +312,26 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
     }
     renderPass->end();
 
+    wgpu::RenderPassColorAttachment uiColorAttachment = {};
+    uiColorAttachment.view                            = *targetView;
+    uiColorAttachment.resolveTarget                   = nullptr;
+    uiColorAttachment.loadOp                          = wgpu::LoadOp::Load;
+    uiColorAttachment.storeOp                         = wgpu::StoreOp::Store;
+    uiColorAttachment.clearValue                      = m_clearColor;
+#ifndef WEBGPU_BACKEND_WGPU
+    uiColorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif
+
+    wgpu::RenderPassDescriptor uiPassDesc = {};
+    uiPassDesc.colorAttachmentCount       = 1;
+    uiPassDesc.colorAttachments           = &uiColorAttachment;
+    uiPassDesc.depthStencilAttachment     = nullptr;
+    uiPassDesc.timestampWrites            = nullptr;
+
+    wgpu::raii::RenderPassEncoder uiPass = encoder->beginRenderPass(uiPassDesc);
+    ctx.RenderImGui(uiPass);
+    uiPass->end();
+
     ctx.SubmitAndPresent(encoder);
 }
 

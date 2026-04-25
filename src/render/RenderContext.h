@@ -2,6 +2,7 @@
 #define BJTU_WGPU_RENDERER_RENDERCONTEXT_H
 
 #include <memory>
+#include <string>
 
 #include <GLFW/glfw3.h>
 
@@ -37,6 +38,16 @@ public:
 
     [[nodiscard]] wgpu::TextureFormat GetSurfaceFormat() const;
 
+    bool InitializeImGui(GLFWwindow* window, wgpu::raii::Device& device, wgpu::TextureFormat surfaceFormat);
+
+    void BeginImGuiFrame(const char* activeSceneName);
+
+    void RenderImGui(wgpu::raii::RenderPassEncoder& renderPass);
+
+    void ShutdownImGui();
+
+    [[nodiscard]] bool WantCaptureKeyboard() const;
+
 private:
     static wgpu::RequiredLimits GetRequiredLimits(wgpu::Adapter adapter);
 
@@ -48,6 +59,11 @@ private:
     wgpu::raii::Surface                  m_surface;
     std::unique_ptr<wgpu::ErrorCallback> m_uncapturedErrorCallbackHandle;
     wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
+    bool                                 m_imguiInitialized = false;
+    bool                                 m_imguiDrawDataReady = false;
+    int                                  m_imguiButtonClickCount = 0;
+    bool                                 m_imguiCheckboxEnabled = true;
+    std::string                          m_imguiActiveSceneName;
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERCONTEXT_H
