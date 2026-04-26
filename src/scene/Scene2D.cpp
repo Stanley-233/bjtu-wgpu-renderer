@@ -6,7 +6,9 @@
 #include <vector>
 
 #include "../render/PipelineLibrary.h"
+#include "../render/GuiRenderer.h"
 #include "../render/RenderContext.h"
+#include "../input/InputEventBus.h"
 #include "../resource/ResourceManager.h"
 #include "../resource/ResourcePaths.h"
 
@@ -22,7 +24,7 @@ void Scene2D::Initialize(RenderContext& ctx) {
     InitializeBindGroups(ctx);
 }
 
-void Scene2D::Render(RenderContext& ctx) {
+void Scene2D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
 
     raii::TextureView targetView = ctx.AcquireNextSurfaceView();
     if (!targetView) {
@@ -53,7 +55,7 @@ void Scene2D::Render(RenderContext& ctx) {
     renderPass->setIndexBuffer(*m_indexBuffer, IndexFormat::Uint16, 0, m_indexBuffer->getSize());
     renderPass->setBindGroup(0, *m_bindGroup, 0, nullptr);
     renderPass->drawIndexed(m_indexCount, 1, 0, 0, 0);
-    ctx.RenderImGui(renderPass);
+    guiRenderer.Render(renderPass);
     renderPass->end();
 
     ctx.SubmitAndPresent(encoder);
@@ -61,6 +63,16 @@ void Scene2D::Render(RenderContext& ctx) {
 
 const char* Scene2D::Name() const {
     return "Scene2D";
+}
+
+void Scene2D::RegisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<TransformActionEvent>().connect<&Scene2D::OnTransformInputEvent>(*this);
+    eventBus.Dispatcher().sink<Transform2DStateEvent>().connect<&Scene2D::OnTransform2DStateEvent>(*this);
+}
+
+void Scene2D::UnregisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<TransformActionEvent>().disconnect<&Scene2D::OnTransformInputEvent>(*this);
+    eventBus.Dispatcher().sink<Transform2DStateEvent>().disconnect<&Scene2D::OnTransform2DStateEvent>(*this);
 }
 
 void Scene2D::Update(const float dt) {

@@ -10,6 +10,8 @@
 #include "../../resource/ResourceManager.h"
 #include "../../resource/ResourcePaths.h"
 #include "../../resource/models/SceneDescription.h"
+#include "../../input/InputEventBus.h"
+#include "../../render/GuiRenderer.h"
 #include "../camera/OrthographicCamera.h"
 #include "../camera/PerspectiveCamera.h"
 
@@ -207,12 +209,12 @@ void Scene3D::Update(float dt) {
     }
 }
 
-void Scene3D::Render(RenderContext& ctx) {
+void Scene3D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
     if (m_camera == nullptr) {
         return;
     }
     m_renderer.SyncScene(ctx, m_objects, *m_camera);
-    m_renderer.RenderFrame(ctx);
+    m_renderer.RenderFrame(ctx, guiRenderer);
 }
 
 const char* Scene3D::Name() const {
@@ -242,6 +244,11 @@ void Scene3D::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
     m_moveUp      = event.up;
 }
 
+void Scene3D::OnToggleCameraModeRequest(const ToggleCameraModeRequest& event) {
+    (void)event;
+    ToggleCameraMode();
+}
+
 void Scene3D::ToggleCameraMode() {
     if (m_cameraMode == ECameraMode::Perspective) {
         SetCameraMode(ECameraMode::Orthographic);
@@ -252,6 +259,20 @@ void Scene3D::ToggleCameraMode() {
 
 Scene3D::ECameraMode Scene3D::CameraMode() const {
     return m_cameraMode;
+}
+
+void Scene3D::RegisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().connect<&Scene3D::OnObjectTransform3DEvent>(*this);
+    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().connect<&Scene3D::OnObjectTransform3DStateEvent>(*this);
+    eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&Scene3D::OnCameraMoveInputEvent>(*this);
+    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Scene3D::OnToggleCameraModeRequest>(*this);
+}
+
+void Scene3D::UnregisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().disconnect<&Scene3D::OnObjectTransform3DEvent>(*this);
+    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().disconnect<&Scene3D::OnObjectTransform3DStateEvent>(*this);
+    eventBus.Dispatcher().sink<CameraMoveInputEvent>().disconnect<&Scene3D::OnCameraMoveInputEvent>(*this);
+    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().disconnect<&Scene3D::OnToggleCameraModeRequest>(*this);
 }
 
 void Scene3D::SetCameraMode(const ECameraMode mode) {

@@ -11,9 +11,13 @@ public:
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx) override;
+    void Render(RenderContext& ctx, GuiRenderer& guiRenderer) override;
 
     const char* Name() const override;
+
+    void RegisterInputHandlers(InputEventBus& eventBus) override;
+
+    void UnregisterInputHandlers(InputEventBus& eventBus) override;
 
     void OnTransformInputEvent(const TransformActionEvent& event) override;
     void OnTransform2DStateEvent(const Transform2DStateEvent& event) override;

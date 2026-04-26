@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include <iostream>
 #include <memory>
 
 #include "../scene/Scene2D.h"
@@ -37,26 +38,40 @@ bool Application::Initialize() {
 
     glfwSetWindowUserPointer(m_renderContext.GetWindow(), this);
     glfwSetKeyCallback(m_renderContext.GetWindow(), GLFWKeyCallback);
-    if (!m_renderContext.InitializeImGui(
+    if (!m_guiRenderer.Initialize(
         m_renderContext.GetWindow(),
         m_renderContext.GetDevice(),
         m_renderContext.GetSurfaceFormat())) {
         return false;
     }
 
+    m_guiInputController.SetEventBus(&m_inputEventBus);
+    m_inputManager.SetEventBus(&m_inputEventBus);
+    m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
+
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
     m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
     m_sceneManager.InitializeAll(m_renderContext);
+    m_sceneManager.SetInputEventBus(m_inputEventBus);
     m_sceneManager.SetActiveScene(ESceneType::Scene3D);
-    m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
-    BindInputForActiveScene();
+
+    m_inputEventBus.Dispatcher().sink<SceneSwitchRequest>().connect<&Application::OnSceneSwitchRequest>(*this);
+    m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Application::OnToggleCameraModeRequest>(*this);
+    m_commandHandlersConnected = true;
 
     m_lastFrameTime = glfwGetTime();
     return true;
 }
 
 void Application::Terminate() {
-    UnbindInputFromActiveScene();
+    if (m_commandHandlersConnected) {
+        m_inputEventBus.Dispatcher().sink<SceneSwitchRequest>().disconnect<&Application::OnSceneSwitchRequest>(*this);
+        m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().disconnect<&Application::OnToggleCameraModeRequest>(*this);
+        m_commandHandlersConnected = false;
+    }
+    m_inputManager.SetEventBus(nullptr);
+    m_guiInputController.SetEventBus(nullptr);
+    m_guiRenderer.Shutdown();
     m_renderContext.Terminate();
 }
 
@@ -85,73 +100,41 @@ void Application::GLFWKeyCallback(GLFWwindow* window, const int key, const int s
 
 void Application::Tick(float deltaTime) {
     m_sceneManager.UpdateActive(deltaTime);
-    m_sceneManager.RenderActive(m_renderContext);
+
+    int drawableWidth = 0;
+    int drawableHeight = 0;
+    m_renderContext.GetDrawableSize(drawableWidth, drawableHeight);
+    m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
+    m_guiInputController.BuildUi(m_sceneManager.ActiveScene().Name());
+    m_guiRenderer.EndFrame();
+
+    m_sceneManager.RenderActive(m_renderContext, m_guiRenderer);
 }
 
 void Application::HandleKey(int key, int action, int mods) {
-    if (action == GLFW_PRESS && key == GLFW_KEY_1) {
-        if (m_applicationDebugEnabled) {
-            std::cout << "[Application] Key 1" << std::endl;
-        }
-        SwitchScene(ESceneType::Scene2D);
-        if (m_applicationDebugEnabled) {
-            std::cout << "[Application] Switch to Scene2D" << std::endl;
-        }
-    }
-    if (action == GLFW_PRESS && key == GLFW_KEY_2) {
-        if (m_applicationDebugEnabled) {
-            std::cout << "[Application] Key 2" << std::endl;
-        }
-        SwitchScene(ESceneType::Scene3D);
-        if (m_applicationDebugEnabled) {
-            std::cout << "[Application] Switch to Scene3D" << std::endl;
-        }
-    }
-    if (action == GLFW_PRESS && key == GLFW_KEY_C) {
-        if (auto* scene3D = dynamic_cast<Scene3D*>(&m_sceneManager.ActiveScene()); scene3D != nullptr) {
-            scene3D->ToggleCameraMode();
-        }
-    }
-
-    if (m_renderContext.WantCaptureKeyboard()) {
+    if (m_guiRenderer.WantCaptureKeyboard()) {
         return;
     }
     m_inputManager.EmitKeyEvent(key, action, mods);
 }
 
 void Application::SwitchScene(ESceneType type) {
-    UnbindInputFromActiveScene();
     m_sceneManager.SetActiveScene(type);
-    BindInputForActiveScene();
 }
 
-void Application::BindInputForActiveScene() {
-    IScene& activeScene = m_sceneManager.ActiveScene();
-    if (auto* transform2DSink = dynamic_cast<ITransform2DInputSink*>(&activeScene); transform2DSink != nullptr) {
-        m_inputManager.SubscribeTransform2DInput(*transform2DSink);
-        m_boundTransform2DSink = transform2DSink;
+void Application::OnSceneSwitchRequest(const SceneSwitchRequest& request) {
+    if (m_applicationDebugEnabled) {
+        std::cout << "[Application] Scene switch request" << std::endl;
     }
-    if (auto* transform3DSink = dynamic_cast<ITransform3DInputSink*>(&activeScene); transform3DSink != nullptr) {
-        m_inputManager.SubscribeTransform3DInput(*transform3DSink);
-        m_boundTransform3DSink = transform3DSink;
-    }
-    if (auto* cameraSink = dynamic_cast<ICameraMoveInputSink*>(&activeScene); cameraSink != nullptr) {
-        m_inputManager.SubscribeCameraMoveInput(*cameraSink);
-        m_boundCameraSink = cameraSink;
+    SwitchScene(request.type);
+    if (m_applicationDebugEnabled) {
+        std::cout << "[Application] Active scene: " << m_sceneManager.ActiveScene().Name() << std::endl;
     }
 }
 
-void Application::UnbindInputFromActiveScene() {
-    if (m_boundCameraSink != nullptr) {
-        m_inputManager.UnsubscribeCameraMoveInput(*m_boundCameraSink);
-        m_boundCameraSink = nullptr;
-    }
-    if (m_boundTransform3DSink != nullptr) {
-        m_inputManager.UnsubscribeTransform3DInput(*m_boundTransform3DSink);
-        m_boundTransform3DSink = nullptr;
-    }
-    if (m_boundTransform2DSink != nullptr) {
-        m_inputManager.UnsubscribeTransform2DInput(*m_boundTransform2DSink);
-        m_boundTransform2DSink = nullptr;
+void Application::OnToggleCameraModeRequest(const ToggleCameraModeRequest& request) {
+    (void)request;
+    if (m_applicationDebugEnabled) {
+        std::cout << "[Application] Toggle camera mode request" << std::endl;
     }
 }

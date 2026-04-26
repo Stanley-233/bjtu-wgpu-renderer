@@ -38,8 +38,14 @@ add_executable(bjtu_wgpu_renderer
         src/app/Application.h
         src/input/InputManager.cpp
         src/input/InputManager.h
+        src/input/InputEventBus.h
         src/input/InputEventLogger.cpp
         src/input/InputEventLogger.h
+        src/input/gui/GuiInputController.cpp
+        src/input/gui/GuiInputController.h
+        src/input/policies/AppHotkeyPolicy.h
+        src/render/GuiRenderer.cpp
+        src/render/GuiRenderer.h
         src/render/RenderContext.cpp
         src/render/RenderContext.h
         src/render/PipelineLibrary.cpp

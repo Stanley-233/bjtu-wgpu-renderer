@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 
 #include "PipelineLibrary.h"
+#include "GuiRenderer.h"
 #include "RenderContext.h"
 #include "../resource/models/MeshData3D.h"
 #include "../scene/camera/Camera.h"
@@ -237,7 +238,7 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
     }
 }
 
-void Renderer3D::RenderFrame(RenderContext& ctx) {
+void Renderer3D::RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer) {
     wgpu::raii::TextureView targetView = ctx.AcquireNextSurfaceView();
     if (!targetView) {
         return;
@@ -332,7 +333,7 @@ void Renderer3D::RenderFrame(RenderContext& ctx) {
     uiPassDesc.timestampWrites            = nullptr;
 
     wgpu::raii::RenderPassEncoder uiPass = encoder->beginRenderPass(uiPassDesc);
-    ctx.RenderImGui(uiPass);
+    guiRenderer.Render(uiPass);
     uiPass->end();
 
     ctx.SubmitAndPresent(encoder);

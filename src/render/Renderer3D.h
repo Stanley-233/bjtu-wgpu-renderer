@@ -10,6 +10,7 @@
 
 class Camera;
 class RenderContext;
+class GuiRenderer;
 
 class Renderer3D {
 public:
@@ -17,7 +18,7 @@ public:
 
     void SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera);
 
-    void RenderFrame(RenderContext& ctx);
+    void RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer);
 
     void SetClearColor(double r, double g, double b, double a);
 

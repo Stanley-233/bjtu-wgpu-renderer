@@ -7,6 +7,8 @@
 #include "Scene.h"
 
 class RenderContext;
+class GuiRenderer;
+class InputEventBus;
 
 class SceneManager {
 public:
@@ -14,15 +16,18 @@ public:
 
     void InitializeAll(RenderContext& ctx);
 
+    void SetInputEventBus(InputEventBus& eventBus);
+
     void SetActiveScene(ESceneType type);
 
     IScene& ActiveScene() const;
 
-    void UpdateActive(float dt);
+    void UpdateActive(float dt) const;
 
-    void RenderActive(RenderContext& ctx);
+    void RenderActive(RenderContext& ctx, GuiRenderer& guiRenderer) const;
 
 private:
+    InputEventBus*                                      m_inputEventBus = nullptr;
     std::unordered_map<ESceneType, std::unique_ptr<IScene> > m_scenes;
     IScene*                                                 m_activeScene = nullptr;
 };

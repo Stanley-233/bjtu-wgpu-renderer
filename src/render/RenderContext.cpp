@@ -10,9 +10,6 @@
 
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
-#include <imgui.h>
-#include <backends/imgui_impl_glfw.h>
-#include <backends/imgui_impl_wgpu.h>
 
 using namespace wgpu;
 
@@ -143,7 +140,6 @@ bool RenderContext::Initialize() {
 }
 
 void RenderContext::Terminate() {
-    ShutdownImGui();
     if (m_surface) {
         m_surface->unconfigure();
     }
@@ -294,99 +290,6 @@ void RenderContext::GetDrawableSize(int& width, int& height) const {
     if (height <= 0) {
         height = m_windowHeight;
     }
-}
-
-bool RenderContext::InitializeImGui(GLFWwindow* window, raii::Device& device, const TextureFormat surfaceFormat) {
-    if (m_imguiInitialized) {
-        return true;
-    }
-    if (window == nullptr || !device) {
-        return false;
-    }
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGui::StyleColorsDark();
-
-    if (!ImGui_ImplGlfw_InitForOther(window, true)) {
-        ImGui::DestroyContext();
-        return false;
-    }
-
-    TextureFormat imguiSurfaceFormat = surfaceFormat;
-    if (!ImGui_ImplWGPU_Init(*device, 3, static_cast<WGPUTextureFormat>(imguiSurfaceFormat))) {
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
-        return false;
-    }
-
-    m_imguiInitialized = true;
-    return true;
-}
-
-void RenderContext::BeginImGuiFrame(const char* activeSceneName) {
-    if (!m_imguiInitialized) {
-        return;
-    }
-
-    m_imguiDrawDataReady = false;
-    m_imguiActiveSceneName = activeSceneName == nullptr ? "Unknown" : activeSceneName;
-
-    ImGui_ImplWGPU_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    int windowWidth  = 0;
-    int windowHeight = 0;
-    int framebufferWidth  = 0;
-    int framebufferHeight = 0;
-    glfwGetWindowSize(m_window, &windowWidth, &windowHeight);
-    GetDrawableSize(framebufferWidth, framebufferHeight);
-    const float scaleX = (windowWidth > 0) ? static_cast<float>(framebufferWidth) / static_cast<float>(windowWidth) : 1.0f;
-    const float scaleY = (windowHeight > 0) ? static_cast<float>(framebufferHeight) / static_cast<float>(windowHeight) : 1.0f;
-    ImGui::GetIO().DisplayFramebufferScale = ImVec2(scaleX, scaleY);
-
-    ImGui::Begin("Hello, world!");
-    ImGui::Text("Active scene: %s", m_imguiActiveSceneName.c_str());
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
-                1000.0f / ImGui::GetIO().Framerate,
-                ImGui::GetIO().Framerate);
-    if (ImGui::Button("Button")) {
-        ++m_imguiButtonClickCount;
-    }
-    ImGui::SameLine();
-    ImGui::Text("clicks = %d", m_imguiButtonClickCount);
-    ImGui::Checkbox("Sample checkbox", &m_imguiCheckboxEnabled);
-    ImGui::End();
-
-    ImGui::Render();
-    m_imguiDrawDataReady = true;
-}
-
-void RenderContext::RenderImGui(raii::RenderPassEncoder& renderPass) {
-    if (!m_imguiInitialized || !m_imguiDrawDataReady || !renderPass) {
-        return;
-    }
-    ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), *renderPass);
-    m_imguiDrawDataReady = false;
-}
-
-void RenderContext::ShutdownImGui() {
-    if (!m_imguiInitialized) {
-        return;
-    }
-    ImGui_ImplWGPU_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImGui::DestroyContext();
-    m_imguiInitialized = false;
-    m_imguiDrawDataReady = false;
-}
-
-bool RenderContext::WantCaptureKeyboard() const {
-    if (!m_imguiInitialized) {
-        return false;
-    }
-    const ImGuiIO& io = ImGui::GetIO();
-    return io.WantCaptureKeyboard;
 }
 
 RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {

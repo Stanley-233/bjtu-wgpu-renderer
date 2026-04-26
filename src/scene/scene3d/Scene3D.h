@@ -20,7 +20,7 @@ public:
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx) override;
+    void Render(RenderContext& ctx, GuiRenderer& guiRenderer) override;
 
     const char* Name() const override;
 
@@ -28,10 +28,15 @@ public:
     void OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) override;
 
     void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) override;
+    void OnToggleCameraModeRequest(const ToggleCameraModeRequest& event);
 
     void ToggleCameraMode();
 
     [[nodiscard]] ECameraMode CameraMode() const;
+
+    void RegisterInputHandlers(InputEventBus& eventBus) override;
+
+    void UnregisterInputHandlers(InputEventBus& eventBus) override;
 
 private:
     void SetCameraMode(ECameraMode mode);

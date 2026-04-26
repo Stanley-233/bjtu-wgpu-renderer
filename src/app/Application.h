@@ -3,7 +3,10 @@
 
 #include <GLFW/glfw3.h>
 
+#include "../input/InputEventBus.h"
 #include "../input/InputManager.h"
+#include "../input/gui/GuiInputController.h"
+#include "../render/GuiRenderer.h"
 #include "../render/RenderContext.h"
 #include "../scene/SceneManager.h"
 
@@ -34,22 +37,23 @@ private:
 
     void SwitchScene(ESceneType type);
 
-    void BindInputForActiveScene();
+    void OnSceneSwitchRequest(const SceneSwitchRequest& request);
 
-    void UnbindInputFromActiveScene();
+    void OnToggleCameraModeRequest(const ToggleCameraModeRequest& request);
 
     int                 m_windowWidth   = 640;
     int                 m_windowHeight  = 480;
     wgpu::TextureFormat m_surfaceFormat = wgpu::TextureFormat::Undefined;
     RenderContext       m_renderContext;
+    GuiRenderer         m_guiRenderer;
+    GuiInputController  m_guiInputController;
     SceneManager        m_sceneManager;
+    InputEventBus       m_inputEventBus;
     InputManager        m_inputManager;
-    ITransform2DInputSink* m_boundTransform2DSink = nullptr;
-    ITransform3DInputSink* m_boundTransform3DSink = nullptr;
-    ICameraMoveInputSink*  m_boundCameraSink = nullptr;
     double              m_lastFrameTime = 0.0;
     bool                m_applicationDebugEnabled = false;
     bool                m_inputDebugEnabled       = false;
+    bool                m_commandHandlersConnected = false;
 };
 
 #endif // BJTU_WGPU_RENDERER_APPLICATION_H

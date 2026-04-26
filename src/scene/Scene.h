@@ -2,6 +2,8 @@
 #define BJTU_WGPU_RENDERER_SCENE_H
 
 class RenderContext;
+class InputEventBus;
+class GuiRenderer;
 
 enum class ESceneType {
     Scene2D,
@@ -66,6 +68,13 @@ struct CameraMoveInputEvent {
     float up;
 };
 
+struct SceneSwitchRequest {
+    ESceneType type;
+};
+
+struct ToggleCameraModeRequest {
+};
+
 class ITransform2DInputSink {
 public:
     virtual ~ITransform2DInputSink() = default;
@@ -99,9 +108,13 @@ public:
 
     virtual void Update(float dt) = 0;
 
-    virtual void Render(RenderContext& ctx) = 0;
+    virtual void Render(RenderContext& ctx, GuiRenderer& guiRenderer) = 0;
 
     virtual const char* Name() const = 0;
+
+    virtual void RegisterInputHandlers(InputEventBus& eventBus) = 0;
+
+    virtual void UnregisterInputHandlers(InputEventBus& eventBus) = 0;
 
 };
 
