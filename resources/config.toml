@@ -6,3 +6,4 @@ width = 1280
 height = 720
 [render]
 surface_format = "BGRA8Unorm"
+max_device_pixel_ratio = 2.0

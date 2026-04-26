@@ -20,6 +20,7 @@ int main() {
     const int         width         = config["window"]["width"].value<int>().value();
     const int         height        = config["window"]["height"].value<int>().value();
     const std::string surfaceFormat = config["render"]["surface_format"].value_or("BGRA8Unorm");
+    const double      maxDevicePixelRatio = config["render"]["max_device_pixel_ratio"].value_or(2.0);
     const bool        applicationDebugEnabled = config["Debug"]["application"].value_or(false);
     const bool        inputDebugEnabled       = config["Debug"]["input"].value_or(false);
 
@@ -34,6 +35,7 @@ int main() {
 
     const auto success = app
         .SetWindowSize(width, height)
+        .SetMaxDevicePixelRatio(maxDevicePixelRatio)
         .SetApplicationDebugEnabled(applicationDebugEnabled)
         .SetInputDebugEnabled(inputDebugEnabled)
         .Initialize();

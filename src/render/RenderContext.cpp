@@ -1,10 +1,10 @@
 #include "RenderContext.h"
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 
 #ifdef __EMSCRIPTEN__
-#include <cmath>
 #include <emscripten/html5.h>
 #endif
 
@@ -15,7 +15,11 @@ using namespace wgpu;
 
 #ifdef __EMSCRIPTEN__
 namespace {
-void ConfigureCanvasForHighDpi(const int windowWidth, const int windowHeight) {
+double ClampDevicePixelRatio(const double deviceDpr, const double maxDevicePixelRatio) {
+    return std::clamp(deviceDpr, 1.0, std::max(1.0, maxDevicePixelRatio));
+}
+
+void ConfigureCanvasForHighDpi(const int windowWidth, const int windowHeight, const double maxDevicePixelRatio) {
     // Keep CSS size in logical pixels while increasing backing store resolution.
     emscripten_set_element_css_size("#canvas", static_cast<double>(windowWidth), static_cast<double>(windowHeight));
 
@@ -27,13 +31,13 @@ void ConfigureCanvasForHighDpi(const int windowWidth, const int windowHeight) {
         cssHeight = static_cast<double>(windowHeight);
     }
 
-    const double dpr = std::max(1.0, emscripten_get_device_pixel_ratio());
+    const double dpr = ClampDevicePixelRatio(emscripten_get_device_pixel_ratio(), maxDevicePixelRatio);
     const int pixelWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
     const int pixelHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
     emscripten_set_canvas_element_size("#canvas", pixelWidth, pixelHeight);
 }
 
-void UpdateCanvasBackingStoreForCurrentDpr() {
+void UpdateCanvasBackingStoreForCurrentDpr(const double maxDevicePixelRatio) {
     double cssWidth  = 0.0;
     double cssHeight = 0.0;
     if (emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight) != EMSCRIPTEN_RESULT_SUCCESS
@@ -41,7 +45,7 @@ void UpdateCanvasBackingStoreForCurrentDpr() {
         return;
     }
 
-    const double dpr = std::max(1.0, emscripten_get_device_pixel_ratio());
+    const double dpr = ClampDevicePixelRatio(emscripten_get_device_pixel_ratio(), maxDevicePixelRatio);
     const int desiredWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
     const int desiredHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
 
@@ -66,6 +70,15 @@ RenderContext& RenderContext::SetSurfaceFormat(TextureFormat format) {
     return *this;
 }
 
+RenderContext& RenderContext::SetMaxDevicePixelRatio(const double maxDevicePixelRatio) {
+    if (!std::isfinite(maxDevicePixelRatio)) {
+        m_maxDevicePixelRatio = 2.0;
+        return *this;
+    }
+    m_maxDevicePixelRatio = std::max(1.0, maxDevicePixelRatio);
+    return *this;
+}
+
 bool RenderContext::Initialize() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -76,7 +89,7 @@ bool RenderContext::Initialize() {
     }
 
 #ifdef __EMSCRIPTEN__
-    ConfigureCanvasForHighDpi(m_windowWidth, m_windowHeight);
+    ConfigureCanvasForHighDpi(m_windowWidth, m_windowHeight, m_maxDevicePixelRatio);
 #endif
 
     raii::Instance instance = Instance(wgpuCreateInstance(nullptr));
@@ -176,7 +189,7 @@ void RenderContext::ConfigureSurface(const uint32_t width, const uint32_t height
 
 void RenderContext::UpdateSurfaceConfigurationIfNeeded() {
 #ifdef __EMSCRIPTEN__
-    UpdateCanvasBackingStoreForCurrentDpr();
+    UpdateCanvasBackingStoreForCurrentDpr(m_maxDevicePixelRatio);
 #endif
     int drawableWidth  = 0;
     int drawableHeight = 0;

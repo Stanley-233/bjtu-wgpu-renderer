@@ -1,6 +1,8 @@
 #ifndef BJTU_WGPU_RENDERER_SCENE2D_H
 #define BJTU_WGPU_RENDERER_SCENE2D_H
 
+#include <cstddef>
+
 #include "Scene.h"
 #include "../math/Transform2D.h"
 #include "../webgpu-raii.hpp"
@@ -23,6 +25,17 @@ public:
     void OnTransform2DStateEvent(const Transform2DStateEvent& event) override;
 
 private:
+    struct SceneUniformData {
+        Transform2D::Mat3Uniform transform{};
+        float                    aspect = 1.0f;
+        float                    padding[3]{};
+    };
+
+    static_assert(
+        offsetof(SceneUniformData, aspect) == Transform2D::kMat3UniformSize,
+        "Scene2D aspect uniform offset must match WGSL layout");
+    static_assert(sizeof(SceneUniformData) == 16 * sizeof(float), "Scene2D uniform size must be 64 bytes");
+
     void InitializeBuffers(RenderContext& ctx);
 
     void InitializeBindGroups(RenderContext& ctx);
@@ -32,6 +45,10 @@ private:
     void ResetTransform();
 
     void UploadTransformMatrix(const glm::mat3& matrix);
+
+    void UpdateAspectUniform();
+
+    void UploadUniformData() const;
 
     RenderContext*              m_context = nullptr;
     wgpu::raii::Buffer          m_uniformBuffer;
@@ -45,6 +62,8 @@ private:
     Transform2D                 m_transform;
     Transform2D                 m_pendingDelta;
     Transform2DStateEvent       m_transformState{};
+    SceneUniformData            m_uniformData{};
+    float                       m_lastAspect = 1.0f;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE2D_H

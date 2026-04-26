@@ -16,6 +16,8 @@ public:
 
     Application& SetSurfaceFormat(wgpu::TextureFormat format);
 
+    Application& SetMaxDevicePixelRatio(double maxDevicePixelRatio);
+
     Application& SetApplicationDebugEnabled(bool enabled);
 
     Application& SetInputDebugEnabled(bool enabled);
@@ -43,6 +45,7 @@ private:
 
     int                 m_windowWidth   = 640;
     int                 m_windowHeight  = 480;
+    double              m_maxDevicePixelRatio = 2.0;
     wgpu::TextureFormat m_surfaceFormat = wgpu::TextureFormat::Undefined;
     RenderContext       m_renderContext;
     GuiRenderer         m_guiRenderer;

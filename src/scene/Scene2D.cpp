@@ -1,7 +1,9 @@
 #include "Scene2D.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -30,6 +32,8 @@ void Scene2D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
     if (!targetView) {
         return;
     }
+
+    UpdateAspectUniform();
 
     raii::CommandEncoder encoder = ctx.BeginFrame();
 
@@ -145,8 +149,36 @@ void Scene2D::ResetTransform() {
 }
 
 void Scene2D::UploadTransformMatrix(const glm::mat3& matrix) {
-    const Transform2D::Mat3Uniform uniformData = Transform2D::ToWgslMat3Uniform(matrix);
-    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &uniformData, Transform2D::kMat3UniformSize);
+    m_uniformData.transform = Transform2D::ToWgslMat3Uniform(matrix);
+    UploadUniformData();
+}
+
+void Scene2D::UpdateAspectUniform() {
+    if (!m_context) {
+        return;
+    }
+
+    int drawableWidth  = 0;
+    int drawableHeight = 0;
+    m_context->GetDrawableSize(drawableWidth, drawableHeight);
+
+    const float width  = static_cast<float>(std::max(1, drawableWidth));
+    const float height = static_cast<float>(std::max(1, drawableHeight));
+    const float aspect = width / height;
+    if (std::fabs(aspect - m_lastAspect) <= std::numeric_limits<float>::epsilon()) {
+        return;
+    }
+
+    m_lastAspect       = aspect;
+    m_uniformData.aspect = aspect;
+    UploadUniformData();
+}
+
+void Scene2D::UploadUniformData() const {
+    if (!m_context || !m_uniformBuffer) {
+        return;
+    }
+    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &m_uniformData, sizeof(m_uniformData));
 }
 
 void Scene2D::InitializeBuffers(RenderContext& ctx) {
@@ -173,13 +205,14 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     m_indexBuffer    = ctx.GetDevice()->createBuffer(bufferDesc);
     ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
 
-    bufferDesc.size             = Transform2D::kMat3UniformSize;
+    bufferDesc.size             = sizeof(m_uniformData);
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Uniform;
     bufferDesc.mappedAtCreation = false;
     m_uniformBuffer             = ctx.GetDevice()->createBuffer(bufferDesc);
-    // 初始化为单位矩阵
-    const Transform2D::Mat3Uniform identityUniform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
-    ctx.GetQueue()->writeBuffer(*m_uniformBuffer, 0, &identityUniform, Transform2D::kMat3UniformSize);
+    // 初始化为单位矩阵 + 当前画布宽高比
+    m_uniformData.transform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
+    UpdateAspectUniform();
+    UploadUniformData();
 }
 
 void Scene2D::InitializeBindGroups(RenderContext& ctx) {
@@ -187,7 +220,7 @@ void Scene2D::InitializeBindGroups(RenderContext& ctx) {
     binding.binding = 0;
     binding.buffer  = *m_uniformBuffer;
     binding.offset  = 0;
-    binding.size    = Transform2D::kMat3UniformSize;
+    binding.size    = sizeof(m_uniformData);
 
     BindGroupDescriptor bindGroupDesc{};
     bindGroupDesc.layout     = *m_bindGroupLayout;

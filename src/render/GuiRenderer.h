@@ -7,7 +7,7 @@
 
 class GuiRenderer {
 public:
-    bool Initialize(GLFWwindow* window, wgpu::raii::Device& device, wgpu::TextureFormat surfaceFormat);
+    bool Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat);
 
     void Shutdown();
 

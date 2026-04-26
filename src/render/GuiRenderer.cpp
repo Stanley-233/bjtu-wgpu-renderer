@@ -4,7 +4,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
 
-bool GuiRenderer::Initialize(GLFWwindow* window, wgpu::raii::Device& device, const wgpu::TextureFormat surfaceFormat) {
+bool GuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat) {
     if (m_initialized) {
         return true;
     }
@@ -21,7 +21,7 @@ bool GuiRenderer::Initialize(GLFWwindow* window, wgpu::raii::Device& device, con
         return false;
     }
 
-    if (!ImGui_ImplWGPU_Init(*device, 3, static_cast<WGPUTextureFormat>(surfaceFormat))) {
+    if (!ImGui_ImplWGPU_Init(*device, 3, surfaceFormat)) {
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
         return false;

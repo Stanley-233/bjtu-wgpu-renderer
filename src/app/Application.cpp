@@ -17,6 +17,11 @@ Application& Application::SetSurfaceFormat(const wgpu::TextureFormat format) {
     return *this;
 }
 
+Application& Application::SetMaxDevicePixelRatio(const double maxDevicePixelRatio) {
+    m_maxDevicePixelRatio = maxDevicePixelRatio;
+    return *this;
+}
+
 Application& Application::SetApplicationDebugEnabled(const bool enabled) {
     m_applicationDebugEnabled = enabled;
     return *this;
@@ -30,6 +35,7 @@ Application& Application::SetInputDebugEnabled(const bool enabled) {
 bool Application::Initialize() {
     m_renderContext.SetWindowSize(m_windowWidth, m_windowHeight);
     m_renderContext.SetSurfaceFormat(m_surfaceFormat);
+    m_renderContext.SetMaxDevicePixelRatio(m_maxDevicePixelRatio);
     m_renderContext.enableFrameDebug = false;
 
     if (!m_renderContext.Initialize()) {

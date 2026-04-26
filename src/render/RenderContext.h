@@ -15,6 +15,8 @@ public:
 
     RenderContext& SetSurfaceFormat(wgpu::TextureFormat format);
 
+    RenderContext& SetMaxDevicePixelRatio(double maxDevicePixelRatio);
+
     bool Initialize();
 
     void Terminate();
@@ -46,6 +48,7 @@ private:
 
     int                                  m_windowWidth  = 640;
     int                                  m_windowHeight = 480;
+    double                               m_maxDevicePixelRatio = 2.0;
     GLFWwindow*                          m_window       = nullptr;
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;

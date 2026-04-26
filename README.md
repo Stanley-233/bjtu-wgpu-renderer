@@ -35,6 +35,7 @@ just dev-web
 - 全局配置：`resources/config.toml`
   - `window.width/height`
   - `render.surface_format`
+  - `render.max_device_pixel_ratio`（Web 端生效，限制高 DPI 渲染分辨率；建议 1.5~2.0）
   - `Debug.application`
   - `Debug.input`
 - 3D 场景配置：`resources/scene3d.toml`
