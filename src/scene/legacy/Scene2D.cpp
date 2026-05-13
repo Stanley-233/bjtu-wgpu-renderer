@@ -7,10 +7,11 @@
 #include <utility>
 #include <vector>
 
-#include "render/PipelineLibrary.h"
-#include "render/GuiRenderer.h"
-#include "render/RenderContext.h"
 #include "input/InputEventBus.h"
+#include "render/RenderContext.h"
+#include "render/legacy/LegacyFrameContext.h"
+#include "render/legacy/LegacyGuiRenderer.h"
+#include "render/legacy/LegacyPipeline2D.h"
 #include "resource/ResourceManager.h"
 #include "resource/ResourcePaths.h"
 
@@ -18,7 +19,7 @@ using namespace wgpu;
 
 void Scene2D::Initialize(RenderContext& ctx) {
     m_context             = &ctx;
-    auto pipeline2D       = PipelineLibrary::CreateColor2D(ctx);
+    auto pipeline2D       = LegacyPipeline2D::Create(ctx);
     m_bindGroupLayout     = std::move(pipeline2D.bindGroupLayout);
     m_layout              = std::move(pipeline2D.layout);
     m_pipeline            = std::move(pipeline2D.pipeline);
@@ -26,20 +27,20 @@ void Scene2D::Initialize(RenderContext& ctx) {
     InitializeBindGroups(ctx);
 }
 
-void Scene2D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
-
-    raii::TextureView targetView = ctx.AcquireNextSurfaceView();
-    if (!targetView) {
+void Scene2D::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
+    LegacyFrameContext legacyFrameContext(ctx);
+    SurfaceFrame       surfaceFrame = legacyFrameContext.AcquireSurfaceFrame();
+    if (!surfaceFrame.view) {
         return;
     }
 
     UpdateAspectUniform();
 
-    raii::CommandEncoder encoder = ctx.BeginFrame();
+    raii::CommandEncoder encoder = legacyFrameContext.CreateCommandEncoder();
 
     RenderPassDescriptor      renderPassDesc            = {};
     RenderPassColorAttachment renderPassColorAttachment = {};
-    renderPassColorAttachment.view                      = *targetView;
+    renderPassColorAttachment.view                      = *surfaceFrame.view;
     renderPassColorAttachment.resolveTarget             = nullptr;
     renderPassColorAttachment.loadOp                    = LoadOp::Clear;
     renderPassColorAttachment.storeOp                   = StoreOp::Store;
@@ -62,7 +63,7 @@ void Scene2D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
     guiRenderer.Render(renderPass);
     renderPass->end();
 
-    ctx.SubmitAndPresent(encoder);
+    legacyFrameContext.SubmitAndPresent(surfaceFrame, encoder);
 }
 
 const char* Scene2D::Name() const {
@@ -160,7 +161,7 @@ void Scene2D::UpdateAspectUniform() {
 
     int drawableWidth  = 0;
     int drawableHeight = 0;
-    m_context->GetDrawableSize(drawableWidth, drawableHeight);
+    m_context->GetSurfaceSize(drawableWidth, drawableHeight);
 
     const float width  = static_cast<float>(std::max(1, drawableWidth));
     const float height = static_cast<float>(std::max(1, drawableHeight));
@@ -199,11 +200,16 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     m_pointBuffer               = ctx.GetDevice()->createBuffer(bufferDesc);
     ctx.GetQueue()->writeBuffer(*m_pointBuffer, 0, pointData.data(), bufferDesc.size);
 
-    bufferDesc.size  = indexData.size() * sizeof(uint16_t);
-    bufferDesc.size  = (bufferDesc.size + 3) & ~3;
+    const size_t indexBufferWriteSize = indexData.size() * sizeof(uint16_t);
+    bufferDesc.size  = (indexBufferWriteSize + 3) & ~3;
     bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
     m_indexBuffer    = ctx.GetDevice()->createBuffer(bufferDesc);
-    ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, indexData.data(), bufferDesc.size);
+    std::vector<uint16_t> paddedIndices = indexData;
+    if ((paddedIndices.size() & 1u) != 0u) {
+        paddedIndices.push_back(0);
+    }
+    const size_t alignedIndexWriteSize = paddedIndices.size() * sizeof(uint16_t);
+    ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, paddedIndices.data(), alignedIndexWriteSize);
 
     bufferDesc.size             = sizeof(m_uniformData);
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Uniform;

@@ -1,8 +1,6 @@
 #ifndef BJTU_WGPU_RENDERER_GPURESOURCECACHE_H
 #define BJTU_WGPU_RENDERER_GPURESOURCECACHE_H
 
-#include <cstddef>
-#include <cstdint>
 #include <unordered_map>
 
 #include "GpuMesh.h"

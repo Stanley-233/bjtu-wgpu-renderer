@@ -1,8 +1,8 @@
 #include "ForwardPass.h"
 
-#include "render/PipelineLibrary.h"
 #include "render/RenderContext.h"
 #include "render/frame/RenderFrame.h"
+#include "render/pipelines/Scene3DPipelineFactory.h"
 
 namespace {
 constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
@@ -15,19 +15,19 @@ struct SceneUniform {
 }
 
 void ForwardPass::Initialize(RenderContext& ctx) {
-    auto pipeline = PipelineLibrary::CreateColor3D(ctx);
+    auto pipeline = Scene3DPipelineFactory::CreateForwardPipeline(ctx);
     m_bindGroupLayout = std::move(pipeline.bindGroupLayout);
     m_layout = std::move(pipeline.layout);
     m_pipeline = std::move(pipeline.pipeline);
 }
 
 void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
-    if (!frame.surfaceView || !frame.encoder) {
+    if (!frame.surfaceFrame.view || !frame.encoder) {
         return;
     }
 
     wgpu::RenderPassColorAttachment colorAttachment{};
-    colorAttachment.view = *frame.surfaceView;
+    colorAttachment.view = *frame.surfaceFrame.view;
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = wgpu::LoadOp::Clear;
     colorAttachment.storeOp = wgpu::StoreOp::Store;

@@ -1,11 +1,11 @@
-#ifndef BJTU_WGPU_RENDERER_GUIRENDERER_H
-#define BJTU_WGPU_RENDERER_GUIRENDERER_H
+#ifndef BJTU_WGPU_RENDERER_LEGACYGUIRENDERER_H
+#define BJTU_WGPU_RENDERER_LEGACYGUIRENDERER_H
 
 #include <GLFW/glfw3.h>
 
 #include "webgpu-raii.hpp"
 
-class GuiRenderer {
+class LegacyGuiRenderer {
 public:
     bool Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat);
 
@@ -25,4 +25,4 @@ private:
     bool        m_drawDataReady = false;
 };
 
-#endif // BJTU_WGPU_RENDERER_GUIRENDERER_H
+#endif // BJTU_WGPU_RENDERER_LEGACYGUIRENDERER_H

@@ -1,8 +1,8 @@
 #include "WireframePass.h"
 
-#include "render/PipelineLibrary.h"
 #include "render/RenderContext.h"
 #include "render/frame/RenderFrame.h"
+#include "render/pipelines/Scene3DPipelineFactory.h"
 
 namespace {
 constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
@@ -15,8 +15,8 @@ struct SceneUniform {
 }
 
 void WireframePass::Initialize(RenderContext& ctx) {
-    auto wireframePipeline = PipelineLibrary::CreateColor3DWireframe(ctx);
-    auto depthPrepassPipeline = PipelineLibrary::CreateColor3DWireframeDepthPrepass(ctx);
+    auto wireframePipeline = Scene3DPipelineFactory::CreateWireframePipeline(ctx);
+    auto depthPrepassPipeline = Scene3DPipelineFactory::CreateWireframeDepthPrepassPipeline(ctx);
     m_wireframeLayout = std::move(wireframePipeline.layout);
     m_wireframePipeline = std::move(wireframePipeline.pipeline);
     m_depthPrepassLayout = std::move(depthPrepassPipeline.layout);
@@ -24,12 +24,12 @@ void WireframePass::Initialize(RenderContext& ctx) {
 }
 
 void WireframePass::Render(RenderFrame& frame, const PassContext& context) {
-    if (!frame.surfaceView || !frame.encoder || !context.camera.has_value() || context.queue == nullptr) {
+    if (!frame.surfaceFrame.view || !frame.encoder || !context.camera.has_value() || context.queue == nullptr) {
         return;
     }
 
     wgpu::RenderPassColorAttachment colorAttachment{};
-    colorAttachment.view = *frame.surfaceView;
+    colorAttachment.view = *frame.surfaceFrame.view;
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = wgpu::LoadOp::Load;
     colorAttachment.storeOp = wgpu::StoreOp::Store;

@@ -3,35 +3,28 @@
 
 #include <memory>
 
-#include <GLFW/glfw3.h>
-
+#include "frame/SurfaceFrame.h"
 #include "webgpu-raii.hpp"
+
+class WindowContext;
 
 class RenderContext {
 public:
     bool enableFrameDebug = false;
 
-    RenderContext& SetWindowSize(int width, int height);
-
     RenderContext& SetSurfaceFormat(wgpu::TextureFormat format);
 
-    RenderContext& SetMaxDevicePixelRatio(double maxDevicePixelRatio);
+    bool Initialize(WindowContext& windowContext);
 
-    bool Initialize();
+    void Shutdown();
 
-    void Terminate();
+    [[nodiscard]] SurfaceFrame AcquireSurfaceFrame();
 
-    static void PollEvents();
+    [[nodiscard]] wgpu::raii::CommandEncoder CreateCommandEncoder() const;
 
-    [[nodiscard]] bool IsRunning() const;
+    void Submit(wgpu::raii::CommandEncoder& encoder);
 
-    [[nodiscard]] wgpu::raii::TextureView AcquireNextSurfaceView();
-
-    [[nodiscard]] wgpu::raii::CommandEncoder BeginFrame() const;
-
-    void SubmitAndPresent(wgpu::raii::CommandEncoder& encoder);
-
-    [[nodiscard]] GLFWwindow* GetWindow() const;
+    void Present(SurfaceFrame& surfaceFrame);
 
     [[nodiscard]] wgpu::raii::Device& GetDevice();
 
@@ -39,17 +32,14 @@ public:
 
     [[nodiscard]] wgpu::TextureFormat GetSurfaceFormat() const;
 
-    void GetDrawableSize(int& width, int& height) const;
+    void GetSurfaceSize(int& width, int& height) const;
 
 private:
     static wgpu::RequiredLimits GetRequiredLimits(wgpu::Adapter adapter);
     void ConfigureSurface(uint32_t width, uint32_t height);
     void UpdateSurfaceConfigurationIfNeeded();
 
-    int                                  m_windowWidth  = 640;
-    int                                  m_windowHeight = 480;
-    double                               m_maxDevicePixelRatio = 2.0;
-    GLFWwindow*                          m_window       = nullptr;
+    WindowContext*                       m_windowContext = nullptr;
     wgpu::raii::Device                   m_device;
     wgpu::raii::Queue                    m_queue;
     wgpu::raii::Surface                  m_surface;

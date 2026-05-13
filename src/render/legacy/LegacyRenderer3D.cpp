@@ -2,8 +2,8 @@
 
 #include <algorithm>
 
-#include "render/GuiRenderer.h"
 #include "render/RenderContext.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/Camera.h"
 
 void LegacyRenderer3D::Initialize(RenderContext& ctx) {
@@ -13,7 +13,7 @@ void LegacyRenderer3D::Initialize(RenderContext& ctx) {
 void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
     int surfaceWidth = 0;
     int surfaceHeight = 0;
-    ctx.GetDrawableSize(surfaceWidth, surfaceHeight);
+    ctx.GetSurfaceSize(surfaceWidth, surfaceHeight);
     const float aspect = static_cast<float>(std::max(1, surfaceWidth)) / static_cast<float>(std::max(1, surfaceHeight));
 
     m_scene.camera = RenderCamera{
@@ -31,7 +31,7 @@ void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>
     }
 }
 
-void LegacyRenderer3D::RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer) {
+void LegacyRenderer3D::RenderFrame(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
     m_renderer.Render(ctx, m_scene, guiRenderer);
 }
 

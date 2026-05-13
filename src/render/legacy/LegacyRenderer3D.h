@@ -7,7 +7,7 @@
 
 class Camera;
 class RenderContext;
-class GuiRenderer;
+class LegacyGuiRenderer;
 
 class LegacyRenderer3D {
 public:
@@ -15,7 +15,7 @@ public:
 
     void SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera);
 
-    void RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer);
+    void RenderFrame(RenderContext& ctx, LegacyGuiRenderer& guiRenderer);
 
     void SetClearColor(double r, double g, double b, double a);
 

@@ -1,13 +1,12 @@
 #include "GpuResourceCache.h"
 
 #include <algorithm>
-#include <cstdint>
 #include <vector>
 
 #include "render/RenderContext.h"
 
 std::size_t GpuResourceCache::CacheKeyHash::operator()(const CacheKey& key) const {
-    const auto meshBits = static_cast<std::size_t>(reinterpret_cast<std::uintptr_t>(key.mesh));
+    const auto meshBits = reinterpret_cast<std::uintptr_t>(key.mesh);
     const auto modeBits = static_cast<std::size_t>(key.renderMode == Object3D::ERenderMode::Wireframe ? 1U : 0U);
     return meshBits ^ (modeBits << 1U);
 }

@@ -1,10 +1,10 @@
-#include "GuiRenderer.h"
+#include "LegacyGuiRenderer.h"
 
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
 
-bool GuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat) {
+bool LegacyGuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat) {
     if (m_initialized) {
         return true;
     }
@@ -32,7 +32,7 @@ bool GuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGP
     return true;
 }
 
-void GuiRenderer::Shutdown() {
+void LegacyGuiRenderer::Shutdown() {
     if (!m_initialized) {
         return;
     }
@@ -44,7 +44,7 @@ void GuiRenderer::Shutdown() {
     m_window = nullptr;
 }
 
-void GuiRenderer::BeginFrame(const int drawableWidth, const int drawableHeight) {
+void LegacyGuiRenderer::BeginFrame(const int drawableWidth, const int drawableHeight) {
     if (!m_initialized) {
         return;
     }
@@ -62,7 +62,7 @@ void GuiRenderer::BeginFrame(const int drawableWidth, const int drawableHeight) 
     ImGui::GetIO().DisplayFramebufferScale = ImVec2(scaleX, scaleY);
 }
 
-void GuiRenderer::EndFrame() {
+void LegacyGuiRenderer::EndFrame() {
     if (!m_initialized) {
         return;
     }
@@ -70,7 +70,7 @@ void GuiRenderer::EndFrame() {
     m_drawDataReady = true;
 }
 
-void GuiRenderer::Render(wgpu::raii::RenderPassEncoder& renderPass) {
+void LegacyGuiRenderer::Render(wgpu::raii::RenderPassEncoder& renderPass) {
     if (!m_initialized || !m_drawDataReady || !renderPass) {
         return;
     }
@@ -78,7 +78,7 @@ void GuiRenderer::Render(wgpu::raii::RenderPassEncoder& renderPass) {
     m_drawDataReady = false;
 }
 
-bool GuiRenderer::WantCaptureKeyboard() const {
+bool LegacyGuiRenderer::WantCaptureKeyboard() const {
     if (!m_initialized) {
         return false;
     }

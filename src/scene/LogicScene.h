@@ -11,7 +11,7 @@ public:
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx, GuiRenderer& guiRenderer) override;
+    void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) override;
 
     [[nodiscard]] const char* Name() const override;
 

@@ -7,7 +7,7 @@
 #include "IScene.h"
 
 class RenderContext;
-class GuiRenderer;
+class LegacyGuiRenderer;
 class InputEventBus;
 
 class SceneManager {
@@ -24,7 +24,7 @@ public:
 
     void UpdateActive(float dt) const;
 
-    void RenderActive(RenderContext& ctx, GuiRenderer& guiRenderer) const;
+    void RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const;
 
 private:
     InputEventBus*                                      m_inputEventBus = nullptr;

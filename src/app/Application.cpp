@@ -34,21 +34,28 @@ Application& Application::SetInputDebugEnabled(const bool enabled) {
 }
 
 bool Application::Initialize() {
-    m_renderContext.SetWindowSize(m_windowWidth, m_windowHeight);
+    m_windowContext.SetWindowSize(m_windowWidth, m_windowHeight);
+    m_windowContext.SetMaxDevicePixelRatio(m_maxDevicePixelRatio);
     m_renderContext.SetSurfaceFormat(m_surfaceFormat);
-    m_renderContext.SetMaxDevicePixelRatio(m_maxDevicePixelRatio);
     m_renderContext.enableFrameDebug = false;
 
-    if (!m_renderContext.Initialize()) {
+    if (!m_windowContext.Initialize()) {
         return false;
     }
 
-    glfwSetWindowUserPointer(m_renderContext.GetWindow(), this);
-    glfwSetKeyCallback(m_renderContext.GetWindow(), GLFWKeyCallback);
+    if (!m_renderContext.Initialize(m_windowContext)) {
+        m_windowContext.Terminate();
+        return false;
+    }
+
+    glfwSetWindowUserPointer(m_windowContext.GetWindow(), this);
+    glfwSetKeyCallback(m_windowContext.GetWindow(), GLFWKeyCallback);
     if (!m_guiRenderer.Initialize(
-        m_renderContext.GetWindow(),
+        m_windowContext.GetWindow(),
         m_renderContext.GetDevice(),
         m_renderContext.GetSurfaceFormat())) {
+        m_renderContext.Shutdown();
+        m_windowContext.Terminate();
         return false;
     }
 
@@ -80,15 +87,16 @@ void Application::Terminate() {
     m_inputManager.SetEventBus(nullptr);
     m_guiInputController.SetEventBus(nullptr);
     m_guiRenderer.Shutdown();
-    m_renderContext.Terminate();
+    m_renderContext.Shutdown();
+    m_windowContext.Terminate();
 }
 
 bool Application::IsRunning() const {
-    return m_renderContext.IsRunning();
+    return m_windowContext.IsRunning();
 }
 
 void Application::MainLoop() {
-    m_renderContext.PollEvents();
+    m_windowContext.PollEvents();
 
     const double currentTime = glfwGetTime();
     const float  deltaTime   = static_cast<float>(currentTime - m_lastFrameTime);
@@ -111,7 +119,7 @@ void Application::Tick(float deltaTime) {
 
     int drawableWidth = 0;
     int drawableHeight = 0;
-    m_renderContext.GetDrawableSize(drawableWidth, drawableHeight);
+    m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
     m_guiInputController.BuildUi(m_sceneManager.ActiveScene().Name());
     m_guiRenderer.EndFrame();

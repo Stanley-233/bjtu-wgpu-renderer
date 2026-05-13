@@ -11,7 +11,7 @@
 #include "resource/ResourcePaths.h"
 #include "SceneDescription.h"
 #include "input/InputEventBus.h"
-#include "render/GuiRenderer.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/OrthographicCamera.h"
 #include "scene/camera/PerspectiveCamera.h"
 
@@ -209,7 +209,7 @@ void Scene3DLegacy::Update(float dt) {
     }
 }
 
-void Scene3DLegacy::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
+void Scene3DLegacy::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
     if (m_camera == nullptr) {
         return;
     }

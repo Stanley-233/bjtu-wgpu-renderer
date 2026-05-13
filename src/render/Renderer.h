@@ -12,14 +12,14 @@
 #include "render/scene/RenderScene.h"
 #include "webgpu-raii.hpp"
 
-class GuiRenderer;
+class LegacyGuiRenderer;
 class RenderContext;
 
 class Renderer {
 public:
     void Initialize(RenderContext& ctx);
 
-    void Render(RenderContext& ctx, const RenderScene& scene, GuiRenderer& guiRenderer);
+    void Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer);
 
     void SetClearColor(double r, double g, double b, double a);
 

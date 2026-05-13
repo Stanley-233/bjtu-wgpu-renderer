@@ -3,11 +3,12 @@
 
 #include <GLFW/glfw3.h>
 
+#include "app/WindowContext.h"
 #include "input/InputEventBus.h"
 #include "input/InputManager.h"
 #include "input/gui/GuiInputController.h"
-#include "render/GuiRenderer.h"
 #include "render/RenderContext.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/SceneManager.h"
 
 class Application {
@@ -47,8 +48,9 @@ private:
     int                 m_windowHeight  = 480;
     double              m_maxDevicePixelRatio = 2.0;
     wgpu::TextureFormat m_surfaceFormat = wgpu::TextureFormat::Undefined;
+    WindowContext       m_windowContext;
     RenderContext       m_renderContext;
-    GuiRenderer         m_guiRenderer;
+    LegacyGuiRenderer   m_guiRenderer;
     GuiInputController  m_guiInputController;
     SceneManager        m_sceneManager;
     InputEventBus       m_inputEventBus;

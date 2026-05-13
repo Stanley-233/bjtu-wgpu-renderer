@@ -10,8 +10,8 @@
 #include "components/StaticMeshComponent.h"
 #include "components/TransformComponent.h"
 #include "input/InputEventBus.h"
-#include "render/GuiRenderer.h"
 #include "render/RenderContext.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/PerspectiveCamera.h"
 
 static LegacyMeshData3D CreateSolidCubeMesh() {
@@ -136,7 +136,7 @@ void LogicScene::Update(const float dt) {
     m_world.Update(dt);
 }
 
-void LogicScene::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
+void LogicScene::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
     RenderScene renderScene = BuildRenderScene(ctx);
     m_renderer.Render(ctx, renderScene, guiRenderer);
 }
@@ -164,7 +164,7 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;
-    ctx.GetDrawableSize(surfaceWidth, surfaceHeight);
+    ctx.GetSurfaceSize(surfaceWidth, surfaceHeight);
     const float aspect = static_cast<float>(std::max(1, surfaceWidth)) / static_cast<float>(std::max(1, surfaceHeight));
 
     World& world = const_cast<World&>(m_world);

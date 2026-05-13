@@ -1,101 +1,29 @@
 #include "RenderContext.h"
 
 #include <algorithm>
-#include <cmath>
 #include <iostream>
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten/html5.h>
-#endif
-
+#include "app/WindowContext.h"
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
 
 using namespace wgpu;
-
-#ifdef __EMSCRIPTEN__
-namespace {
-double ClampDevicePixelRatio(const double deviceDpr, const double maxDevicePixelRatio) {
-    return std::clamp(deviceDpr, 1.0, std::max(1.0, maxDevicePixelRatio));
-}
-
-void ConfigureCanvasForHighDpi(const int windowWidth, const int windowHeight, const double maxDevicePixelRatio) {
-    // Keep CSS size in logical pixels while increasing backing store resolution.
-    emscripten_set_element_css_size("#canvas", static_cast<double>(windowWidth), static_cast<double>(windowHeight));
-
-    double cssWidth  = static_cast<double>(windowWidth);
-    double cssHeight = static_cast<double>(windowHeight);
-    if (emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight) != EMSCRIPTEN_RESULT_SUCCESS
-        || cssWidth <= 0.0 || cssHeight <= 0.0) {
-        cssWidth  = static_cast<double>(windowWidth);
-        cssHeight = static_cast<double>(windowHeight);
-    }
-
-    const double dpr = ClampDevicePixelRatio(emscripten_get_device_pixel_ratio(), maxDevicePixelRatio);
-    const int pixelWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
-    const int pixelHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
-    emscripten_set_canvas_element_size("#canvas", pixelWidth, pixelHeight);
-}
-
-void UpdateCanvasBackingStoreForCurrentDpr(const double maxDevicePixelRatio) {
-    double cssWidth  = 0.0;
-    double cssHeight = 0.0;
-    if (emscripten_get_element_css_size("#canvas", &cssWidth, &cssHeight) != EMSCRIPTEN_RESULT_SUCCESS
-        || cssWidth <= 0.0 || cssHeight <= 0.0) {
-        return;
-    }
-
-    const double dpr = ClampDevicePixelRatio(emscripten_get_device_pixel_ratio(), maxDevicePixelRatio);
-    const int desiredWidth  = std::max(1, static_cast<int>(std::lround(cssWidth * dpr)));
-    const int desiredHeight = std::max(1, static_cast<int>(std::lround(cssHeight * dpr)));
-
-    int currentWidth  = 0;
-    int currentHeight = 0;
-    if (emscripten_get_canvas_element_size("#canvas", &currentWidth, &currentHeight) != EMSCRIPTEN_RESULT_SUCCESS
-        || currentWidth != desiredWidth || currentHeight != desiredHeight) {
-        emscripten_set_canvas_element_size("#canvas", desiredWidth, desiredHeight);
-    }
-}
-} // namespace
-#endif
-
-RenderContext& RenderContext::SetWindowSize(int width, int height) {
-    m_windowWidth  = width;
-    m_windowHeight = height;
-    return *this;
-}
 
 RenderContext& RenderContext::SetSurfaceFormat(TextureFormat format) {
     m_surfaceFormat = format;
     return *this;
 }
 
-RenderContext& RenderContext::SetMaxDevicePixelRatio(const double maxDevicePixelRatio) {
-    if (!std::isfinite(maxDevicePixelRatio)) {
-        m_maxDevicePixelRatio = 2.0;
-        return *this;
-    }
-    m_maxDevicePixelRatio = std::max(1.0, maxDevicePixelRatio);
-    return *this;
-}
-
-bool RenderContext::Initialize() {
-    glfwInit();
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_window = glfwCreateWindow(m_windowWidth, m_windowHeight, "WebGPU Renderer", nullptr, nullptr);
-    if (m_window == nullptr) {
+bool RenderContext::Initialize(WindowContext& windowContext) {
+    if (windowContext.GetWindow() == nullptr) {
         return false;
     }
-
-#ifdef __EMSCRIPTEN__
-    ConfigureCanvasForHighDpi(m_windowWidth, m_windowHeight, m_maxDevicePixelRatio);
-#endif
+    m_windowContext = &windowContext;
 
     raii::Instance instance = Instance(wgpuCreateInstance(nullptr));
 
     std::cout << "Requesting adapter..." << std::endl;
-    m_surface                         = Surface(glfwGetWGPUSurface(*instance, m_window));
+    m_surface                         = Surface(glfwGetWGPUSurface(*instance, windowContext.GetWindow()));
     RequestAdapterOptions adapterOpts = {};
     adapterOpts.compatibleSurface     = *m_surface;
     raii::Adapter adapter             = instance->requestAdapter(adapterOpts);
@@ -132,7 +60,7 @@ bool RenderContext::Initialize() {
 
     int framebufferWidth  = 0;
     int framebufferHeight = 0;
-    GetDrawableSize(framebufferWidth, framebufferHeight);
+    GetSurfaceSize(framebufferWidth, framebufferHeight);
 
     if (m_surfaceFormat == TextureFormat::Undefined) {
         std::cout << "[Initialize] Surface format not specified, trying to get the preferred format..." << std::endl;
@@ -152,17 +80,17 @@ bool RenderContext::Initialize() {
     return true;
 }
 
-void RenderContext::Terminate() {
+void RenderContext::Shutdown() {
     if (m_surface) {
         m_surface->unconfigure();
     }
     m_surfaceWidth  = 0;
     m_surfaceHeight = 0;
-    if (m_window != nullptr) {
-        glfwDestroyWindow(m_window);
-        m_window = nullptr;
-    }
-    glfwTerminate();
+    m_uncapturedErrorCallbackHandle.reset();
+    m_surface = {};
+    m_queue   = {};
+    m_device  = {};
+    m_windowContext = nullptr;
 }
 
 void RenderContext::ConfigureSurface(const uint32_t width, const uint32_t height) {
@@ -188,12 +116,9 @@ void RenderContext::ConfigureSurface(const uint32_t width, const uint32_t height
 }
 
 void RenderContext::UpdateSurfaceConfigurationIfNeeded() {
-#ifdef __EMSCRIPTEN__
-    UpdateCanvasBackingStoreForCurrentDpr(m_maxDevicePixelRatio);
-#endif
     int drawableWidth  = 0;
     int drawableHeight = 0;
-    GetDrawableSize(drawableWidth, drawableHeight);
+    GetSurfaceSize(drawableWidth, drawableHeight);
     const uint32_t targetWidth  = static_cast<uint32_t>(std::max(1, drawableWidth));
     const uint32_t targetHeight = static_cast<uint32_t>(std::max(1, drawableHeight));
     if (targetWidth == m_surfaceWidth && targetHeight == m_surfaceHeight) {
@@ -202,22 +127,18 @@ void RenderContext::UpdateSurfaceConfigurationIfNeeded() {
     ConfigureSurface(targetWidth, targetHeight);
 }
 
-void RenderContext::PollEvents() {
-    glfwPollEvents();
-}
-
-bool RenderContext::IsRunning() const {
-    return m_window != nullptr && !glfwWindowShouldClose(m_window);
-}
-
-raii::TextureView RenderContext::AcquireNextSurfaceView() {
+SurfaceFrame RenderContext::AcquireSurfaceFrame() {
     UpdateSurfaceConfigurationIfNeeded();
-    SurfaceTexture surfaceTexture;
-    m_surface->getCurrentTexture(&surfaceTexture);
-    if (surfaceTexture.status != SurfaceGetCurrentTextureStatus::Success) {
+    SurfaceFrame frame{};
+    if (!m_surface) {
+        return frame;
+    }
+
+    m_surface->getCurrentTexture(&frame.surfaceTexture);
+    if (frame.surfaceTexture.status != SurfaceGetCurrentTextureStatus::Success) {
         return {};
     }
-    Texture texture = surfaceTexture.texture;
+    Texture texture = frame.surfaceTexture.texture;
 
     TextureViewDescriptor viewDescriptor;
     viewDescriptor.label           = "Surface texture view";
@@ -228,25 +149,22 @@ raii::TextureView RenderContext::AcquireNextSurfaceView() {
     viewDescriptor.baseArrayLayer  = 0;
     viewDescriptor.arrayLayerCount = 1;
     viewDescriptor.aspect          = TextureAspect::All;
-    raii::TextureView targetView   = texture.createView(viewDescriptor);
-
-#ifndef WEBGPU_BACKEND_WGPU
-    wgpuTextureRelease(surfaceTexture.texture);
-#endif
-
-    return targetView;
+    frame.view                     = texture.createView(viewDescriptor);
+    frame.surfaceWidth             = static_cast<int>(m_surfaceWidth);
+    frame.surfaceHeight            = static_cast<int>(m_surfaceHeight);
+    return frame;
 }
 
-raii::CommandEncoder RenderContext::BeginFrame() const {
+raii::CommandEncoder RenderContext::CreateCommandEncoder() const {
     CommandEncoderDescriptor encoderDesc = {};
     encoderDesc.label                    = "My command encoder";
     return CommandEncoder(wgpuDeviceCreateCommandEncoder(*m_device, &encoderDesc));
 }
 
-void RenderContext::SubmitAndPresent(raii::CommandEncoder& encoder) {
+void RenderContext::Submit(raii::CommandEncoder& encoder) {
     CommandBufferDescriptor cmdBufferDescriptor = {};
     cmdBufferDescriptor.label                   = "Command buffer";
-    raii::CommandBuffer commandBuffer            = encoder->finish(cmdBufferDescriptor);
+    raii::CommandBuffer commandBuffer           = encoder->finish(cmdBufferDescriptor);
 
     if (enableFrameDebug) {
         std::cout << "Submitting command..." << std::endl;
@@ -256,13 +174,6 @@ void RenderContext::SubmitAndPresent(raii::CommandEncoder& encoder) {
         std::cout << "Command submitted." << std::endl;
     }
 
-#ifndef __EMSCRIPTEN__
-    // 在浏览器里，当前帧的显示时机由浏览器自己的渲染循环控制
-    // 代码只需要拿当前纹理、画进去、提交命令，浏览器会在合适的时候把结果展示出来
-    // 见 main.cpp 设置 callback
-    m_surface->present();
-#endif
-
 #ifdef WEBGPU_BACKEND_DAWN
     m_device->tick();
 #elif WEBGPU_BACKEND_WGPU
@@ -270,8 +181,22 @@ void RenderContext::SubmitAndPresent(raii::CommandEncoder& encoder) {
 #endif
 }
 
-GLFWwindow* RenderContext::GetWindow() const {
-    return m_window;
+void RenderContext::Present(SurfaceFrame& surfaceFrame) {
+    if (surfaceFrame.surfaceTexture.status != SurfaceGetCurrentTextureStatus::Success
+        || surfaceFrame.surfaceTexture.texture == nullptr) {
+        return;
+    }
+
+#ifndef __EMSCRIPTEN__
+    m_surface->present();
+#endif
+
+#ifndef WEBGPU_BACKEND_WGPU
+    wgpuTextureRelease(surfaceFrame.surfaceTexture.texture);
+#endif
+
+    surfaceFrame.surfaceTexture.texture = nullptr;
+    surfaceFrame.view = {};
 }
 
 raii::Device& RenderContext::GetDevice() {
@@ -286,22 +211,11 @@ TextureFormat RenderContext::GetSurfaceFormat() const {
     return m_surfaceFormat;
 }
 
-void RenderContext::GetDrawableSize(int& width, int& height) const {
+void RenderContext::GetSurfaceSize(int& width, int& height) const {
     width  = 0;
     height = 0;
-#ifdef __EMSCRIPTEN__
-    if (emscripten_get_canvas_element_size("#canvas", &width, &height) == EMSCRIPTEN_RESULT_SUCCESS
-        && width > 0 && height > 0) {
-        return;
-    }
-#endif
-
-    glfwGetFramebufferSize(m_window, &width, &height);
-    if (width <= 0) {
-        width = m_windowWidth;
-    }
-    if (height <= 0) {
-        height = m_windowHeight;
+    if (m_windowContext != nullptr) {
+        m_windowContext->GetDrawableSize(width, height);
     }
 }
 

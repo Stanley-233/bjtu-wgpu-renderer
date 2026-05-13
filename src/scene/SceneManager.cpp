@@ -51,6 +51,6 @@ void SceneManager::UpdateActive(float dt) const {
     ActiveScene().Update(dt);
 }
 
-void SceneManager::RenderActive(RenderContext& ctx, GuiRenderer& guiRenderer) const {
+void SceneManager::RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const {
     ActiveScene().Render(ctx, guiRenderer);
 }

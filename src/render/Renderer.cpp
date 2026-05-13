@@ -2,12 +2,9 @@
 
 #include <algorithm>
 
-#include "GuiRenderer.h"
 #include "RenderContext.h"
 
-namespace {
 constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
-}
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_forwardPass.Initialize(ctx);
@@ -38,20 +35,19 @@ void Renderer::EnsureDepthResources(RenderContext& ctx, const int width, const i
 }
 
 RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
-    int surfaceWidth = 0;
-    int surfaceHeight = 0;
-    ctx.GetDrawableSize(surfaceWidth, surfaceHeight);
-    EnsureDepthResources(ctx, std::max(1, surfaceWidth), std::max(1, surfaceHeight));
-
     RenderFrame frame{};
-    frame.drawableWidth = surfaceWidth;
-    frame.drawableHeight = surfaceHeight;
     frame.clearColor = m_clearColor;
-    frame.surfaceView = ctx.AcquireNextSurfaceView();
-    if (!frame.surfaceView) {
+    frame.surfaceFrame = ctx.AcquireSurfaceFrame();
+    if (!frame.surfaceFrame.view) {
         return frame;
     }
-    frame.encoder = ctx.BeginFrame();
+
+    EnsureDepthResources(
+        ctx,
+        std::max(1, frame.surfaceFrame.surfaceWidth),
+        std::max(1, frame.surfaceFrame.surfaceHeight));
+
+    frame.encoder = ctx.CreateCommandEncoder();
     if (m_depthView) {
         frame.depthView = *m_depthView;
     }
@@ -123,9 +119,9 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
     }
 }
 
-void Renderer::Render(RenderContext& ctx, const RenderScene& scene, GuiRenderer& guiRenderer) {
+void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer) {
     RenderFrame frame = BeginRenderFrame(ctx);
-    if (!frame.surfaceView || !frame.encoder) {
+    if (!frame.surfaceFrame.view || !frame.encoder) {
         return;
     }
 
@@ -140,7 +136,8 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, GuiRenderer&
     m_forwardPass.Render(frame, passContext);
     m_wireframePass.Render(frame, passContext);
     m_guiPass.Render(frame, passContext);
-    ctx.SubmitAndPresent(frame.encoder);
+    ctx.Submit(frame.encoder);
+    ctx.Present(frame.surfaceFrame);
 }
 
 void Renderer::SetClearColor(const double r, const double g, const double b, const double a) {

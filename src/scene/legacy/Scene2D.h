@@ -13,7 +13,7 @@ public:
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx, GuiRenderer& guiRenderer) override;
+    void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) override;
 
     const char* Name() const override;
 

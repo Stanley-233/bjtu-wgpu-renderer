@@ -8,14 +8,14 @@
 #include "render/scene/RenderCamera.h"
 #include "webgpu-raii.hpp"
 
-class GuiRenderer;
+class LegacyGuiRenderer;
 struct RenderFrame;
 
 struct PassContext {
-    std::optional<RenderCamera>  camera{};
+    std::optional<RenderCamera>       camera{};
     std::span<const PreparedDrawItem> drawItems{};
-    GuiRenderer*                 guiRenderer = nullptr;
-    wgpu::Queue*                 queue = nullptr;
+    LegacyGuiRenderer*              guiRenderer = nullptr;
+    wgpu::Queue*                    queue = nullptr;
 };
 
 class IRenderPass {

@@ -3,7 +3,7 @@
 
 class RenderContext;
 class InputEventBus;
-class GuiRenderer;
+class LegacyGuiRenderer;
 
 enum class ESceneType {
     Scene2D,
@@ -109,7 +109,7 @@ public:
 
     virtual void Update(float dt) = 0;
 
-    virtual void Render(RenderContext& ctx, GuiRenderer& guiRenderer) = 0;
+    virtual void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) = 0;
 
     virtual const char* Name() const = 0;
 
