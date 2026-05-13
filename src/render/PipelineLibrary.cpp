@@ -9,8 +9,7 @@
 
 using namespace wgpu;
 
-namespace {
-PipelineLibrary::Pipeline3D CreateColor3DInternal(
+static PipelineLibrary::Pipeline3D CreateColor3DInternal(
     RenderContext&          ctx,
     WGPUPrimitiveTopology   topology,
     WGPUCullMode            cullMode,
@@ -117,7 +116,6 @@ PipelineLibrary::Pipeline3D CreateColor3DInternal(
     shaderModule.release();
     return result;
 }
-} // namespace
 
 PipelineLibrary::Pipeline2D PipelineLibrary::CreateColor2D(RenderContext& ctx) {
     std::cout << "Creating shader module..." << std::endl;
