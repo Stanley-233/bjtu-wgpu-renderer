@@ -1,6 +1,5 @@
 #include "Scene3DPipelineFactory.h"
 
-#include <cstdlib>
 #include <iostream>
 #include <vector>
 
@@ -10,8 +9,7 @@
 
 using namespace wgpu;
 
-namespace {
-Scene3DPipelineFactory::Pipeline CreatePipeline(
+static Scene3DPipelineFactory::Pipeline CreatePipeline(
     RenderContext&          ctx,
     const char*             label,
     const WGPUPrimitiveTopology topology,
@@ -119,7 +117,6 @@ Scene3DPipelineFactory::Pipeline CreatePipeline(
     shaderModule.release();
     return result;
 }
-} // namespace
 
 Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateForwardPipeline(RenderContext& ctx) {
     return CreatePipeline(

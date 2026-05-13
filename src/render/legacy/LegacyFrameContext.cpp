@@ -14,7 +14,7 @@ wgpu::raii::CommandEncoder LegacyFrameContext::CreateCommandEncoder() const {
     return m_renderContext.CreateCommandEncoder();
 }
 
-void LegacyFrameContext::SubmitAndPresent(SurfaceFrame& surfaceFrame, wgpu::raii::CommandEncoder& encoder) {
+void LegacyFrameContext::SubmitAndPresent(SurfaceFrame& surfaceFrame, wgpu::raii::CommandEncoder& encoder) const {
     m_renderContext.Submit(encoder);
     m_renderContext.Present(surfaceFrame);
 }

@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 
-wgpu::ShaderModule ShaderLoader::Load(const std::filesystem::path& path, wgpu::Device device) const {
+wgpu::ShaderModule ShaderLoader::Load(const std::filesystem::path& path, wgpu::Device device) {
     std::ifstream file(path);
     if (!file.is_open()) {
         return nullptr;

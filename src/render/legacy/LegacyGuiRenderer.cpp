@@ -4,7 +4,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
 
-bool LegacyGuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat) {
+bool LegacyGuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, const WGPUTextureFormat surfaceFormat) {
     if (m_initialized) {
         return true;
     }

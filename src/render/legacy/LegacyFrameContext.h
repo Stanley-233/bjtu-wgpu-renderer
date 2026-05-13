@@ -14,7 +14,7 @@ public:
 
     [[nodiscard]] wgpu::raii::CommandEncoder CreateCommandEncoder() const;
 
-    void SubmitAndPresent(SurfaceFrame& surfaceFrame, wgpu::raii::CommandEncoder& encoder);
+    void SubmitAndPresent(SurfaceFrame& surfaceFrame, wgpu::raii::CommandEncoder& encoder) const;
 
     [[nodiscard]] wgpu::raii::Device& GetDevice() const;
 

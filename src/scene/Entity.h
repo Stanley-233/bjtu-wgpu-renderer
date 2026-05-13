@@ -12,7 +12,7 @@ class Entity {
 public:
     Entity() = default;
 
-    Entity(entt::entity handle, World* world)
+    Entity(const entt::entity handle, World* world)
         : m_handle(handle),
           m_world(world) {
     }

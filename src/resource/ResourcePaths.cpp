@@ -11,9 +11,8 @@
 #include <unistd.h>
 #endif
 
-namespace {
 
-[[maybe_unused]] std::filesystem::path ExecutableDir() {
+[[maybe_unused]] static std::filesystem::path ExecutableDir() {
 #if defined(_WIN32)
     std::array<wchar_t, 4096> buffer{};
     const DWORD size = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
@@ -47,8 +46,6 @@ namespace {
     return std::filesystem::path(buffer.data()).parent_path();
 #endif
 }
-
-} // namespace
 
 std::filesystem::path ResourcePaths::ResourceRoot() {
 #ifdef __EMSCRIPTEN__

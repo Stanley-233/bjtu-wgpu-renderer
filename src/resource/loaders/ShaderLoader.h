@@ -7,7 +7,7 @@
 
 class ShaderLoader {
 public:
-    wgpu::ShaderModule Load(const std::filesystem::path& path, wgpu::Device device) const;
+    static wgpu::ShaderModule Load(const std::filesystem::path& path, wgpu::Device device);
 };
 
 #endif // BJTU_WGPU_RENDERER_SHADERLOADER_H

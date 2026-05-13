@@ -10,8 +10,7 @@
 #endif
 #include <tiny_obj_loader.h>
 
-namespace {
-glm::vec3 HsvToRgb(const float h, const float s, const float v) {
+static glm::vec3 HsvToRgb(const float h, const float s, const float v) {
     const float hh = h * 6.0f;
     const int   i  = static_cast<int>(std::floor(hh));
     const float f  = hh - static_cast<float>(i);
@@ -30,7 +29,7 @@ glm::vec3 HsvToRgb(const float h, const float s, const float v) {
     }
 }
 
-glm::vec3 FaceColorFromIndex(const uint32_t faceIndex) {
+static glm::vec3 FaceColorFromIndex(const uint32_t faceIndex) {
     // A deterministic integer hash to generate stable hue per face.
     uint32_t x = faceIndex;
     x ^= x >> 16u;
@@ -43,7 +42,6 @@ glm::vec3 FaceColorFromIndex(const uint32_t faceIndex) {
     const float     hue        = static_cast<float>(x & 0x00FFFFFFu) * kInv24Bit;
     return HsvToRgb(hue, 0.78f, 0.95f);
 }
-} // namespace
 
 bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMesh) {
     outMesh.vertices.clear();
