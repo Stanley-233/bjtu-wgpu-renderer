@@ -8,7 +8,7 @@
 #ifndef TINYOBJLOADER_IMPLEMENTATION
     #define TINYOBJLOADER_IMPLEMENTATION
 #endif
-#include <tiny_obj_loader.h>
+#include <../../../ext/tiny_obj_loader/tiny_obj_loader.h>
 
 static glm::vec3 HsvToRgb(const float h, const float s, const float v) {
     const float hh = h * 6.0f;

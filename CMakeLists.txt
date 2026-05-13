@@ -26,8 +26,6 @@ add_subdirectory(ext/toml++)
 
 add_subdirectory(ext/glm)
 
-add_subdirectory(ext/tiny_obj_loader)
-
 add_subdirectory(ext/entt)
 
 add_subdirectory(ext/imgui)
@@ -47,7 +45,11 @@ add_executable(bjtu_wgpu_renderer
 
 target_include_directories(bjtu_wgpu_renderer
         PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/tiny_obj_loader
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/tiny_gltf
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/json
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/stb_image
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
@@ -59,7 +61,6 @@ target_link_libraries(bjtu_wgpu_renderer PRIVATE
         magic_enum
         toml
         glm
-        tiny_obj_loader
         entt
         imgui
 )
