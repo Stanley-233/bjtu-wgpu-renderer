@@ -7,7 +7,8 @@ class GuiRenderer;
 
 enum class ESceneType {
     Scene2D,
-    Scene3D,
+    Scene3DLegacy,
+    LogicScene,
 };
 
 enum class ETransformAction {

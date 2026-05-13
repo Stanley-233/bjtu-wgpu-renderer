@@ -29,8 +29,12 @@ void GuiInputController::BuildUi(const char* activeSceneName) {
             m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene2D});
         }
         ImGui::SameLine();
-        if (ImGui::Button("Switch Scene3D")) {
-            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene3D});
+        if (ImGui::Button("Switch Scene3DLegacy")) {
+            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene3DLegacy});
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Switch LogicScene")) {
+            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LogicScene});
         }
         if (ImGui::Button("Toggle Camera Mode")) {
             m_eventBus->Dispatcher().trigger<ToggleCameraModeRequest>(ToggleCameraModeRequest{});

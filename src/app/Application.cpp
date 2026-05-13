@@ -3,8 +3,9 @@
 #include <iostream>
 #include <memory>
 
+#include "scene/LogicScene.h"
 #include "scene/legacy/Scene2D.h"
-#include "scene/legacy/Scene3D.h"
+#include "scene/legacy/Scene3DLegacy.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;
@@ -56,10 +57,11 @@ bool Application::Initialize() {
     m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
 
     m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
-    m_sceneManager.RegisterScene(ESceneType::Scene3D, std::make_unique<Scene3D>());
+    m_sceneManager.RegisterScene(ESceneType::Scene3DLegacy, std::make_unique<Scene3DLegacy>());
+    m_sceneManager.RegisterScene(ESceneType::LogicScene, std::make_unique<LogicScene>());
     m_sceneManager.InitializeAll(m_renderContext);
     m_sceneManager.SetInputEventBus(m_inputEventBus);
-    m_sceneManager.SetActiveScene(ESceneType::Scene3D);
+    m_sceneManager.SetActiveScene(ESceneType::LogicScene);
 
     m_inputEventBus.Dispatcher().sink<SceneSwitchRequest>().connect<&Application::OnSceneSwitchRequest>(*this);
     m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Application::OnToggleCameraModeRequest>(*this);

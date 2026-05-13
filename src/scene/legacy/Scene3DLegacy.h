@@ -1,5 +1,5 @@
-#ifndef BJTU_WGPU_RENDERER_SCENE3D_H
-#define BJTU_WGPU_RENDERER_SCENE3D_H
+#ifndef BJTU_WGPU_RENDERER_SCENE3DLEGACY_H
+#define BJTU_WGPU_RENDERER_SCENE3DLEGACY_H
 
 #include <memory>
 #include <vector>
@@ -9,7 +9,7 @@
 #include "scene/camera/Camera.h"
 #include "Object3D.h"
 
-class Scene3D final : public IScene, public ITransform3DInputSink, public ICameraMoveInputSink {
+class Scene3DLegacy final : public IScene, public ITransform3DInputSink, public ICameraMoveInputSink {
 public:
     enum class ECameraMode {
         Perspective,
@@ -55,4 +55,4 @@ private:
     float                       m_moveUp      = 0.0f;
 };
 
-#endif // BJTU_WGPU_RENDERER_SCENE3D_H
+#endif // BJTU_WGPU_RENDERER_SCENE3DLEGACY_H

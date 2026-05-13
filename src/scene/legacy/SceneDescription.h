@@ -6,7 +6,7 @@
 
 #include <glm/vec3.hpp>
 
-#include "../../render/legacy/LegacyMeshData3D.h"
+#include "resource/legacy/LegacyMeshData3D.h"
 
 enum class ECameraProjectionType {
     Perspective,

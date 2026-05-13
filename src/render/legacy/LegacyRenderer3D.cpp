@@ -9,7 +9,7 @@
 #include "render/PipelineLibrary.h"
 #include "render/GuiRenderer.h"
 #include "render/RenderContext.h"
-#include "LegacyMeshData3D.h"
+#include "resource/legacy/LegacyMeshData3D.h"
 #include "scene/camera/Camera.h"
 #include "scene/legacy/Object3D.h"
 

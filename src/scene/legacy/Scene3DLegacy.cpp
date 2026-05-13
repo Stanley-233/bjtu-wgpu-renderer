@@ -1,4 +1,4 @@
-#include "Scene3D.h"
+#include "Scene3DLegacy.h"
 
 #include <algorithm>
 #include <cmath>
@@ -74,12 +74,12 @@ void SetMeshColor(LegacyMeshData3D& mesh, const glm::vec3 color) {
 }
 } // namespace
 
-void Scene3D::Initialize(RenderContext& ctx) {
+void Scene3DLegacy::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
     SceneDescription sceneDescription{};
     const std::filesystem::path scenePath = ResourcePaths::Resolve("scene3d.toml");
     if (!ResourceManager::LoadSceneFromToml(scenePath, sceneDescription)) {
-        std::cerr << "[Scene3D] Failed to load scene description from " << scenePath.string() << std::endl;
+        std::cerr << "[Scene3DLegacy] Failed to load scene description from " << scenePath.string() << std::endl;
         m_objects.clear();
         m_initialObjectTransforms.clear();
         return;
@@ -132,7 +132,7 @@ void Scene3D::Initialize(RenderContext& ctx) {
     AppendBuiltinCube();
 }
 
-void Scene3D::Update(float dt) {
+void Scene3DLegacy::Update(float dt) {
     constexpr float kEpsilon = 1e-6f;
     if (dt <= 0.0f) {
         return;
@@ -209,7 +209,7 @@ void Scene3D::Update(float dt) {
     }
 }
 
-void Scene3D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
+void Scene3DLegacy::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
     if (m_camera == nullptr) {
         return;
     }
@@ -217,11 +217,11 @@ void Scene3D::Render(RenderContext& ctx, GuiRenderer& guiRenderer) {
     m_renderer.RenderFrame(ctx, guiRenderer);
 }
 
-const char* Scene3D::Name() const {
-    return "Scene3D";
+const char* Scene3DLegacy::Name() const {
+    return "Scene3DLegacy";
 }
 
-void Scene3D::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) {
+void Scene3DLegacy::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) {
     if (event.mode != EObjectTransform3DMode::Reset) {
         return;
     }
@@ -234,22 +234,22 @@ void Scene3D::OnObjectTransform3DEvent(const ObjectTransform3DEvent& event) {
     }
 }
 
-void Scene3D::OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) {
+void Scene3DLegacy::OnObjectTransform3DStateEvent(const ObjectTransform3DStateEvent& event) {
     m_objectTransformState = event;
 }
 
-void Scene3D::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
+void Scene3DLegacy::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
     m_moveForward = event.forward;
     m_moveRight   = event.right;
     m_moveUp      = event.up;
 }
 
-void Scene3D::OnToggleCameraModeRequest(const ToggleCameraModeRequest& event) {
+void Scene3DLegacy::OnToggleCameraModeRequest(const ToggleCameraModeRequest& event) {
     (void)event;
     ToggleCameraMode();
 }
 
-void Scene3D::ToggleCameraMode() {
+void Scene3DLegacy::ToggleCameraMode() {
     if (m_cameraMode == ECameraMode::Perspective) {
         SetCameraMode(ECameraMode::Orthographic);
         return;
@@ -257,25 +257,25 @@ void Scene3D::ToggleCameraMode() {
     SetCameraMode(ECameraMode::Perspective);
 }
 
-Scene3D::ECameraMode Scene3D::CameraMode() const {
+Scene3DLegacy::ECameraMode Scene3DLegacy::CameraMode() const {
     return m_cameraMode;
 }
 
-void Scene3D::RegisterInputHandlers(InputEventBus& eventBus) {
-    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().connect<&Scene3D::OnObjectTransform3DEvent>(*this);
-    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().connect<&Scene3D::OnObjectTransform3DStateEvent>(*this);
-    eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&Scene3D::OnCameraMoveInputEvent>(*this);
-    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Scene3D::OnToggleCameraModeRequest>(*this);
+void Scene3DLegacy::RegisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().connect<&Scene3DLegacy::OnObjectTransform3DEvent>(*this);
+    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().connect<&Scene3DLegacy::OnObjectTransform3DStateEvent>(*this);
+    eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&Scene3DLegacy::OnCameraMoveInputEvent>(*this);
+    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Scene3DLegacy::OnToggleCameraModeRequest>(*this);
 }
 
-void Scene3D::UnregisterInputHandlers(InputEventBus& eventBus) {
-    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().disconnect<&Scene3D::OnObjectTransform3DEvent>(*this);
-    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().disconnect<&Scene3D::OnObjectTransform3DStateEvent>(*this);
-    eventBus.Dispatcher().sink<CameraMoveInputEvent>().disconnect<&Scene3D::OnCameraMoveInputEvent>(*this);
-    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().disconnect<&Scene3D::OnToggleCameraModeRequest>(*this);
+void Scene3DLegacy::UnregisterInputHandlers(InputEventBus& eventBus) {
+    eventBus.Dispatcher().sink<ObjectTransform3DEvent>().disconnect<&Scene3DLegacy::OnObjectTransform3DEvent>(*this);
+    eventBus.Dispatcher().sink<ObjectTransform3DStateEvent>().disconnect<&Scene3DLegacy::OnObjectTransform3DStateEvent>(*this);
+    eventBus.Dispatcher().sink<CameraMoveInputEvent>().disconnect<&Scene3DLegacy::OnCameraMoveInputEvent>(*this);
+    eventBus.Dispatcher().sink<ToggleCameraModeRequest>().disconnect<&Scene3DLegacy::OnToggleCameraModeRequest>(*this);
 }
 
-void Scene3D::SetCameraMode(const ECameraMode mode) {
+void Scene3DLegacy::SetCameraMode(const ECameraMode mode) {
     glm::vec3 position = {0.0f, 0.0f, 0.0f};
     glm::vec3 target   = {0.0f, 0.0f, -1.0f};
     glm::vec3 up       = {0.0f, 1.0f, 0.0f};
@@ -293,7 +293,7 @@ void Scene3D::SetCameraMode(const ECameraMode mode) {
     m_camera->SetPose(position, target, up);
 }
 
-void Scene3D::AppendBuiltinCube() {
+void Scene3DLegacy::AppendBuiltinCube() {
     Object3D cube{};
     cube.SetMesh(CreateSolidCubeMesh());
     cube.SetRenderMode(Object3D::ERenderMode::Solid);

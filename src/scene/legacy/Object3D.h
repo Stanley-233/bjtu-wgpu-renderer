@@ -2,7 +2,7 @@
 #define BJTU_WGPU_RENDERER_OBJECT3D_H
 
 #include "math/Transform3D.h"
-#include "render/legacy/LegacyMeshData3D.h"
+#include "resource/legacy/LegacyMeshData3D.h"
 
 class Object3D {
 public:

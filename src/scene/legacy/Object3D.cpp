@@ -1,4 +1,4 @@
-#include "scene/legacy/Scene3D.h"
+#include "Object3D.h"
 
 void Object3D::SetTransform(const Transform3D& transform) {
     m_transform = transform;

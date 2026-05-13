@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "../../render/legacy/LegacyMeshData3D.h"
+#include "resource/legacy/LegacyMeshData3D.h"
 
 class IModelLoader {
 public:
