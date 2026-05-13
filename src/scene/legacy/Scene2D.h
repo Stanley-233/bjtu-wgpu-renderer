@@ -3,9 +3,9 @@
 
 #include <cstddef>
 
-#include "Scene.h"
-#include "../math/Transform2D.h"
-#include "../webgpu-raii.hpp"
+#include "scene/IScene.h"
+#include "math/Transform2D.h"
+#include "webgpu-raii.hpp"
 
 class Scene2D : public IScene, public ITransform2DInputSink {
 public:

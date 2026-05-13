@@ -2,8 +2,8 @@
 
 #include <imgui.h>
 
-#include "../../scene/Scene.h"
-#include "../InputEventBus.h"
+#include "scene/IScene.h"
+#include "input/InputEventBus.h"
 
 void GuiInputController::SetEventBus(InputEventBus* eventBus) {
     m_eventBus = eventBus;

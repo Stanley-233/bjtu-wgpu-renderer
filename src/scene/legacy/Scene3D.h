@@ -4,9 +4,9 @@
 #include <memory>
 #include <vector>
 
-#include "../../render/Renderer3D.h"
-#include "../Scene.h"
-#include "../camera/Camera.h"
+#include "render/legacy/LegacyRenderer3D.h"
+#include "scene/IScene.h"
+#include "scene/camera/Camera.h"
 #include "Object3D.h"
 
 class Scene3D final : public IScene, public ITransform3DInputSink, public ICameraMoveInputSink {
@@ -44,15 +44,15 @@ private:
 
     static constexpr float kCameraMoveSpeed = 2.5f;
 
-    ECameraMode             m_cameraMode = ECameraMode::Orthographic;
-    std::unique_ptr<Camera> m_camera{};
-    std::vector<Object3D>   m_objects{};
-    std::vector<Transform3D> m_initialObjectTransforms{};
-    Renderer3D              m_renderer{};
+    ECameraMode                 m_cameraMode = ECameraMode::Orthographic;
+    std::unique_ptr<Camera>     m_camera{};
+    std::vector<Object3D>       m_objects{};
+    std::vector<Transform3D>    m_initialObjectTransforms{};
+    LegacyRenderer3D            m_renderer{};
     ObjectTransform3DStateEvent m_objectTransformState{};
-    float                   m_moveForward = 0.0f;
-    float                   m_moveRight   = 0.0f;
-    float                   m_moveUp      = 0.0f;
+    float                       m_moveForward = 0.0f;
+    float                       m_moveRight   = 0.0f;
+    float                       m_moveUp      = 0.0f;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE3D_H

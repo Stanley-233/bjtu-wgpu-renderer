@@ -4,9 +4,8 @@
 #include <vector>
 
 #include "RenderContext.h"
-#include "../math/Transform2D.h"
-#include "../resource/ResourceManager.h"
-#include "../resource/ResourcePaths.h"
+#include "resource/ResourceManager.h"
+#include "resource/ResourcePaths.h"
 
 using namespace wgpu;
 

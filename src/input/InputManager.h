@@ -1,8 +1,6 @@
 #ifndef BJTU_WGPU_RENDERER_INPUTMANAGER_H
 #define BJTU_WGPU_RENDERER_INPUTMANAGER_H
 
-#include <signal/dispatcher.hpp>
-
 #include "InputEventLogger.h"
 #include "InputEventBus.h"
 #include "InputState.h"

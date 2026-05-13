@@ -10,7 +10,7 @@ struct Vertex3D {
     glm::vec3 color{1.0f, 1.0f, 1.0f};
 };
 
-struct MeshData3D {
+struct LegacyMeshData3D {
     std::vector<Vertex3D> vertices;
     std::vector<uint16_t> indices;
 };

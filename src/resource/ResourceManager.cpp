@@ -3,7 +3,7 @@
 #include "loaders/LegacyTxtGeometryLoader.h"
 #include "loaders/ObjLoader.h"
 #include "loaders/ShaderLoader.h"
-#include "loaders/TomlSceneLoader.h"
+#include "legacy/LegacyTomlSceneLoader.h"
 
 bool ResourceManager::LoadGeometry(
     const std::filesystem::path& path,
@@ -16,7 +16,7 @@ bool ResourceManager::LoadGeometry(
 
 bool ResourceManager::LoadGeometry3DFromObj(
     const std::filesystem::path& path,
-    MeshData3D&                  outMesh
+    LegacyMeshData3D&                  outMesh
 ) {
     ObjLoader loader{};
     return loader.Load(path, outMesh);
@@ -26,7 +26,7 @@ bool ResourceManager::LoadSceneFromToml(
     const std::filesystem::path& path,
     SceneDescription&            outScene
 ) {
-    TomlSceneLoader loader{};
+    LegacyTomlSceneLoader loader{};
     return loader.Load(path, outScene);
 }
 

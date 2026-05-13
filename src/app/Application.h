@@ -3,12 +3,12 @@
 
 #include <GLFW/glfw3.h>
 
-#include "../input/InputEventBus.h"
-#include "../input/InputManager.h"
-#include "../input/gui/GuiInputController.h"
-#include "../render/GuiRenderer.h"
-#include "../render/RenderContext.h"
-#include "../scene/SceneManager.h"
+#include "input/InputEventBus.h"
+#include "input/InputManager.h"
+#include "input/gui/GuiInputController.h"
+#include "render/GuiRenderer.h"
+#include "render/RenderContext.h"
+#include "scene/SceneManager.h"
 
 class Application {
 public:

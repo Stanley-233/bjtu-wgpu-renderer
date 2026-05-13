@@ -3,7 +3,7 @@
 
 #include <filesystem>
 
-#include "../models/SceneDescription.h"
+#include "scene/legacy/SceneDescription.h"
 
 class ISceneLoader {
 public:

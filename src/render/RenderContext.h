@@ -5,7 +5,7 @@
 
 #include <GLFW/glfw3.h>
 
-#include "../webgpu-raii.hpp"
+#include "webgpu-raii.hpp"
 
 class RenderContext {
 public:

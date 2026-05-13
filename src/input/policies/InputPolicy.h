@@ -3,7 +3,7 @@
 
 #include <signal/dispatcher.hpp>
 
-#include "../InputState.h"
+#include "input/InputState.h"
 
 class InputPolicy {
 public:

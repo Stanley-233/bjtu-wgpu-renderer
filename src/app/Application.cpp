@@ -3,8 +3,8 @@
 #include <iostream>
 #include <memory>
 
-#include "../scene/Scene2D.h"
-#include "../scene/scene3d/Scene3D.h"
+#include "scene/legacy/Scene2D.h"
+#include "scene/legacy/Scene3D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;

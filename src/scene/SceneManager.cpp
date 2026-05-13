@@ -2,8 +2,8 @@
 
 #include <stdexcept>
 
-#include "../input/InputEventBus.h"
-#include "../render/RenderContext.h"
+#include "input/InputEventBus.h"
+#include "render/RenderContext.h"
 
 void SceneManager::RegisterScene(ESceneType type, std::unique_ptr<IScene> scene) {
     m_scenes[type] = std::move(scene);

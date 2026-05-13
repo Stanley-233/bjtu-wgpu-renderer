@@ -3,8 +3,8 @@
 
 #include <GLFW/glfw3.h>
 
-#include "../../scene/Scene.h"
-#include "../InputState.h"
+#include "scene/IScene.h"
+#include "input/InputState.h"
 #include "InputPolicy.h"
 
 class AppHotkeyPolicy final : public InputPolicy {

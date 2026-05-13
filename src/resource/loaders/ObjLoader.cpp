@@ -1,7 +1,5 @@
 #include "ObjLoader.h"
 
-#include <cmath>
-#include <cstdint>
 #include <iostream>
 #include <limits>
 #include <string>
@@ -47,7 +45,7 @@ glm::vec3 FaceColorFromIndex(const uint32_t faceIndex) {
 }
 } // namespace
 
-bool ObjLoader::Load(const std::filesystem::path& path, MeshData3D& outMesh) {
+bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMesh) {
     outMesh.vertices.clear();
     outMesh.indices.clear();
 

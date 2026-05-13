@@ -7,17 +7,17 @@
 #include <memory>
 #include <string>
 
-#include "../../resource/ResourceManager.h"
-#include "../../resource/ResourcePaths.h"
-#include "../../resource/models/SceneDescription.h"
-#include "../../input/InputEventBus.h"
-#include "../../render/GuiRenderer.h"
-#include "../camera/OrthographicCamera.h"
-#include "../camera/PerspectiveCamera.h"
+#include "resource/ResourceManager.h"
+#include "resource/ResourcePaths.h"
+#include "SceneDescription.h"
+#include "input/InputEventBus.h"
+#include "render/GuiRenderer.h"
+#include "scene/camera/OrthographicCamera.h"
+#include "scene/camera/PerspectiveCamera.h"
 
 namespace {
-MeshData3D CreateSolidCubeMesh() {
-    MeshData3D mesh{};
+LegacyMeshData3D CreateSolidCubeMesh() {
+    LegacyMeshData3D mesh{};
     constexpr glm::vec3 backColor{0.95f, 0.35f, 0.25f};
     constexpr glm::vec3 frontColor{0.20f, 0.65f, 0.95f};
     constexpr glm::vec3 bottomColor{0.95f, 0.85f, 0.25f};
@@ -67,7 +67,7 @@ MeshData3D CreateSolidCubeMesh() {
     return mesh;
 }
 
-void SetMeshColor(MeshData3D& mesh, const glm::vec3 color) {
+void SetMeshColor(LegacyMeshData3D& mesh, const glm::vec3 color) {
     for (Vertex3D& vertex : mesh.vertices) {
         vertex.color = color;
     }
@@ -106,7 +106,7 @@ void Scene3D::Initialize(RenderContext& ctx) {
         object.SetMesh(objectDescription.mesh);
         if (objectDescription.name == "teapot") {
             object.SetRenderMode(Object3D::ERenderMode::Wireframe);
-            MeshData3D teapotMesh = object.Mesh();
+            LegacyMeshData3D teapotMesh = object.Mesh();
             SetMeshColor(teapotMesh, {0.97f, 0.97f, 0.97f});
             object.SetMesh(teapotMesh);
         }

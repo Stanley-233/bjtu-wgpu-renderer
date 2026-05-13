@@ -3,13 +3,13 @@
 
 #include <filesystem>
 
-#include "../models/MeshData3D.h"
+#include "../../render/legacy/LegacyMeshData3D.h"
 
 class IModelLoader {
 public:
     virtual ~IModelLoader() = default;
 
-    virtual bool Load(const std::filesystem::path& path, MeshData3D& outMesh) = 0;
+    virtual bool Load(const std::filesystem::path& path, LegacyMeshData3D& outMesh) = 0;
 };
 
 #endif // BJTU_WGPU_RENDERER_IMODELLOADER_H

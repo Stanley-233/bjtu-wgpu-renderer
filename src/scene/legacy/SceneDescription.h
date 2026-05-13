@@ -6,7 +6,7 @@
 
 #include <glm/vec3.hpp>
 
-#include "MeshData3D.h"
+#include "../../render/legacy/LegacyMeshData3D.h"
 
 enum class ECameraProjectionType {
     Perspective,
@@ -25,7 +25,7 @@ struct ObjectDescription {
     glm::vec3  translation{0.0f, 0.0f, 0.0f};
     glm::vec3  rotation{0.0f, 0.0f, 0.0f};
     glm::vec3  scale{1.0f, 1.0f, 1.0f};
-    MeshData3D mesh;
+    LegacyMeshData3D mesh;
 };
 
 struct SceneDescription {

@@ -1,7 +1,7 @@
 #ifndef BJTU_WGPU_RENDERER_INPUTEVENTLOGGER_H
 #define BJTU_WGPU_RENDERER_INPUTEVENTLOGGER_H
 
-#include "../scene/Scene.h"
+#include "scene/IScene.h"
 
 class InputEventLogger {
 public:

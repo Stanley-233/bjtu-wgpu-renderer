@@ -7,12 +7,12 @@
 #include <utility>
 #include <vector>
 
-#include "../render/PipelineLibrary.h"
-#include "../render/GuiRenderer.h"
-#include "../render/RenderContext.h"
-#include "../input/InputEventBus.h"
-#include "../resource/ResourceManager.h"
-#include "../resource/ResourcePaths.h"
+#include "render/PipelineLibrary.h"
+#include "render/GuiRenderer.h"
+#include "render/RenderContext.h"
+#include "input/InputEventBus.h"
+#include "resource/ResourceManager.h"
+#include "resource/ResourcePaths.h"
 
 using namespace wgpu;
 

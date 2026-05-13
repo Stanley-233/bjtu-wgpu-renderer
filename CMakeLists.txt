@@ -45,6 +45,11 @@ add_executable(bjtu_wgpu_renderer
         ${BJTU_RENDERER_SOURCES}
 )
 
+target_include_directories(bjtu_wgpu_renderer
+        PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
         $<$<CONFIG:Debug>:RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources">
 )

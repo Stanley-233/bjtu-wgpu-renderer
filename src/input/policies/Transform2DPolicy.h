@@ -7,8 +7,8 @@
 #include <GLFW/glfw3.h>
 #include <signal/dispatcher.hpp>
 
-#include "../../scene/Scene.h"
-#include "../InputState.h"
+#include "scene/IScene.h"
+#include "input/InputState.h"
 #include "InputPolicy.h"
 
 class Transform2DPolicy final : public InputPolicy {

@@ -1,7 +1,7 @@
 #ifndef BJTU_WGPU_RENDERER_PIPELINELIBRARY_H
 #define BJTU_WGPU_RENDERER_PIPELINELIBRARY_H
 
-#include "../webgpu-raii.hpp"
+#include "webgpu-raii.hpp"
 
 class RenderContext;
 

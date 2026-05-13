@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <webgpu/webgpu.hpp>
 
-struct MeshData3D;
+struct LegacyMeshData3D;
 struct SceneDescription;
 
 class ResourceManager {
@@ -22,7 +22,7 @@ public:
 
     static bool LoadGeometry3DFromObj(
         const std::filesystem::path& path,
-        MeshData3D&                  outMesh
+        LegacyMeshData3D&                  outMesh
     );
 
     static bool LoadSceneFromToml(

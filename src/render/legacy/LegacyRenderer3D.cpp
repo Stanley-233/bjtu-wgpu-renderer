@@ -1,4 +1,4 @@
-#include "Renderer3D.h"
+#include "LegacyRenderer3D.h"
 
 #include <algorithm>
 #include <utility>
@@ -6,16 +6,16 @@
 
 #include <GLFW/glfw3.h>
 
-#include "PipelineLibrary.h"
-#include "GuiRenderer.h"
-#include "RenderContext.h"
-#include "../resource/models/MeshData3D.h"
-#include "../scene/camera/Camera.h"
-#include "../scene/scene3d/Object3D.h"
+#include "render/PipelineLibrary.h"
+#include "render/GuiRenderer.h"
+#include "render/RenderContext.h"
+#include "LegacyMeshData3D.h"
+#include "scene/camera/Camera.h"
+#include "scene/legacy/Object3D.h"
 
 constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
 
-void Renderer3D::Initialize(RenderContext& ctx) {
+void LegacyRenderer3D::Initialize(RenderContext& ctx) {
     auto pipeline3D             = PipelineLibrary::CreateColor3D(ctx);
     auto wireframe3D            = PipelineLibrary::CreateColor3DWireframe(ctx);
     auto wireframeDepthPrepass3D = PipelineLibrary::CreateColor3DWireframeDepthPrepass(ctx);
@@ -28,7 +28,7 @@ void Renderer3D::Initialize(RenderContext& ctx) {
     m_wireframeDepthPrepassPipeline = std::move(wireframeDepthPrepass3D.pipeline);
 }
 
-void Renderer3D::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
+void LegacyRenderer3D::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
     }
@@ -52,8 +52,8 @@ void Renderer3D::EnsureDepthResources(RenderContext& ctx, const int width, const
     m_depthHeight                = height;
 }
 
-Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Object3D& object) {
-    const MeshData3D& mesh = object.Mesh();
+LegacyRenderer3D::DrawItem LegacyRenderer3D::UploadMeshToGpu(RenderContext& ctx, const Object3D& object) {
+    const LegacyMeshData3D& mesh = object.Mesh();
     if (mesh.vertices.empty() || mesh.indices.empty()) {
         return {};
     }
@@ -151,7 +151,7 @@ Renderer3D::DrawItem Renderer3D::UploadMeshToGpu(RenderContext& ctx, const Objec
 }
 
 // CPU侧计算逻辑场景
-void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
+void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
     // 计算 MVP 矩阵
     int surfaceWidth  = 0;
     int surfaceHeight = 0;
@@ -173,7 +173,7 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
     m_drawItems.resize(objects.size());
     for (std::size_t i = 0; i < objects.size(); ++i) {
         const Object3D& object = objects[i];
-        const MeshData3D& mesh = object.Mesh();
+        const LegacyMeshData3D& mesh = object.Mesh();
         if (mesh.vertices.empty() || mesh.indices.empty()) {
             m_drawItems[i] = {};
             continue;
@@ -238,7 +238,7 @@ void Renderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& obje
     }
 }
 
-void Renderer3D::RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer) {
+void LegacyRenderer3D::RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer) {
     wgpu::raii::TextureView targetView = ctx.AcquireNextSurfaceView();
     if (!targetView) {
         return;
@@ -339,11 +339,11 @@ void Renderer3D::RenderFrame(RenderContext& ctx, GuiRenderer& guiRenderer) {
     ctx.SubmitAndPresent(encoder);
 }
 
-void Renderer3D::SetClearColor(const double r, const double g, const double b, const double a) {
+void LegacyRenderer3D::SetClearColor(const double r, const double g, const double b, const double a) {
     m_clearColor = wgpu::Color{r, g, b, a};
 }
 
-void Renderer3D::ResetGpuResources() {
+void LegacyRenderer3D::ResetGpuResources() {
     m_solidLayout                = {};
     m_wireframeLayout            = {};
     m_wireframeDepthPrepassLayout = {};

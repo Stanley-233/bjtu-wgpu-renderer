@@ -1,4 +1,4 @@
-#include "TomlSceneLoader.h"
+#include "LegacyTomlSceneLoader.h"
 
 #include <filesystem>
 #include <iostream>
@@ -8,7 +8,7 @@
 
 #include <toml.hpp>
 
-#include "ObjLoader.h"
+#include "resource/loaders/ObjLoader.h"
 
 static void Warn(const std::string& message) {
     std::cerr << "[TomlSceneLoader] " << message << '\n';
@@ -166,7 +166,7 @@ static bool TryParseIndices(
 
 static bool TryParseInlineMesh(
     const toml::table& meshTable,
-    MeshData3D&        outMesh,
+    LegacyMeshData3D&        outMesh,
     const std::string& context
 ) {
     outMesh.vertices.clear();
@@ -234,7 +234,7 @@ static bool TryApplyTransformTable(
 static bool TryLoadObjMesh(
     const std::filesystem::path& scenePath,
     const std::string&           objPathRaw,
-    MeshData3D&                  outMesh,
+    LegacyMeshData3D&                  outMesh,
     const std::string&           context
 ) {
     if (objPathRaw.empty()) {
@@ -258,7 +258,7 @@ static bool TryLoadObjMesh(
     return false;
 }
 
-bool TomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& outScene) {
+bool LegacyTomlSceneLoader::Load(const std::filesystem::path& path, SceneDescription& outScene) {
     outScene = SceneDescription{};
 
     SceneDescription parsedScene{};

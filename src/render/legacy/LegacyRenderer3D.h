@@ -5,14 +5,14 @@
 
 #include <glm/mat4x4.hpp>
 
-#include "../scene/scene3d/Object3D.h"
-#include "../webgpu-raii.hpp"
+#include "scene/legacy/Object3D.h"
+#include "webgpu-raii.hpp"
 
 class Camera;
 class RenderContext;
 class GuiRenderer;
 
-class Renderer3D {
+class LegacyRenderer3D {
 public:
     void Initialize(RenderContext& ctx);
 
