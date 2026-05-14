@@ -1,21 +1,26 @@
 #include "LogicScene.h"
 
 #include <algorithm>
+#include <filesystem>
+#include <iostream>
 #include <memory>
+#include <string>
 
+#include "asset/AssetPaths.h"
+#include "asset/AssetHandle.h"
 #include "asset/types/MaterialAsset.h"
 #include "asset/types/MeshAsset.h"
+#include "asset/types/ModelAsset.h"
 #include "Entity.h"
 #include "components/CameraComponent.h"
 #include "components/StaticMeshComponent.h"
 #include "components/TransformComponent.h"
 #include "input/InputEventBus.h"
 #include "render/RenderContext.h"
-#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/FreeCameraController.h"
 #include "scene/camera/PerspectiveCamera.h"
 
-static MeshAsset CreateSolidCubeMeshAsset() {
+[[maybe_unused]] static MeshAsset CreateSolidCubeMeshAsset() {
     MeshAsset mesh{};
     constexpr glm::vec3 backColor{0.95f, 0.35f, 0.25f};
     constexpr glm::vec3 frontColor{0.20f, 0.65f, 0.95f};
@@ -64,7 +69,7 @@ static MeshAsset CreateSolidCubeMeshAsset() {
     return mesh;
 }
 
-static MaterialAsset CreateDefaultMaterialAsset() {
+[[maybe_unused]] static MaterialAsset CreateDefaultMaterialAsset() {
     return MaterialAsset{};
 }
 
@@ -84,6 +89,35 @@ Entity FindPrimaryCamera(World& world) {
     return {};
 }
 
+static void SpawnModelEntities(World& world, const AssetServer& assetServer, const ModelAsset& model, const std::string& namePrefix) {
+    // TODO: 改为返回根节点，并整体应用Transform
+    std::size_t nodeCounter = 0;
+    for (const ModelNodeAsset& node : model.nodes) {
+        for (const ModelPrimitiveAsset& primitive : node.primitives) {
+            const MeshAsset* meshAsset = assetServer.GetMesh(primitive.mesh);
+            const MaterialAsset* materialAsset = assetServer.GetMaterial(primitive.material);
+            if (meshAsset == nullptr || materialAsset == nullptr) {
+                continue;
+            }
+
+            Entity entity = world.CreateEntity(namePrefix + " " + std::to_string(nodeCounter++));
+            auto& transform = entity.AddComponent<TransformComponent>();
+            transform.transform.SetMatrix(node.modelMatrix);
+
+            auto& meshComponent = entity.AddComponent<StaticMeshComponent>();
+            meshComponent.mesh = AssetHandle{
+                .id = primitive.mesh,
+                .asset = meshAsset,
+            };
+            meshComponent.material = AssetHandle{
+                .id = primitive.material,
+                .asset = materialAsset,
+            };
+            meshComponent.renderMode = Object3D::ERenderMode::Solid;
+        }
+    }
+}
+
 LogicScene::LogicScene()
     : m_cameraController(std::make_unique<FreeCameraController>()) {
 }
@@ -99,18 +133,24 @@ bool LogicScene::Initialize(RenderContext& ctx) {
         perspectiveCamera->SetPerspective(1.0471976f, 0.1f, 100.0f);
     }
     cameraComponent.camera->SetPose(
-        glm::vec3{1.8f, 1.5f, 2.4f},
+        glm::vec3{0.0f, 0.0f, 2.0f},
         glm::vec3{0.0f, 0.0f, 0.0f},
         glm::vec3{0.0f, 1.0f, 0.0f});
     m_world.SetPrimaryCamera(cameraEntity);
 
-    Entity cubeEntity = m_world.CreateEntity("Debug Cube");
-    auto&  transform = cubeEntity.AddComponent<TransformComponent>();
-    transform.transform.Combine(Transform3D::Scale(0.8f, 0.8f, 0.8f));
-    auto& meshComponent = cubeEntity.AddComponent<StaticMeshComponent>();
-    meshComponent.mesh = m_assetServer.CreateMesh(CreateSolidCubeMeshAsset());
-    meshComponent.material = m_assetServer.CreateMaterial(CreateDefaultMaterialAsset());
-    meshComponent.renderMode = Object3D::ERenderMode::Solid;
+    const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
+    if (const AssetHandle<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath)) {
+        SpawnModelEntities(m_world, m_assetServer, *simpleMeshes.asset, "SimpleMeshes");
+    } else {
+        std::cerr << "[LogicScene] Failed to load " << simpleMeshesPath.string() << std::endl;
+    }
+
+    const auto& simpleTexturePath = AssetPaths::Resolve("gltf-test/SimpleTexture.gltf");
+    if (const AssetHandle<ModelAsset> simpleTexture = m_assetServer.LoadModel(simpleTexturePath)) {
+        SpawnModelEntities(m_world, m_assetServer, *simpleTexture.asset, "SimpleTexture");
+    } else {
+        std::cerr << "[LogicScene] Failed to load " << simpleTexturePath.string() << std::endl;
+    }
 
     return true;
 }

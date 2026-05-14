@@ -5,12 +5,15 @@
 #include <unordered_map>
 
 #include "AssetHandle.h"
+#include "types/ImageAsset.h"
 #include "types/MaterialAsset.h"
 #include "types/MeshAsset.h"
 #include "types/ModelAsset.h"
 
 class AssetServer {
 public:
+    AssetHandle<ImageAsset> CreateImage(ImageAsset image);
+
     AssetHandle<MeshAsset> CreateMesh(MeshAsset mesh);
 
     AssetHandle<MaterialAsset> CreateMaterial(MaterialAsset material);
@@ -21,6 +24,8 @@ public:
 
     [[nodiscard]] const MaterialAsset* GetMaterial(AssetId<MaterialAsset> id) const;
 
+    [[nodiscard]] const ImageAsset* GetImage(AssetId<ImageAsset> id) const;
+
     [[nodiscard]] const ModelAsset* GetModel(AssetId<ModelAsset> id) const;
 
 private:
@@ -28,9 +33,12 @@ private:
 
     AssetHandle<MaterialAsset> StoreMaterial(MaterialAsset material);
 
+    AssetHandle<ImageAsset> StoreImage(ImageAsset image);
+
     AssetHandle<ModelAsset> StoreModel(const std::filesystem::path& sourcePath, ModelAsset model);
 
     std::unordered_map<std::filesystem::path, AssetId<ModelAsset> > m_modelPathToId;
+    std::deque<ImageAsset>                                          m_images;
     std::deque<MeshAsset>                                           m_meshes;
     std::deque<MaterialAsset>                                       m_materials;
     std::deque<ModelAsset>                                          m_models;

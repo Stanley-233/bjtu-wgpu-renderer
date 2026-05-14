@@ -81,6 +81,10 @@ const glm::mat4& Transform3D::Matrix() const {
     return m_matrix;
 }
 
+void Transform3D::SetMatrix(const glm::mat4& matrix) {
+    m_matrix = matrix;
+}
+
 void Transform3D::Reset() {
     m_matrix = glm::mat4(1.0f);
 }

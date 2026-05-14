@@ -47,9 +47,9 @@ target_include_directories(bjtu_wgpu_renderer
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/ext/tiny_obj_loader
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/ext/tiny_gltf
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/tinygltf
         ${CMAKE_CURRENT_SOURCE_DIR}/ext/json
-        ${CMAKE_CURRENT_SOURCE_DIR}/ext/stb_image
+        ${CMAKE_CURRENT_SOURCE_DIR}/ext/stb
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
@@ -142,8 +142,8 @@ if (EMSCRIPTEN)
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
     target_link_options(bjtu_wgpu_renderer PRIVATE
             -sASYNCIFY
-            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
-            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/shader@/shader"
-            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/config@/config"
+            "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
+            "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shader@/shader"
+            "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/config@/config"
     )
 endif()

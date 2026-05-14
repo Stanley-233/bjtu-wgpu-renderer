@@ -5,6 +5,10 @@
 
 #include "importers/GltfImporter.h"
 
+AssetHandle<ImageAsset> AssetServer::CreateImage(ImageAsset image) {
+    return StoreImage(std::move(image));
+}
+
 AssetHandle<MeshAsset> AssetServer::CreateMesh(MeshAsset mesh) {
     return StoreMesh(std::move(mesh));
 }
@@ -25,7 +29,7 @@ AssetHandle<ModelAsset> AssetServer::LoadModel(const std::filesystem::path& path
     bool imported = false;
     const std::string extension = path.extension().string();
     if (extension == ".gltf" || extension == ".glb") {
-        imported = GltfImporter{}.Import(path, model);
+        imported = GltfImporter{}.Import(path, *this, model);
     }
 
     if (!imported) {
@@ -58,6 +62,18 @@ const MaterialAsset* AssetServer::GetMaterial(const AssetId<MaterialAsset> id) c
     return &m_materials[index];
 }
 
+const ImageAsset* AssetServer::GetImage(const AssetId<ImageAsset> id) const {
+    if (!id.IsValid()) {
+        return nullptr;
+    }
+
+    const std::size_t index = static_cast<std::size_t>(id.value - 1);
+    if (index >= m_images.size()) {
+        return nullptr;
+    }
+    return &m_images[index];
+}
+
 const ModelAsset* AssetServer::GetModel(const AssetId<ModelAsset> id) const {
     if (!id.IsValid()) {
         return nullptr;
@@ -85,6 +101,15 @@ AssetHandle<MaterialAsset> AssetServer::StoreMaterial(MaterialAsset material) {
     return AssetHandle<MaterialAsset>{
         .id = id,
         .asset = &m_materials.back(),
+    };
+}
+
+AssetHandle<ImageAsset> AssetServer::StoreImage(ImageAsset image) {
+    m_images.push_back(std::move(image));
+    const AssetId<ImageAsset> id{static_cast<uint32_t>(m_images.size())};
+    return AssetHandle<ImageAsset>{
+        .id = id,
+        .asset = &m_images.back(),
     };
 }
 

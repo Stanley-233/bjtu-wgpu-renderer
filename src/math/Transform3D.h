@@ -23,6 +23,8 @@ public:
 
     [[nodiscard]] const glm::mat4& Matrix() const;
 
+    void SetMatrix(const glm::mat4& matrix);
+
     void Reset();
 
 private:
