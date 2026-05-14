@@ -25,6 +25,8 @@ public:
 
     void SetMatrix(const glm::mat4& matrix);
 
+    void SetTranslation(float tx, float ty, float tz);
+
     void Reset();
 
 private:

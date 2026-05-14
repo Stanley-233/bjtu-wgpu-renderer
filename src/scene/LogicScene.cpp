@@ -89,8 +89,13 @@ Entity FindPrimaryCamera(World& world) {
     return {};
 }
 
-static void SpawnModelEntities(World& world, const AssetServer& assetServer, const ModelAsset& model, const std::string& namePrefix) {
-    // TODO: 改为返回根节点，并整体应用Transform
+static Entity SpawnModelEntities(World&             world,
+                                 const AssetServer& assetServer,
+                                 const ModelAsset&  model,
+                                 const std::string& namePrefix) {
+    Entity root = world.CreateEntity(namePrefix);
+    (void)root.AddComponent<TransformComponent>();
+
     std::size_t nodeCounter = 0;
     for (const ModelNodeAsset& node : model.nodes) {
         for (const ModelPrimitiveAsset& primitive : node.primitives) {
@@ -99,12 +104,11 @@ static void SpawnModelEntities(World& world, const AssetServer& assetServer, con
             if (meshAsset == nullptr || materialAsset == nullptr) {
                 continue;
             }
-
-            Entity entity = world.CreateEntity(namePrefix + " " + std::to_string(nodeCounter++));
-            auto& transform = entity.AddComponent<TransformComponent>();
+            Entity mesh = world.CreateEntity(namePrefix + " " + std::to_string(nodeCounter++));
+            mesh.SetParent(root);
+            auto& transform = mesh.AddComponent<TransformComponent>();
             transform.transform.SetMatrix(node.modelMatrix);
-
-            auto& meshComponent = entity.AddComponent<StaticMeshComponent>();
+            auto& meshComponent = mesh.AddComponent<StaticMeshComponent>();
             meshComponent.mesh = AssetHandle{
                 .id = primitive.mesh,
                 .asset = meshAsset,
@@ -116,6 +120,7 @@ static void SpawnModelEntities(World& world, const AssetServer& assetServer, con
             meshComponent.renderMode = Object3D::ERenderMode::Solid;
         }
     }
+    return root;
 }
 
 LogicScene::LogicScene()
@@ -140,14 +145,18 @@ bool LogicScene::Initialize(RenderContext& ctx) {
 
     const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
     if (const AssetHandle<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath)) {
-        SpawnModelEntities(m_world, m_assetServer, *simpleMeshes.asset, "SimpleMeshes");
+        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *simpleMeshes.asset, "SimpleMeshes");
+        auto& [rootTransform] = simpleMeshesRoot.GetComponent<TransformComponent>();
+        rootTransform.SetTranslation(-1.5f, 0.0f, 0.0f);
     } else {
         std::cerr << "[LogicScene] Failed to load " << simpleMeshesPath.string() << std::endl;
     }
 
     const auto& simpleTexturePath = AssetPaths::Resolve("gltf-test/SimpleTexture.gltf");
     if (const AssetHandle<ModelAsset> simpleTexture = m_assetServer.LoadModel(simpleTexturePath)) {
-        SpawnModelEntities(m_world, m_assetServer, *simpleTexture.asset, "SimpleTexture");
+        Entity simpleTextureRoot = SpawnModelEntities(m_world, m_assetServer, *simpleTexture.asset, "SimpleTexture");
+        auto& [transform] = simpleTextureRoot.GetComponent<TransformComponent>();
+        transform.SetTranslation(1.5f, 0.0f, 0.0f);
     } else {
         std::cerr << "[LogicScene] Failed to load " << simpleTexturePath.string() << std::endl;
     }
@@ -222,10 +231,9 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     auto view = m_world.View<TransformComponent, StaticMeshComponent>();
     renderScene.objects.reserve(view.size_hint());
     for (const entt::entity entityHandle : view) {
-        const TransformComponent& transform = view.get<TransformComponent>(entityHandle);
         const StaticMeshComponent& mesh = view.get<StaticMeshComponent>(entityHandle);
         renderScene.objects.push_back(RenderObject{
-            .worldMatrix = transform.transform.Matrix(),
+            .worldMatrix = m_world.WorldMatrixOf(Entity{entityHandle, const_cast<World*>(&m_world)}),
             .meshId = mesh.mesh.id,
             .mesh = mesh.mesh.asset,
             .material = mesh.material.asset,

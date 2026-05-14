@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include <entity/registry.hpp>
+#include <glm/mat4x4.hpp>
 
 class Entity;
 
@@ -17,6 +18,7 @@ public:
 
     [[nodiscard]] const entt::registry& Registry() const;
 
+    // 查询所有具备某些 Component 的 Entity
     template <typename... Components>
     [[nodiscard]] auto View() {
         return m_registry.view<Components...>();
@@ -27,13 +29,25 @@ public:
         return m_registry.view<Components...>();
     }
 
+    void SetParent(Entity child, Entity parent);
+
+    void ClearParent(Entity child);
+
+    [[nodiscard]] Entity ParentOf(Entity child) const;
+
+    [[nodiscard]] std::vector<Entity> ChildrenOf(Entity parent) const;
+
     void SetPrimaryCamera(Entity entity);
 
     [[nodiscard]] Entity PrimaryCamera() const;
 
-    void Update(float dt);
+    static void Update(float dt);
+
+    [[nodiscard]] glm::mat4 WorldMatrixOf(Entity entity) const;
 
 private:
+    void DestroyEntityRecursive(entt::entity entity);
+
     entt::registry m_registry{};
     entt::entity   m_primaryCamera = entt::null;
 };

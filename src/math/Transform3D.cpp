@@ -85,6 +85,10 @@ void Transform3D::SetMatrix(const glm::mat4& matrix) {
     m_matrix = matrix;
 }
 
+void Transform3D::SetTranslation(float tx, float ty, float tz) {
+    m_matrix[3] = glm::vec4(tx, ty, tz, 1.0f);
+}
+
 void Transform3D::Reset() {
     m_matrix = glm::mat4(1.0f);
 }
