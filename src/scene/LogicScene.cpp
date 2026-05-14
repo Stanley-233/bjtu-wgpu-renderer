@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <memory>
 
-#include <glm/geometric.hpp>
-
 #include "Entity.h"
 #include "components/CameraComponent.h"
 #include "components/StaticMeshComponent.h"
@@ -12,6 +10,7 @@
 #include "input/InputEventBus.h"
 #include "render/RenderContext.h"
 #include "render/legacy/LegacyGuiRenderer.h"
+#include "scene/camera/TranslationCameraController.h"
 #include "scene/camera/PerspectiveCamera.h"
 
 static LegacyMeshData3D CreateSolidCubeMesh() {
@@ -75,11 +74,14 @@ Entity FindPrimaryCamera(World& world) {
     return {};
 }
 
+LogicScene::LogicScene()
+    : m_cameraController(std::make_unique<TranslationCameraController>()) {
+}
+
 void LogicScene::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
 
     Entity cameraEntity = m_world.CreateEntity("Primary Camera");
-    (void)cameraEntity.AddComponent<TransformComponent>();
     CameraComponent& cameraComponent = cameraEntity.AddComponent<CameraComponent>();
     cameraComponent.camera = std::make_unique<PerspectiveCamera>();
     cameraComponent.isPrimary = true;
@@ -101,35 +103,11 @@ void LogicScene::Initialize(RenderContext& ctx) {
 }
 
 void LogicScene::Update(const float dt) {
-    constexpr float kEpsilon = 1e-6f;
-
     Entity primaryCameraEntity = FindPrimaryCamera(m_world);
-    if (dt > 0.0f && primaryCameraEntity && primaryCameraEntity.HasComponent<CameraComponent>()) {
+    if (m_cameraController != nullptr && primaryCameraEntity && primaryCameraEntity.HasComponent<CameraComponent>()) {
         CameraComponent& cameraComponent = primaryCameraEntity.GetComponent<CameraComponent>();
         if (cameraComponent.camera != nullptr) {
-            const glm::vec3 position = cameraComponent.camera->Position();
-            const glm::vec3 target = cameraComponent.camera->Target();
-            const glm::vec3 up = cameraComponent.camera->Up();
-            const glm::vec3 forwardRaw = target - position;
-            const float forwardLen = glm::length(forwardRaw);
-            if (forwardLen > kEpsilon) {
-                const glm::vec3 forward = forwardRaw / forwardLen;
-                glm::vec3 rightRaw = glm::cross(forward, up);
-                const float rightLen = glm::length(rightRaw);
-                if (rightLen > kEpsilon) {
-                    rightRaw /= rightLen;
-                    constexpr glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
-                    glm::vec3 moveDirection = forward * m_moveForward
-                                              + rightRaw * m_moveRight
-                                              + worldUp * m_moveUp;
-                    const float moveDirectionLen = glm::length(moveDirection);
-                    if (moveDirectionLen > kEpsilon) {
-                        moveDirection /= moveDirectionLen;
-                        const glm::vec3 delta = moveDirection * (kCameraMoveSpeed * dt);
-                        cameraComponent.camera->SetPose(position + delta, target + delta, up);
-                    }
-                }
-            }
+            m_cameraController->Update(dt, *cameraComponent.camera);
         }
     }
 
@@ -154,9 +132,9 @@ void LogicScene::UnregisterInputHandlers(InputEventBus& eventBus) {
 }
 
 void LogicScene::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
-    m_moveForward = event.forward;
-    m_moveRight = event.right;
-    m_moveUp = event.up;
+    if (m_cameraController != nullptr) {
+        m_cameraController->OnMoveInput(event);
+    }
 }
 
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {

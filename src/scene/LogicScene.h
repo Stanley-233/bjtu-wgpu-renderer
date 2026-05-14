@@ -1,12 +1,17 @@
 #ifndef BJTU_WGPU_RENDERER_LOGICSCENE_H
 #define BJTU_WGPU_RENDERER_LOGICSCENE_H
 
+#include <memory>
+
 #include "render/Renderer.h"
 #include "scene/IScene.h"
 #include "scene/World.h"
+#include "scene/camera/CameraController.h"
 
 class LogicScene final : public IScene, public ICameraMoveInputSink {
 public:
+    LogicScene();
+
     void Initialize(RenderContext& ctx) override;
 
     void Update(float dt) override;
@@ -24,13 +29,9 @@ public:
 private:
     RenderScene BuildRenderScene(const RenderContext& ctx) const;
 
-    static constexpr float kCameraMoveSpeed = 2.5f;
-
-    World    m_world{};
-    Renderer m_renderer{};
-    float    m_moveForward = 0.0f;
-    float    m_moveRight   = 0.0f;
-    float    m_moveUp      = 0.0f;
+    World                             m_world{};
+    Renderer                          m_renderer{};
+    std::unique_ptr<CameraController> m_cameraController{};
 };
 
 #endif // BJTU_WGPU_RENDERER_LOGICSCENE_H
