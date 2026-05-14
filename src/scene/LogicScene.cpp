@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <memory>
 
+#include "asset/types/MaterialAsset.h"
+#include "asset/types/MeshAsset.h"
 #include "Entity.h"
 #include "components/CameraComponent.h"
 #include "components/StaticMeshComponent.h"
@@ -13,8 +15,8 @@
 #include "scene/camera/FreeCameraController.h"
 #include "scene/camera/PerspectiveCamera.h"
 
-static LegacyMeshData3D CreateSolidCubeMesh() {
-    LegacyMeshData3D mesh{};
+static MeshAsset CreateSolidCubeMeshAsset() {
+    MeshAsset mesh{};
     constexpr glm::vec3 backColor{0.95f, 0.35f, 0.25f};
     constexpr glm::vec3 frontColor{0.20f, 0.65f, 0.95f};
     constexpr glm::vec3 bottomColor{0.95f, 0.85f, 0.25f};
@@ -55,7 +57,15 @@ static LegacyMeshData3D CreateSolidCubeMesh() {
         16, 17, 18, 16, 18, 19,
         20, 22, 21, 20, 23, 22,
     };
+    mesh.primitiveRanges.push_back(MeshPrimitiveRange{
+        .firstIndex = 0,
+        .indexCount = static_cast<uint32_t>(mesh.indices.size()),
+    });
     return mesh;
+}
+
+static MaterialAsset CreateDefaultMaterialAsset() {
+    return MaterialAsset{};
 }
 
 Entity FindPrimaryCamera(World& world) {
@@ -98,7 +108,8 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     auto&  transform = cubeEntity.AddComponent<TransformComponent>();
     transform.transform.Combine(Transform3D::Scale(0.8f, 0.8f, 0.8f));
     auto& meshComponent = cubeEntity.AddComponent<StaticMeshComponent>();
-    meshComponent.mesh = CreateSolidCubeMesh();
+    meshComponent.mesh = m_assetServer.CreateMesh(CreateSolidCubeMeshAsset());
+    meshComponent.material = m_assetServer.CreateMaterial(CreateDefaultMaterialAsset());
     meshComponent.renderMode = Object3D::ERenderMode::Solid;
 
     return true;
@@ -175,7 +186,9 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
         const StaticMeshComponent& mesh = view.get<StaticMeshComponent>(entityHandle);
         renderScene.objects.push_back(RenderObject{
             .worldMatrix = transform.transform.Matrix(),
-            .mesh = &mesh.mesh,
+            .meshId = mesh.mesh.id,
+            .mesh = mesh.mesh.asset,
+            .material = mesh.material.asset,
             .renderMode = mesh.renderMode,
         });
     }

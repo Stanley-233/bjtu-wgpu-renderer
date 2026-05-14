@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "asset/AssetServer.h"
 #include "render/Renderer.h"
 #include "scene/IScene.h"
 #include "scene/World.h"
@@ -32,6 +33,7 @@ private:
     RenderScene BuildRenderScene(const RenderContext& ctx) const;
 
     World                             m_world{};
+    AssetServer                       m_assetServer{};
     Renderer                          m_renderer{};
     std::unique_ptr<CameraController> m_cameraController{};
 };

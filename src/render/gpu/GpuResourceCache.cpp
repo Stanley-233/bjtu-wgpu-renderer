@@ -1,31 +1,41 @@
 #include "GpuResourceCache.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 #include "render/RenderContext.h"
 
 std::size_t GpuResourceCache::CacheKeyHash::operator()(const CacheKey& key) const {
-    const auto meshBits = reinterpret_cast<std::uintptr_t>(key.mesh);
+    const auto meshBits = key.meshId.IsValid()
+                              ? static_cast<std::uintptr_t>(key.meshId.value)
+                              : reinterpret_cast<std::uintptr_t>(key.legacyMesh);
     const auto modeBits = static_cast<std::size_t>(key.renderMode == Object3D::ERenderMode::Wireframe ? 1U : 0U);
     return meshBits ^ (modeBits << 1U);
 }
 
 const GpuMesh* GpuResourceCache::SyncMesh(RenderContext& ctx, const RenderObject& object) {
-    if (object.mesh == nullptr || object.mesh->vertices.empty() || object.mesh->indices.empty()) {
+    const MeshAsset* const assetMesh = object.mesh;
+    const LegacyMeshData3D* const legacyMesh = object.legacyMesh;
+    const bool hasAssetMesh = assetMesh != nullptr && !assetMesh->vertices.empty() && !assetMesh->indices.empty();
+    const bool hasLegacyMesh = legacyMesh != nullptr && !legacyMesh->vertices.empty() && !legacyMesh->indices.empty();
+    if (!hasAssetMesh && !hasLegacyMesh) {
         return nullptr;
     }
 
     const CacheKey key{
-        .mesh = object.mesh,
+        .meshId = object.meshId,
+        .legacyMesh = object.meshId.IsValid() ? nullptr : object.legacyMesh,
         .renderMode = object.renderMode,
     };
     auto [it, inserted] = m_meshes.try_emplace(key);
     GpuMesh& mesh = it->second;
 
-    const uint64_t vertexBytes = object.mesh->vertices.size() * sizeof(Vertex3D);
-    const uint32_t sourceVertexCount = static_cast<uint32_t>(object.mesh->vertices.size());
-    const uint32_t sourceIndexCount = static_cast<uint32_t>(object.mesh->indices.size());
+    const auto& sourceVertices = hasAssetMesh ? assetMesh->vertices : legacyMesh->vertices;
+    const auto& sourceIndices = hasAssetMesh ? assetMesh->indices : legacyMesh->indices;
+    const uint64_t vertexBytes = sourceVertices.size() * sizeof(Vertex3D);
+    const uint32_t sourceVertexCount = static_cast<uint32_t>(sourceVertices.size());
+    const uint32_t sourceIndexCount = static_cast<uint32_t>(sourceIndices.size());
     const bool needsUpload = inserted
                              || !mesh.vertexBuffer
                              || !mesh.indexBuffer
@@ -49,34 +59,41 @@ void GpuResourceCache::Reset() {
 }
 
 GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& ctx, const RenderObject& object) {
-    if (object.mesh == nullptr || object.mesh->vertices.empty() || object.mesh->indices.empty()) {
+    const MeshAsset* const assetMesh = object.mesh;
+    const LegacyMeshData3D* const legacyMesh = object.legacyMesh;
+    const bool hasAssetMesh = assetMesh != nullptr && !assetMesh->vertices.empty() && !assetMesh->indices.empty();
+    const bool hasLegacyMesh = legacyMesh != nullptr && !legacyMesh->vertices.empty() && !legacyMesh->indices.empty();
+    if (!hasAssetMesh && !hasLegacyMesh) {
         return {};
     }
 
+    const auto& sourceVertices = hasAssetMesh ? assetMesh->vertices : legacyMesh->vertices;
+    const auto& sourceIndices = hasAssetMesh ? assetMesh->indices : legacyMesh->indices;
+
     GpuMesh mesh{};
     wgpu::BufferDescriptor vertexBufferDesc{};
-    vertexBufferDesc.size = object.mesh->vertices.size() * sizeof(Vertex3D);
+    vertexBufferDesc.size = sourceVertices.size() * sizeof(Vertex3D);
     vertexBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Vertex;
     vertexBufferDesc.mappedAtCreation = false;
     mesh.vertexBuffer = ctx.GetDevice()->createBuffer(vertexBufferDesc);
     ctx.GetQueue()->writeBuffer(
         *mesh.vertexBuffer,
         0,
-        object.mesh->vertices.data(),
+        sourceVertices.data(),
         vertexBufferDesc.size);
     mesh.vertexBufferSize = vertexBufferDesc.size;
 
     std::vector<uint16_t> indexData;
     std::vector<uint16_t> wireframeDepthIndexData;
     if (object.renderMode == Object3D::ERenderMode::Wireframe) {
-        if ((object.mesh->indices.size() % 3U) != 0U) {
+        if ((sourceIndices.size() % 3U) != 0U) {
             return {};
         }
-        indexData.reserve(object.mesh->indices.size() * 2U);
-        for (std::size_t i = 0; i < object.mesh->indices.size(); i += 3U) {
-            const uint16_t i0 = object.mesh->indices[i];
-            const uint16_t i1 = object.mesh->indices[i + 1U];
-            const uint16_t i2 = object.mesh->indices[i + 2U];
+        indexData.reserve(sourceIndices.size() * 2U);
+        for (std::size_t i = 0; i < sourceIndices.size(); i += 3U) {
+            const uint16_t i0 = sourceIndices[i];
+            const uint16_t i1 = sourceIndices[i + 1U];
+            const uint16_t i2 = sourceIndices[i + 2U];
             indexData.push_back(i0);
             indexData.push_back(i1);
             indexData.push_back(i1);
@@ -84,9 +101,9 @@ GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& ctx, const RenderObject
             indexData.push_back(i2);
             indexData.push_back(i0);
         }
-        wireframeDepthIndexData = object.mesh->indices;
+        wireframeDepthIndexData = sourceIndices;
     } else {
-        indexData = object.mesh->indices;
+        indexData = sourceIndices;
     }
 
     wgpu::BufferDescriptor indexBufferDesc{};
@@ -131,8 +148,8 @@ GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& ctx, const RenderObject
         mesh.wireframeDepthIndexCount = static_cast<uint32_t>(wireframeDepthIndexData.size());
     }
 
-    mesh.sourceVertexCount = static_cast<uint32_t>(object.mesh->vertices.size());
-    mesh.sourceIndexCount = static_cast<uint32_t>(object.mesh->indices.size());
+    mesh.sourceVertexCount = static_cast<uint32_t>(sourceVertices.size());
+    mesh.sourceIndexCount = static_cast<uint32_t>(sourceIndices.size());
     mesh.renderMode = object.renderMode;
     return mesh;
 }

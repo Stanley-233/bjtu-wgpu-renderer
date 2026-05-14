@@ -3,9 +3,9 @@
 #include <iostream>
 #include <vector>
 
+#include "resource/legacy/LegacyResourcePaths.h"
+#include "resource/legacy/LegacyShaderLoader.h"
 #include "render/RenderContext.h"
-#include "resource/ResourceManager.h"
-#include "resource/ResourcePaths.h"
 
 using namespace wgpu;
 
@@ -18,8 +18,8 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
     const WGPUCompareFunction depthCompare,
     const WGPUColorWriteMaskFlags colorWriteMask) {
     std::cout << "[" << label << "] Creating shader module..." << std::endl;
-    ShaderModule shaderModule = ResourceManager::LoadShaderModule(
-        ResourcePaths::Resolve("shader3d.wgsl"),
+    ShaderModule shaderModule = LegacyShaderLoader::Load(
+        LegacyResourcePaths::ResolveShader("shader3d.wgsl"),
         *ctx.GetDevice());
     std::cout << "[" << label << "] Shader module: " << shaderModule << std::endl;
 

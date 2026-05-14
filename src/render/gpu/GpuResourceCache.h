@@ -1,8 +1,11 @@
 #ifndef BJTU_WGPU_RENDERER_GPURESOURCECACHE_H
 #define BJTU_WGPU_RENDERER_GPURESOURCECACHE_H
 
+#include <cstdint>
 #include <unordered_map>
 
+#include "asset/AssetId.h"
+#include "asset/types/MeshAsset.h"
 #include "GpuMesh.h"
 #include "render/scene/RenderObject.h"
 
@@ -16,7 +19,8 @@ public:
 
 private:
     struct CacheKey {
-        const LegacyMeshData3D* mesh = nullptr;
+        AssetId<MeshAsset>      meshId{};
+        const LegacyMeshData3D* legacyMesh = nullptr;
         Object3D::ERenderMode   renderMode = Object3D::ERenderMode::Solid;
 
         bool operator==(const CacheKey& other) const = default;

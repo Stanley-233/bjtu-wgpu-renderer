@@ -8,7 +8,7 @@
 
 #include <toml.hpp>
 
-#include "resource/loaders/ObjLoader.h"
+#include "resource/loaders/LegacyObjLoader.h"
 
 static void Warn(const std::string& message) {
     std::cerr << "[TomlSceneLoader] " << message << '\n';
@@ -241,7 +241,7 @@ static bool TryLoadObjMesh(
         return false;
     }
 
-    ObjLoader loader{};
+    LegacyObjLoader loader{};
     const std::filesystem::path rawPath = objPathRaw;
     if (rawPath.is_relative()) {
         const std::filesystem::path resolved = scenePath.parent_path() / rawPath;

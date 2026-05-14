@@ -7,10 +7,10 @@
 #include <memory>
 #include <string>
 
-#include "resource/ResourceManager.h"
-#include "resource/ResourcePaths.h"
 #include "SceneDescription.h"
 #include "input/InputEventBus.h"
+#include "resource/legacy/LegacyResourceManager.h"
+#include "resource/legacy/LegacyResourcePaths.h"
 #include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/OrthographicCamera.h"
 #include "scene/camera/PerspectiveCamera.h"
@@ -77,8 +77,8 @@ void SetMeshColor(LegacyMeshData3D& mesh, const glm::vec3 color) {
 bool LegacyScene3D::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
     SceneDescription sceneDescription{};
-    const std::filesystem::path scenePath = ResourcePaths::Resolve("scene3d.toml");
-    if (!ResourceManager::LoadSceneFromToml(scenePath, sceneDescription)) {
+    const std::filesystem::path scenePath = LegacyResourcePaths::ResolveAsset("scene3d.toml");
+    if (!LegacyResourceManager::LoadSceneFromToml(scenePath, sceneDescription)) {
         std::cerr << "[LegacyScene3D] Failed to load scene description from " << scenePath.string() << std::endl;
         m_objects.clear();
         m_initialObjectTransforms.clear();

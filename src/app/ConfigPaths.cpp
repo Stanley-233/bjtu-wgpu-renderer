@@ -1,4 +1,4 @@
-#include "ResourcePaths.h"
+#include "ConfigPaths.h"
 
 #include <array>
 #include <string>
@@ -11,8 +11,9 @@
 #include <unistd.h>
 #endif
 
+namespace {
 
-[[maybe_unused]] static std::filesystem::path ExecutableDir() {
+[[maybe_unused]] std::filesystem::path ExecutableDir() {
 #if defined(_WIN32)
     std::array<wchar_t, 4096> buffer{};
     const DWORD size = GetModuleFileNameW(nullptr, buffer.data(), static_cast<DWORD>(buffer.size()));
@@ -26,10 +27,12 @@
     if (size == 0) {
         return std::filesystem::current_path();
     }
+
     std::string path(size, '\0');
     if (_NSGetExecutablePath(path.data(), &size) != 0) {
         return std::filesystem::current_path();
     }
+
     std::error_code ec;
     auto canonical = std::filesystem::weakly_canonical(std::filesystem::path(path.c_str()), ec);
     if (ec) {
@@ -47,16 +50,18 @@
 #endif
 }
 
-std::filesystem::path ResourcePaths::ResourceRoot() {
+} // namespace
+
+std::filesystem::path ConfigPaths::ConfigRoot() {
 #ifdef __EMSCRIPTEN__
-    return "/resources";
-#elif defined(RESOURCE_DIR)
-    return std::filesystem::path(RESOURCE_DIR);
+    return "/config";
+#elif defined(CONFIG_DIR)
+    return std::filesystem::path(CONFIG_DIR);
 #else
-    return ExecutableDir() / "resources";
+    return ExecutableDir() / "config";
 #endif
 }
 
-std::filesystem::path ResourcePaths::Resolve(const std::filesystem::path& relativePath) {
-    return ResourceRoot() / relativePath;
+std::filesystem::path ConfigPaths::Resolve(const std::filesystem::path& relativePath) {
+    return ConfigRoot() / relativePath;
 }

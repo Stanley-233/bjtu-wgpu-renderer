@@ -1,9 +1,9 @@
-#include "ShaderLoader.h"
+#include "LegacyShaderLoader.h"
 
 #include <fstream>
 #include <string>
 
-wgpu::ShaderModule ShaderLoader::Load(const std::filesystem::path& path, wgpu::Device device) {
+wgpu::ShaderModule LegacyShaderLoader::Load(const std::filesystem::path& path, wgpu::Device device) {
     std::ifstream file(path);
     if (!file.is_open()) {
         return nullptr;

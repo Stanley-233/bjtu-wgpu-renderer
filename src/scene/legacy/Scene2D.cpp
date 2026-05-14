@@ -12,8 +12,8 @@
 #include "render/legacy/LegacyFrameContext.h"
 #include "render/legacy/LegacyGuiRenderer.h"
 #include "render/legacy/LegacyPipeline2D.h"
-#include "resource/ResourceManager.h"
-#include "resource/ResourcePaths.h"
+#include "resource/legacy/LegacyResourceManager.h"
+#include "resource/legacy/LegacyResourcePaths.h"
 
 using namespace wgpu;
 
@@ -189,7 +189,10 @@ bool Scene2D::InitializeBuffers(RenderContext& ctx) {
     std::vector<float>    pointData;
     std::vector<uint16_t> indexData;
 
-    if (const bool success = ResourceManager::LoadGeometry(ResourcePaths::Resolve("webgpu.txt"), pointData, indexData); !success) {
+    if (const bool success = LegacyResourceManager::LoadGeometry(
+        LegacyResourcePaths::ResolveAsset("webgpu.txt"),
+        pointData,
+        indexData); !success) {
         std::cerr << "Could not load geometry!" << std::endl;
         return false;
     }

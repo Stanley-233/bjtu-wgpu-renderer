@@ -53,7 +53,10 @@ target_include_directories(bjtu_wgpu_renderer
 )
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
-        $<$<CONFIG:Debug>:RESOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources">
+        $<$<CONFIG:Debug>:ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets">
+        $<$<CONFIG:Debug>:LEGACY_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/legacy">
+        $<$<CONFIG:Debug>:LEGACY_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shader/legacy">
+        $<$<CONFIG:Debug>:CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config">
 )
 
 target_link_libraries(bjtu_wgpu_renderer PRIVATE
@@ -83,9 +86,21 @@ endforeach()
 if (NOT EMSCRIPTEN)
     add_custom_command(TARGET bjtu_wgpu_renderer POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-            "$<TARGET_FILE_DIR:bjtu_wgpu_renderer>/resources"
-            COMMENT "Copying resources next to executable"
+            "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:bjtu_wgpu_renderer>/assets"
+            COMMENT "Copying assets next to executable"
+    )
+    add_custom_command(TARGET bjtu_wgpu_renderer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/shader"
+            "$<TARGET_FILE_DIR:bjtu_wgpu_renderer>/shader"
+            COMMENT "Copying shader resources next to executable"
+    )
+    add_custom_command(TARGET bjtu_wgpu_renderer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/config"
+            "$<TARGET_FILE_DIR:bjtu_wgpu_renderer>/config"
+            COMMENT "Copying config next to executable"
     )
 endif()
 
@@ -127,6 +142,8 @@ if (EMSCRIPTEN)
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
     target_link_options(bjtu_wgpu_renderer PRIVATE
             -sASYNCIFY
-            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/resources@/resources"
+            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
+            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/shader@/shader"
+            --preload-file "${CMAKE_CURRENT_SOURCE_DIR}/config@/config"
     )
 endif()

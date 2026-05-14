@@ -1,13 +1,10 @@
-#ifndef BJTU_WGPU_RENDERER_SHADERLOADER_H
-#define BJTU_WGPU_RENDERER_SHADERLOADER_H
+#pragma once
 
 #include <filesystem>
 
 #include <webgpu/webgpu.hpp>
 
-class ShaderLoader {
+class LegacyShaderLoader {
 public:
     static wgpu::ShaderModule Load(const std::filesystem::path& path, wgpu::Device device);
 };
-
-#endif // BJTU_WGPU_RENDERER_SHADERLOADER_H

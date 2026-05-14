@@ -1,4 +1,4 @@
-#include "ObjLoader.h"
+#include "LegacyObjLoader.h"
 
 #include <iostream>
 #include <limits>
@@ -8,7 +8,7 @@
 #ifndef TINYOBJLOADER_IMPLEMENTATION
     #define TINYOBJLOADER_IMPLEMENTATION
 #endif
-#include <../../../ext/tiny_obj_loader/tiny_obj_loader.h>
+#include "../../ext/tiny_obj_loader/tiny_obj_loader.h"
 
 static glm::vec3 HsvToRgb(const float h, const float s, const float v) {
     const float hh = h * 6.0f;
@@ -43,7 +43,7 @@ static glm::vec3 FaceColorFromIndex(const uint32_t faceIndex) {
     return HsvToRgb(hue, 0.78f, 0.95f);
 }
 
-bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMesh) {
+bool LegacyObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMesh) {
     outMesh.vertices.clear();
     outMesh.indices.clear();
 
@@ -74,15 +74,15 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
     );
     (void)materials;
     if (!parsed) {
-        std::cerr << "[ObjLoader] Failed to parse OBJ '" << path.string() << "': " << err << std::endl;
+        std::cerr << "[LegacyObjLoader] Failed to parse OBJ '" << path.string() << "': " << err << std::endl;
         return false;
     }
     if (!err.empty()) {
-        std::cerr << "[ObjLoader] Warning for '" << path.string() << "': " << err << std::endl;
+        std::cerr << "[LegacyObjLoader] Warning for '" << path.string() << "': " << err << std::endl;
     }
 
     if ((attrib.vertices.size() % 3U) != 0U) {
-        std::cerr << "[ObjLoader] Vertex buffer is malformed in '" << path.string() << "'." << std::endl;
+        std::cerr << "[LegacyObjLoader] Vertex buffer is malformed in '" << path.string() << "'." << std::endl;
         return false;
     }
     const size_t sourceVertexCount = attrib.vertices.size() / 3U;
@@ -90,14 +90,14 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
     size_t totalIndexCount = 0;
     for (const tinyobj::shape_t& shape : shapes) {
         if ((shape.mesh.indices.size() % 3U) != 0U) {
-            std::cerr << "[ObjLoader] Non-triangle indices detected in '" << path.string() << "'." <<
+            std::cerr << "[LegacyObjLoader] Non-triangle indices detected in '" << path.string() << "'." <<
                 std::endl;
             return false;
         }
         totalIndexCount += shape.mesh.indices.size();
     }
     if (totalIndexCount > static_cast<size_t>(std::numeric_limits<uint16_t>::max())) {
-        std::cerr << "[ObjLoader] Expanded face-vertex count exceeds uint16_t range in '" << path.string() <<
+        std::cerr << "[LegacyObjLoader] Expanded face-vertex count exceeds uint16_t range in '" << path.string() <<
             "'." << std::endl;
         return false;
     }
@@ -112,7 +112,7 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
             for (size_t corner = 0; corner < 3U; ++corner) {
                 const tinyobj::index_t& idx = shape.mesh.indices[i + corner];
                 if (idx.vertex_index < 0) {
-                    std::cerr << "[ObjLoader] Found negative vertex index in '" << path.string() << "'." <<
+                    std::cerr << "[LegacyObjLoader] Found negative vertex index in '" << path.string() << "'." <<
                         std::endl;
                     outMesh.vertices.clear();
                     outMesh.indices.clear();
@@ -121,7 +121,7 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
 
                 const uint32_t vertexIndex = static_cast<uint32_t>(idx.vertex_index);
                 if (vertexIndex >= sourceVertexCount) {
-                    std::cerr << "[ObjLoader] Vertex index out of range in '" << path.string() << "'." <<
+                    std::cerr << "[LegacyObjLoader] Vertex index out of range in '" << path.string() << "'." <<
                         std::endl;
                     outMesh.vertices.clear();
                     outMesh.indices.clear();
@@ -129,7 +129,7 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
                 }
 
                 if (outMesh.vertices.size() > static_cast<size_t>(std::numeric_limits<uint16_t>::max())) {
-                    std::cerr << "[ObjLoader] Expanded mesh vertex index exceeds uint16_t range in '" <<
+                    std::cerr << "[LegacyObjLoader] Expanded mesh vertex index exceeds uint16_t range in '" <<
                         path.string() << "'." << std::endl;
                     outMesh.vertices.clear();
                     outMesh.indices.clear();
@@ -152,7 +152,7 @@ bool ObjLoader::Load(const std::filesystem::path& path, LegacyMeshData3D& outMes
     }
 
     if (outMesh.vertices.empty() || outMesh.indices.empty()) {
-        std::cerr << "[ObjLoader] Parsed empty mesh from '" << path.string() << "'." << std::endl;
+        std::cerr << "[LegacyObjLoader] Parsed empty mesh from '" << path.string() << "'." << std::endl;
         outMesh.vertices.clear();
         outMesh.indices.clear();
         return false;

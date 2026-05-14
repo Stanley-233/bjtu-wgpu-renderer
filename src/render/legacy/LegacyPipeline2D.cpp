@@ -1,19 +1,18 @@
 #include "LegacyPipeline2D.h"
 
-#include <cstdlib>
 #include <iostream>
 #include <vector>
 
+#include "resource/legacy/LegacyResourcePaths.h"
+#include "resource/legacy/LegacyShaderLoader.h"
 #include "render/RenderContext.h"
-#include "resource/ResourceManager.h"
-#include "resource/ResourcePaths.h"
 
 using namespace wgpu;
 
 LegacyPipeline2D::Pipeline LegacyPipeline2D::Create(RenderContext& ctx) {
     std::cout << "[LegacyPipeline2D] Creating shader module..." << std::endl;
-    ShaderModule shaderModule = ResourceManager::LoadShaderModule(
-        ResourcePaths::Resolve("shader.wgsl"),
+    ShaderModule shaderModule = LegacyShaderLoader::Load(
+        LegacyResourcePaths::ResolveShader("shader.wgsl"),
         *ctx.GetDevice());
     std::cout << "[LegacyPipeline2D] Shader module: " << shaderModule << std::endl;
 

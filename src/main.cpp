@@ -2,11 +2,11 @@
 
 #include <toml.hpp>
 #include "app/Application.h"
-#include "resource/ResourcePaths.h"
+#include "app/ConfigPaths.h"
 
 int main() {
     toml::table config;
-    const std::string configPath = ResourcePaths::Resolve("config.toml").string();
+    const std::string configPath = ConfigPaths::Resolve("config.toml").string();
     try {
         config = toml::parse_file(configPath);
     } catch (const toml::parse_error& err) {

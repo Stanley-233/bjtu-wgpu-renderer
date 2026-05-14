@@ -2,9 +2,9 @@
 
 #include <filesystem>
 
-namespace ResourcePaths {
+namespace AssetPaths {
 
-std::filesystem::path ResourceRoot();
+std::filesystem::path AssetRoot();
 std::filesystem::path Resolve(const std::filesystem::path& relativePath);
 
-} // namespace ResourcePaths
+} // namespace AssetPaths
