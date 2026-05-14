@@ -1,7 +1,9 @@
 #ifndef BJTU_WGPU_RENDERER_SCENEMANAGER_H
 #define BJTU_WGPU_RENDERER_SCENEMANAGER_H
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 
 #include "IScene.h"
@@ -12,13 +14,17 @@ class InputEventBus;
 
 class SceneManager {
 public:
-    void RegisterScene(ESceneType type, std::unique_ptr<IScene> scene);
+    using SceneFactory = std::function<std::unique_ptr<IScene>()>;
 
-    void InitializeAll(RenderContext& ctx);
+    void RegisterScene(ESceneType type, SceneFactory factory);
 
     void SetInputEventBus(InputEventBus& eventBus);
 
-    void SetActiveScene(ESceneType type);
+    bool SetActiveScene(ESceneType type, RenderContext& ctx);
+
+    void Shutdown();
+
+    [[nodiscard]] bool HasActiveScene() const;
 
     IScene& ActiveScene() const;
 
@@ -27,9 +33,12 @@ public:
     void RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const;
 
 private:
-    InputEventBus*                                      m_inputEventBus = nullptr;
-    std::unordered_map<ESceneType, std::unique_ptr<IScene> > m_scenes;
-    IScene*                                                 m_activeScene = nullptr;
+    void UnloadActiveScene();
+
+    InputEventBus*                                  m_inputEventBus = nullptr;
+    std::unordered_map<ESceneType, SceneFactory>    m_sceneFactories;
+    std::optional<ESceneType>                       m_activeSceneType;
+    std::unique_ptr<IScene>                         m_activeScene;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENEMANAGER_H

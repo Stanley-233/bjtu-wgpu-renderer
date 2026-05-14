@@ -5,7 +5,7 @@
 
 #include "scene/LogicScene.h"
 #include "scene/legacy/Scene2D.h"
-#include "scene/legacy/Scene3DLegacy.h"
+#include "scene/legacy/LegacyScene3D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;
@@ -65,12 +65,20 @@ bool Application::Initialize() {
     m_inputManager.SetEventBus(&m_inputEventBus);
     m_inputManager.SetDebugEnabled(m_inputDebugEnabled);
 
-    m_sceneManager.RegisterScene(ESceneType::Scene2D, std::make_unique<Scene2D>());
-    m_sceneManager.RegisterScene(ESceneType::Scene3DLegacy, std::make_unique<Scene3DLegacy>());
-    m_sceneManager.RegisterScene(ESceneType::LogicScene, std::make_unique<LogicScene>());
-    m_sceneManager.InitializeAll(m_renderContext);
+    m_sceneManager.RegisterScene(ESceneType::Scene2D, [] {
+        return std::make_unique<Scene2D>();
+    });
+    m_sceneManager.RegisterScene(ESceneType::LegacyScene3D, [] {
+        return std::make_unique<LegacyScene3D>();
+    });
+    m_sceneManager.RegisterScene(ESceneType::LogicScene, [] {
+        return std::make_unique<LogicScene>();
+    });
     m_sceneManager.SetInputEventBus(m_inputEventBus);
-    m_sceneManager.SetActiveScene(ESceneType::LogicScene);
+    if (!m_sceneManager.SetActiveScene(ESceneType::LogicScene, m_renderContext)) {
+        Terminate();
+        return false;
+    }
 
     m_inputEventBus.Dispatcher().sink<SceneSwitchRequest>().connect<&Application::OnSceneSwitchRequest>(*this);
     m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Application::OnToggleCameraModeRequest>(*this);
@@ -86,6 +94,7 @@ void Application::Terminate() {
         m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().disconnect<&Application::OnToggleCameraModeRequest>(*this);
         m_commandHandlersConnected = false;
     }
+    m_sceneManager.Shutdown();
     m_inputManager.SetEventBus(nullptr);
     m_guiInputController.SetEventBus(nullptr);
     m_guiRenderer.Shutdown();
@@ -139,7 +148,7 @@ void Application::Tick(float deltaTime) {
     int drawableHeight = 0;
     m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
-    m_guiInputController.BuildUi(m_sceneManager.ActiveScene().Name());
+    m_guiInputController.BuildUi(m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr);
     m_guiRenderer.EndFrame();
 
     m_sceneManager.RenderActive(m_renderContext, m_guiRenderer);
@@ -163,7 +172,9 @@ void Application::HandleCursorPos(const double xpos, const double ypos) {
 }
 
 void Application::SwitchScene(ESceneType type) {
-    m_sceneManager.SetActiveScene(type);
+    if (!m_sceneManager.SetActiveScene(type, m_renderContext) && m_applicationDebugEnabled) {
+        std::cout << "[Application] Scene switch failed; keeping current scene." << std::endl;
+    }
 }
 
 void Application::OnSceneSwitchRequest(const SceneSwitchRequest& request) {

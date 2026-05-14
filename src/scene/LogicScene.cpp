@@ -78,7 +78,7 @@ LogicScene::LogicScene()
     : m_cameraController(std::make_unique<FreeCameraController>()) {
 }
 
-void LogicScene::Initialize(RenderContext& ctx) {
+bool LogicScene::Initialize(RenderContext& ctx) {
     m_renderer.Initialize(ctx);
 
     Entity cameraEntity = m_world.CreateEntity("Primary Camera");
@@ -100,6 +100,8 @@ void LogicScene::Initialize(RenderContext& ctx) {
     auto& meshComponent = cubeEntity.AddComponent<StaticMeshComponent>();
     meshComponent.mesh = CreateSolidCubeMesh();
     meshComponent.renderMode = Object3D::ERenderMode::Solid;
+
+    return true;
 }
 
 void LogicScene::Update(const float dt) {

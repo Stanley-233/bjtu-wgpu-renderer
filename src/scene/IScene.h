@@ -7,7 +7,7 @@ class LegacyGuiRenderer;
 
 enum class ESceneType {
     Scene2D,
-    Scene3DLegacy,
+    LegacyScene3D,
     LogicScene,
 };
 
@@ -118,7 +118,7 @@ class IScene {
 public:
     virtual ~IScene() = default;
 
-    virtual void Initialize(RenderContext& ctx) = 0;
+    virtual bool Initialize(RenderContext& ctx) = 0;
 
     virtual void Update(float dt) = 0;
 

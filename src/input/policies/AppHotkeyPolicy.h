@@ -28,7 +28,7 @@ public:
             return true;
         }
         if (key == GLFW_KEY_2) {
-            dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene3DLegacy});
+            dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LegacyScene3D});
             handledPress = true;
             return true;
         }

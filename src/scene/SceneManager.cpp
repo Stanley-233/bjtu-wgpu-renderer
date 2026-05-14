@@ -5,52 +5,75 @@
 #include "input/InputEventBus.h"
 #include "render/RenderContext.h"
 
-void SceneManager::RegisterScene(ESceneType type, std::unique_ptr<IScene> scene) {
-    m_scenes[type] = std::move(scene);
-}
-
-void SceneManager::InitializeAll(RenderContext& ctx) {
-    for (auto& [type, scene] : m_scenes) {
-        (void)type;
-        scene->Initialize(ctx);
-    }
+void SceneManager::RegisterScene(const ESceneType type, SceneFactory factory) {
+    m_sceneFactories[type] = std::move(factory);
 }
 
 void SceneManager::SetInputEventBus(InputEventBus& eventBus) {
-    if (m_activeScene != nullptr && m_inputEventBus != nullptr) {
+    if (m_activeScene && m_inputEventBus != nullptr) {
         m_activeScene->UnregisterInputHandlers(*m_inputEventBus);
     }
     m_inputEventBus = &eventBus;
-    if (m_activeScene != nullptr) {
+    if (m_activeScene) {
         m_activeScene->RegisterInputHandlers(*m_inputEventBus);
     }
 }
 
-void SceneManager::SetActiveScene(ESceneType type) {
-    const auto it = m_scenes.find(type);
-    if (it == m_scenes.end()) {
+bool SceneManager::SetActiveScene(const ESceneType type, RenderContext& ctx) {
+    const auto it = m_sceneFactories.find(type);
+    if (it == m_sceneFactories.end()) {
         throw std::runtime_error("Scene was not registered.");
     }
-    if (m_activeScene != nullptr && m_inputEventBus != nullptr) {
-        m_activeScene->UnregisterInputHandlers(*m_inputEventBus);
+
+    std::unique_ptr<IScene> candidate = it->second();
+    if (!candidate) {
+        throw std::runtime_error("Scene factory returned a null scene.");
     }
-    m_activeScene = it->second.get();
+    if (!candidate->Initialize(ctx)) {
+        return false;
+    }
+
+    UnloadActiveScene();
+
+    m_activeSceneType = type;
+    m_activeScene = std::move(candidate);
     if (m_inputEventBus != nullptr) {
         m_activeScene->RegisterInputHandlers(*m_inputEventBus);
     }
+    return true;
+}
+
+void SceneManager::Shutdown() {
+    UnloadActiveScene();
+}
+
+bool SceneManager::HasActiveScene() const {
+    return static_cast<bool>(m_activeScene);
 }
 
 IScene& SceneManager::ActiveScene() const {
-    if (m_activeScene == nullptr) {
+    if (!m_activeScene) {
         throw std::runtime_error("No active scene.");
     }
     return *m_activeScene;
 }
 
 void SceneManager::UpdateActive(float dt) const {
-    ActiveScene().Update(dt);
+    if (m_activeScene) {
+        m_activeScene->Update(dt);
+    }
 }
 
 void SceneManager::RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const {
-    ActiveScene().Render(ctx, guiRenderer);
+    if (m_activeScene) {
+        m_activeScene->Render(ctx, guiRenderer);
+    }
+}
+
+void SceneManager::UnloadActiveScene() {
+    if (m_activeScene && m_inputEventBus != nullptr) {
+        m_activeScene->UnregisterInputHandlers(*m_inputEventBus);
+    }
+    m_activeScene.reset();
+    m_activeSceneType.reset();
 }

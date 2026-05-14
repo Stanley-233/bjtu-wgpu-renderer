@@ -17,14 +17,17 @@
 
 using namespace wgpu;
 
-void Scene2D::Initialize(RenderContext& ctx) {
-    m_context             = &ctx;
-    auto pipeline2D       = LegacyPipeline2D::Create(ctx);
-    m_bindGroupLayout     = std::move(pipeline2D.bindGroupLayout);
-    m_layout              = std::move(pipeline2D.layout);
-    m_pipeline            = std::move(pipeline2D.pipeline);
-    InitializeBuffers(ctx);
+bool Scene2D::Initialize(RenderContext& ctx) {
+    m_context         = &ctx;
+    auto pipeline2D   = LegacyPipeline2D::Create(ctx);
+    m_bindGroupLayout = std::move(pipeline2D.bindGroupLayout);
+    m_layout          = std::move(pipeline2D.layout);
+    m_pipeline        = std::move(pipeline2D.pipeline);
+    if (!InitializeBuffers(ctx)) {
+        return false;
+    }
     InitializeBindGroups(ctx);
+    return true;
 }
 
 void Scene2D::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
@@ -182,13 +185,13 @@ void Scene2D::UploadUniformData() const {
     m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &m_uniformData, sizeof(m_uniformData));
 }
 
-void Scene2D::InitializeBuffers(RenderContext& ctx) {
+bool Scene2D::InitializeBuffers(RenderContext& ctx) {
     std::vector<float>    pointData;
     std::vector<uint16_t> indexData;
 
     if (const bool success = ResourceManager::LoadGeometry(ResourcePaths::Resolve("webgpu.txt"), pointData, indexData); !success) {
         std::cerr << "Could not load geometry!" << std::endl;
-        std::exit(1);
+        return false;
     }
 
     m_indexCount = static_cast<uint32_t>(indexData.size());
@@ -219,6 +222,7 @@ void Scene2D::InitializeBuffers(RenderContext& ctx) {
     m_uniformData.transform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
     UpdateAspectUniform();
     UploadUniformData();
+    return true;
 }
 
 void Scene2D::InitializeBindGroups(RenderContext& ctx) {

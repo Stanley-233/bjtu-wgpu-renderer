@@ -68,7 +68,7 @@ src
 │   └── legacy                   # 旧场景兼容层
 │       ├── Object3D             # 旧 3D 对象
 │       ├── Scene2D              # 旧 2D 场景，使用 LegacyPipeline2D + LegacyFrameContext
-│       ├── Scene3DLegacy        # 旧 3D 场景，使用 LegacyRenderer3D 适配到新 Renderer
+│       ├── LegacyScene3D        # 旧 3D 场景，使用 LegacyRenderer3D 适配到新 Renderer
 │       └── SceneDescription     # 旧场景描述结构
 │
 └── render                       # GPU 渲染层
@@ -119,7 +119,7 @@ src
 ### legacy 兼容路径
 
 - `Scene2D` 不直接接触 `RenderFrame` 和 pass 体系，只通过 `LegacyFrameContext` 获取旧式帧入口。
-- `Scene3DLegacy` 不再维护独立 GPU 生命周期，只通过 `LegacyRenderer3D` 把旧场景对象同步为 `RenderScene`，再委托 `Renderer` 完成绘制。
+- `LegacyScene3D` 不再维护独立 GPU 生命周期，只通过 `LegacyRenderer3D` 把旧场景对象同步为 `RenderScene`，再委托 `Renderer` 完成绘制。
 - `GuiPass` 只负责在新帧系统中调用 `LegacyGuiRenderer::Render(...)`，ImGui frame 的 begin / end 仍由 `Application` 驱动。
 
 ## 设计约束

@@ -9,7 +9,7 @@
 
 class Scene2D : public IScene, public ITransform2DInputSink {
 public:
-    void Initialize(RenderContext& ctx) override;
+    bool Initialize(RenderContext& ctx) override;
 
     void Update(float dt) override;
 
@@ -36,7 +36,7 @@ private:
         "Scene2D aspect uniform offset must match WGSL layout");
     static_assert(sizeof(SceneUniformData) == 16 * sizeof(float), "Scene2D uniform size must be 64 bytes");
 
-    void InitializeBuffers(RenderContext& ctx);
+    bool InitializeBuffers(RenderContext& ctx);
 
     void InitializeBindGroups(RenderContext& ctx);
 

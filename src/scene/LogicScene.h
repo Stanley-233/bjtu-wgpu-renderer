@@ -12,7 +12,7 @@ class LogicScene final : public IScene, public ICameraMoveInputSink, public ICam
 public:
     LogicScene();
 
-    void Initialize(RenderContext& ctx) override;
+    bool Initialize(RenderContext& ctx) override;
 
     void Update(float dt) override;
 
