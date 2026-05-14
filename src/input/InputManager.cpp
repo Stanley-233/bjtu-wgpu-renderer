@@ -42,6 +42,7 @@ void InputManager::SetEventBus(InputEventBus* eventBus) {
         m_eventBus->Dispatcher().sink<Transform2DStateEvent>().disconnect<&InputEventLogger::OnTransform2DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<ObjectTransform3DStateEvent>().disconnect<&InputEventLogger::OnObjectTransform3DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<CameraMoveInputEvent>().disconnect<&InputEventLogger::OnCameraMoveInputEvent>(m_eventLogger);
+        // TODO：后续实现 CameraLookInputEvent 分发后，在这里补充鼠标视角输入日志的解绑。
         m_debugSinkConnected = false;
     }
     m_eventBus = eventBus;
@@ -59,6 +60,7 @@ void InputManager::UpdateDebugSinkConnection() {
         m_eventBus->Dispatcher().sink<Transform2DStateEvent>().connect<&InputEventLogger::OnTransform2DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<ObjectTransform3DStateEvent>().connect<&InputEventLogger::OnObjectTransform3DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<CameraMoveInputEvent>().connect<&InputEventLogger::OnCameraMoveInputEvent>(m_eventLogger);
+        // TODO：后续开始发出鼠标视角事件后，在这里补充 CameraLookInputEvent 日志绑定。
         m_debugSinkConnected = true;
     } else if (!m_debugEnabled && m_debugSinkConnected) {
         m_eventBus->Dispatcher().sink<TransformActionEvent>().disconnect<&InputEventLogger::OnTransformActionEvent>(m_eventLogger);
@@ -66,6 +68,7 @@ void InputManager::UpdateDebugSinkConnection() {
         m_eventBus->Dispatcher().sink<Transform2DStateEvent>().disconnect<&InputEventLogger::OnTransform2DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<ObjectTransform3DStateEvent>().disconnect<&InputEventLogger::OnObjectTransform3DStateEvent>(m_eventLogger);
         m_eventBus->Dispatcher().sink<CameraMoveInputEvent>().disconnect<&InputEventLogger::OnCameraMoveInputEvent>(m_eventLogger);
+        // TODO：后续开始发出鼠标视角事件后，在这里补充 CameraLookInputEvent 日志解绑。
         m_debugSinkConnected = false;
     }
 }
@@ -96,6 +99,20 @@ void InputManager::EmitKeyEvent(const int key, const int action, const int mods)
         && !m_transform2DPolicy.HandlesKey(key)
         && !m_transform3DPolicy.HandlesKey(key)
         && !ShouldSuppressNoBindingLog(key)) {
+        // TODO：后续鼠标视角绑定应使用独立的鼠标诊断日志，而不是复用这里的键盘兜底日志。
         m_eventLogger.LogNoBinding(key);
     }
+}
+
+void InputManager::EmitMouseButtonEvent(const int button, const int action, const int mods) {
+    (void)button;
+    (void)action;
+    (void)mods;
+    // TODO：后续在这里把 RMB 按下/释放映射为视角控制启停，并发出专用鼠标视角事件。
+}
+
+void InputManager::EmitCursorPosEvent(const double xpos, const double ypos) {
+    (void)xpos;
+    (void)ypos;
+    // TODO：后续在这里累计鼠标位移，并在 UE 风格 RMB 视角模式下发出 CameraLookInputEvent。
 }

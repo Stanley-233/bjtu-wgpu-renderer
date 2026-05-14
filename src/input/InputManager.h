@@ -19,6 +19,10 @@ public:
 
     void EmitKeyEvent(int key, int action, int mods);
 
+    void EmitMouseButtonEvent(int button, int action, int mods);
+
+    void EmitCursorPosEvent(double xpos, double ypos);
+
 private:
     static bool ShouldSuppressNoBindingLog(int key);
 

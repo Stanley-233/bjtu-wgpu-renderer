@@ -1,16 +1,21 @@
-#include "TranslationCameraController.h"
+#include "FreeCameraController.h"
 
 #include <glm/geometric.hpp>
 
 #include "scene/camera/Camera.h"
 
-void TranslationCameraController::OnMoveInput(const CameraMoveInputEvent& event) {
+void FreeCameraController::OnMoveInput(const CameraMoveInputEvent& event) {
     m_moveForward = event.forward;
     m_moveRight = event.right;
     m_moveUp = event.up;
 }
 
-void TranslationCameraController::Update(const float dt, Camera& camera) {
+void FreeCameraController::OnLookInput(const CameraLookInputEvent& event) {
+    (void)event;
+    // TODO：后续在这里应用鼠标驱动的 yaw/pitch 更新。
+}
+
+void FreeCameraController::Update(const float dt, Camera& camera) {
     constexpr float kEpsilon = 1e-6f;
     if (dt <= 0.0f) {
         return;

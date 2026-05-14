@@ -8,7 +8,7 @@
 #include "scene/World.h"
 #include "scene/camera/CameraController.h"
 
-class LogicScene final : public IScene, public ICameraMoveInputSink {
+class LogicScene final : public IScene, public ICameraMoveInputSink, public ICameraLookInputSink {
 public:
     LogicScene();
 
@@ -25,6 +25,8 @@ public:
     void UnregisterInputHandlers(InputEventBus& eventBus) override;
 
     void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) override;
+
+    void OnCameraLookInputEvent(const CameraLookInputEvent& event) override;
 
 private:
     RenderScene BuildRenderScene(const RenderContext& ctx) const;

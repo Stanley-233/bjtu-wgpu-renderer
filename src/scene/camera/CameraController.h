@@ -11,6 +11,8 @@ public:
 
     virtual void OnMoveInput(const CameraMoveInputEvent& event) = 0;
 
+    virtual void OnLookInput(const CameraLookInputEvent& event) = 0;
+
     virtual void Update(float dt, Camera& camera) = 0;
 };
 

@@ -34,9 +34,17 @@ public:
 private:
     static void GLFWKeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
 
+    static void GLFWMouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+
+    static void GLFWCursorPosCallback(GLFWwindow* window, double xpos, double ypos);
+
     void Tick(float deltaTime);
 
     void HandleKey(int key, int action, int mods);
+
+    void HandleMouseButton(int button, int action, int mods);
+
+    void HandleCursorPos(double xpos, double ypos);
 
     void SwitchScene(ESceneType type);
 

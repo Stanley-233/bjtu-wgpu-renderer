@@ -50,6 +50,8 @@ bool Application::Initialize() {
 
     glfwSetWindowUserPointer(m_windowContext.GetWindow(), this);
     glfwSetKeyCallback(m_windowContext.GetWindow(), GLFWKeyCallback);
+    glfwSetMouseButtonCallback(m_windowContext.GetWindow(), GLFWMouseButtonCallback);
+    glfwSetCursorPosCallback(m_windowContext.GetWindow(), GLFWCursorPosCallback);
     if (!m_guiRenderer.Initialize(
         m_windowContext.GetWindow(),
         m_renderContext.GetDevice(),
@@ -114,6 +116,22 @@ void Application::GLFWKeyCallback(GLFWwindow* window, const int key, const int s
     application->HandleKey(key, action, mods);
 }
 
+void Application::GLFWMouseButtonCallback(GLFWwindow* window, const int button, const int action, const int mods) {
+    auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
+    if (application == nullptr) {
+        return;
+    }
+    application->HandleMouseButton(button, action, mods);
+}
+
+void Application::GLFWCursorPosCallback(GLFWwindow* window, const double xpos, const double ypos) {
+    auto* application = static_cast<Application*>(glfwGetWindowUserPointer(window));
+    if (application == nullptr) {
+        return;
+    }
+    application->HandleCursorPos(xpos, ypos);
+}
+
 void Application::Tick(float deltaTime) {
     m_sceneManager.UpdateActive(deltaTime);
 
@@ -132,6 +150,16 @@ void Application::HandleKey(int key, int action, int mods) {
         return;
     }
     m_inputManager.EmitKeyEvent(key, action, mods);
+}
+
+void Application::HandleMouseButton(const int button, const int action, const int mods) {
+    // TODO：后续在这里把 RMB 按下/释放接入 UE 风格漫游视角控制启停链路。
+    m_inputManager.EmitMouseButtonEvent(button, action, mods);
+}
+
+void Application::HandleCursorPos(const double xpos, const double ypos) {
+    // TODO：后续在 RMB 视角控制模式生效后，把鼠标移动转成相机视角输入。
+    m_inputManager.EmitCursorPosEvent(xpos, ypos);
 }
 
 void Application::SwitchScene(ESceneType type) {

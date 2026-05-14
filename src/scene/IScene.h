@@ -69,6 +69,12 @@ struct CameraMoveInputEvent {
     float up;
 };
 
+struct CameraLookInputEvent {
+    float deltaYaw;
+    float deltaPitch;
+    bool  isLookModeActive;
+};
+
 struct SceneSwitchRequest {
     ESceneType type;
 };
@@ -99,6 +105,13 @@ public:
     virtual ~ICameraMoveInputSink() = default;
 
     virtual void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) = 0;
+};
+
+class ICameraLookInputSink {
+public:
+    virtual ~ICameraLookInputSink() = default;
+
+    virtual void OnCameraLookInputEvent(const CameraLookInputEvent& event) = 0;
 };
 
 class IScene {
