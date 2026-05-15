@@ -8,7 +8,6 @@ constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_forwardPass.Initialize(ctx);
-    m_wireframePass.Initialize(ctx);
 }
 
 void Renderer::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
@@ -68,19 +67,6 @@ void Renderer::EnsureObjectResources(RenderContext& ctx, const std::size_t objec
             uniformBufferDesc.mappedAtCreation = false;
             resources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
         }
-        if (!resources.bindGroup && resources.uniformBuffer && m_forwardPass.GetBindGroupLayout()) {
-            wgpu::BindGroupEntry binding{};
-            binding.binding = 0;
-            binding.buffer = *resources.uniformBuffer;
-            binding.offset = 0;
-            binding.size = kSceneUniformSize;
-
-            wgpu::BindGroupDescriptor bindGroupDesc{};
-            bindGroupDesc.layout = *m_forwardPass.GetBindGroupLayout();
-            bindGroupDesc.entryCount = 1;
-            bindGroupDesc.entries = &binding;
-            resources.bindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
-        }
     }
 }
 
@@ -93,28 +79,45 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
     for (std::size_t i = 0; i < scene.objects.size(); ++i) {
         const RenderObject& object = scene.objects[i];
         const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(ctx, object);
-        if (gpuMesh == nullptr) {
+        const GpuResourceCache::GpuMaterialResources* materialResources =
+            m_resourceCache.SyncMaterial(ctx, scene.assetServer, object);
+        if (gpuMesh == nullptr || materialResources == nullptr) {
             continue;
         }
 
         ObjectResources& resources = m_objectResources[i];
-        if (!resources.uniformBuffer || !resources.bindGroup) {
+        if (!resources.uniformBuffer || !m_forwardPass.GetBindGroupLayout()) {
             continue;
         }
+        wgpu::BindGroupEntry bindings[4]{};
+        bindings[0].binding = 0;
+        bindings[0].buffer = *resources.uniformBuffer;
+        bindings[0].offset = 0;
+        bindings[0].size = kSceneUniformSize;
+        bindings[1].binding = 1;
+        bindings[1].buffer = *materialResources->uniformBuffer;
+        bindings[1].offset = 0;
+        bindings[1].size = sizeof(GpuResourceCache::GpuMaterialResources::MaterialUniformData);
+        bindings[2].binding = 2;
+        bindings[2].textureView = materialResources->textureView;
+        bindings[3].binding = 3;
+        bindings[3].sampler = materialResources->sampler;
+
+        wgpu::BindGroupDescriptor bindGroupDesc{};
+        bindGroupDesc.layout = *m_forwardPass.GetBindGroupLayout();
+        bindGroupDesc.entryCount = 4;
+        bindGroupDesc.entries = bindings;
+        resources.forwardBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
 
         m_preparedDrawItems.push_back(PreparedDrawItem{
             .model = object.worldMatrix,
-            .renderMode = object.renderMode,
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
-            .wireframeDepthIndexBuffer = gpuMesh->wireframeDepthIndexBuffer ? *gpuMesh->wireframeDepthIndexBuffer : nullptr,
             .uniformBuffer = *resources.uniformBuffer,
-            .bindGroup = *resources.bindGroup,
+            .forwardBindGroup = resources.forwardBindGroup ? *resources.forwardBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
-            .wireframeDepthIndexBufferSize = gpuMesh->wireframeDepthIndexBufferSize,
             .indexCount = gpuMesh->indexCount,
-            .wireframeDepthIndexCount = gpuMesh->wireframeDepthIndexCount,
         });
     }
 }
@@ -134,7 +137,6 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         .queue = &*ctx.GetQueue(),
     };
     m_forwardPass.Render(frame, passContext);
-    m_wireframePass.Render(frame, passContext);
     m_guiPass.Render(frame, passContext);
     ctx.Submit(frame.encoder);
     ctx.Present(frame.surfaceFrame);

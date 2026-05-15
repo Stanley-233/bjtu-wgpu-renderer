@@ -19,11 +19,3 @@ void Object3D::SetMesh(const LegacyMeshData3D& mesh) {
 const LegacyMeshData3D& Object3D::Mesh() const {
     return m_mesh;
 }
-
-void Object3D::SetRenderMode(const ERenderMode mode) {
-    m_renderMode = mode;
-}
-
-Object3D::ERenderMode Object3D::RenderMode() const {
-    return m_renderMode;
-}

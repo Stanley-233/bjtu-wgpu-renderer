@@ -8,7 +8,6 @@
 #include "passes/ForwardPass.h"
 #include "passes/GuiPass.h"
 #include "passes/PreparedDrawItem.h"
-#include "passes/WireframePass.h"
 #include "render/scene/RenderScene.h"
 #include "webgpu-raii.hpp"
 
@@ -26,7 +25,7 @@ public:
 private:
     struct ObjectResources {
         wgpu::raii::Buffer    uniformBuffer;
-        wgpu::raii::BindGroup bindGroup;
+        wgpu::raii::BindGroup forwardBindGroup;
     };
 
     [[nodiscard]] RenderFrame BeginRenderFrame(RenderContext& ctx);
@@ -39,7 +38,6 @@ private:
 
     GpuResourceCache              m_resourceCache;
     ForwardPass                   m_forwardPass;
-    WireframePass                 m_wireframePass;
     GuiPass                       m_guiPass;
     wgpu::raii::Texture           m_depthTexture;
     wgpu::raii::TextureView       m_depthView;

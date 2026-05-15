@@ -3,9 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-#include "resource/legacy/LegacyMeshData3D.h"
-
-using MeshVertex = Vertex3D;
+#include "AssetVertex3D.h"
 
 struct MeshPrimitiveRange {
     uint32_t firstIndex = 0;
@@ -13,7 +11,7 @@ struct MeshPrimitiveRange {
 };
 
 struct MeshAsset {
-    std::vector<MeshVertex>         vertices;
+    std::vector<AssetVertex3D>      vertices;
     std::vector<uint16_t>           indices;
     std::vector<MeshPrimitiveRange> primitiveRanges;
 };

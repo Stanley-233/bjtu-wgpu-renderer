@@ -4,6 +4,7 @@
 
 #include "GltfImporter.h"
 
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <limits>
@@ -113,6 +114,79 @@ static bool ReadAccessorVec2(const tinygltf::Model& model, const int accessorInd
         const auto* values = reinterpret_cast<const float*>(buffer.data.data() + byteOffset);
         outValues[i] = glm::vec2{values[0], values[1]};
     }
+    return true;
+}
+
+static float NormalizeColorComponent(const int componentType, const std::uint8_t* data) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+        return *reinterpret_cast<const float*>(data);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+        return static_cast<float>(*data) / 255.0f;
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+        return static_cast<float>(*reinterpret_cast<const uint16_t*>(data)) / 65535.0f;
+    default:
+        return 1.0f;
+    }
+}
+
+static uint32_t ComponentByteSize(const int componentType) {
+    switch (componentType) {
+    case TINYGLTF_COMPONENT_TYPE_FLOAT:
+        return sizeof(float);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+        return sizeof(std::uint8_t);
+    case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+        return sizeof(std::uint16_t);
+    default:
+        return 0;
+    }
+}
+
+static bool ReadAccessorColor(const tinygltf::Model& model, const int accessorIndex, std::vector<glm::vec4>& outValues) {
+    if (accessorIndex < 0) {
+        return false;
+    }
+
+    const tinygltf::Accessor& accessor = model.accessors[static_cast<std::size_t>(accessorIndex)];
+    if (accessor.bufferView < 0 || (accessor.type != TINYGLTF_TYPE_VEC3 && accessor.type != TINYGLTF_TYPE_VEC4)) {
+        return false;
+    }
+    if (accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT
+        && accessor.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE
+        && accessor.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        return false;
+    }
+
+    const tinygltf::BufferView& bufferView = model.bufferViews[static_cast<std::size_t>(accessor.bufferView)];
+    const tinygltf::Buffer& buffer = model.buffers[static_cast<std::size_t>(bufferView.buffer)];
+    const int stride = accessor.ByteStride(bufferView);
+    const uint32_t componentSize = ComponentByteSize(accessor.componentType);
+    const uint32_t componentCount = accessor.type == TINYGLTF_TYPE_VEC3 ? 3U : 4U;
+    if (stride <= 0 || componentSize == 0U) {
+        return false;
+    }
+
+    outValues.resize(accessor.count, glm::vec4{1.0f});
+    for (std::size_t i = 0; i < accessor.count; ++i) {
+        const std::size_t byteOffset = static_cast<std::size_t>(bufferView.byteOffset + accessor.byteOffset)
+                                       + i * static_cast<std::size_t>(stride);
+        const std::size_t requiredBytes = static_cast<std::size_t>(componentSize) * componentCount;
+        if (byteOffset + requiredBytes > buffer.data.size()) {
+            return false;
+        }
+
+        const std::uint8_t* componentData = buffer.data.data() + byteOffset;
+        glm::vec4 color{1.0f};
+        color.r = NormalizeColorComponent(accessor.componentType, componentData + componentSize * 0U);
+        color.g = NormalizeColorComponent(accessor.componentType, componentData + componentSize * 1U);
+        color.b = NormalizeColorComponent(accessor.componentType, componentData + componentSize * 2U);
+        if (componentCount == 4U) {
+            color.a = NormalizeColorComponent(accessor.componentType, componentData + componentSize * 3U);
+        }
+        outValues[i] = glm::clamp(color, 0.0f, 1.0f);
+    }
+
     return true;
 }
 
@@ -228,7 +302,7 @@ static ImageAsset DecodeImage(const tinygltf::Image& image) {
     return asset;
 }
 
-static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primitive& primitive, const glm::vec4& baseColorFactor) {
+static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primitive& primitive) {
     MeshAsset mesh{};
 
     const auto positionIt = primitive.attributes.find("POSITION");
@@ -250,6 +324,7 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
 
     std::vector<glm::vec3> normals{};
     std::vector<glm::vec2> texcoords{};
+    std::vector<glm::vec4> colors{};
     const auto normalIt = primitive.attributes.find("NORMAL");
     if (normalIt != primitive.attributes.end()) {
         (void)ReadAccessorVec3(model, normalIt->second, normals);
@@ -257,6 +332,10 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
     const auto texcoordIt = primitive.attributes.find("TEXCOORD_0");
     if (texcoordIt != primitive.attributes.end()) {
         (void)ReadAccessorVec2(model, texcoordIt->second, texcoords);
+    }
+    const auto colorIt = primitive.attributes.find("COLOR_0");
+    if (colorIt != primitive.attributes.end()) {
+        (void)ReadAccessorColor(model, colorIt->second, colors);
     }
 
     if (primitive.indices >= 0) {
@@ -281,19 +360,15 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
         }
         const auto* values = reinterpret_cast<const float*>(positionBuffer.data.data() + byteOffset);
         mesh.vertices[vertexIndex].position = glm::vec3{values[0], values[1], values[2]};
-
-        glm::vec3 color = glm::vec3{
-            baseColorFactor.x,
-            baseColorFactor.y,
-            baseColorFactor.z,
-        };
         if (vertexIndex < normals.size()) {
-            color = glm::clamp(normals[vertexIndex] * 0.5f + 0.5f, 0.0f, 1.0f);
+            mesh.vertices[vertexIndex].normal = normals[vertexIndex];
         }
         if (vertexIndex < texcoords.size()) {
-            color = glm::vec3{texcoords[vertexIndex].x, texcoords[vertexIndex].y, 1.0f - 0.5f * (texcoords[vertexIndex].x + texcoords[vertexIndex].y)};
+            mesh.vertices[vertexIndex].uv0 = texcoords[vertexIndex];
         }
-        mesh.vertices[vertexIndex].color = color;
+        if (vertexIndex < colors.size()) {
+            mesh.vertices[vertexIndex].color = colors[vertexIndex];
+        }
     }
 
     mesh.primitiveRanges.push_back(MeshPrimitiveRange{
@@ -345,7 +420,7 @@ static void LoadNodeRecursive(
                 }
             }
 
-            MeshAsset meshAsset = BuildMesh(model, primitive, baseColorFactor);
+            MeshAsset meshAsset = BuildMesh(model, primitive);
             if (meshAsset.vertices.empty() || meshAsset.indices.empty()) {
                 continue;
             }

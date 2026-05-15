@@ -1,6 +1,5 @@
 #include "ForwardPass.h"
 
-#include "render/RenderContext.h"
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
@@ -16,7 +15,7 @@ struct SceneUniform {
 
 void ForwardPass::Initialize(RenderContext& ctx) {
     auto pipeline = Scene3DPipelineFactory::CreateForwardPipeline(ctx);
-    m_bindGroupLayout = std::move(pipeline.bindGroupLayout);
+    m_bindGroupLayout = std::move(pipeline.objectBindGroupLayout);
     m_layout = std::move(pipeline.layout);
     m_pipeline = std::move(pipeline.pipeline);
 }
@@ -58,8 +57,7 @@ void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
     if (m_pipeline && context.camera.has_value() && context.queue != nullptr) {
         renderPass->setPipeline(*m_pipeline);
         for (const PreparedDrawItem& drawItem : context.drawItems) {
-            if (drawItem.renderMode != Object3D::ERenderMode::Solid
-                || drawItem.bindGroup == nullptr
+            if (drawItem.forwardBindGroup == nullptr
                 || drawItem.uniformBuffer == nullptr
                 || drawItem.vertexBuffer == nullptr
                 || drawItem.indexBuffer == nullptr
@@ -73,7 +71,7 @@ void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
                 .projection = context.camera->projection,
             };
             context.queue->writeBuffer(drawItem.uniformBuffer, 0, &uniform, kSceneUniformSize);
-            renderPass->setBindGroup(0, drawItem.bindGroup, 0, nullptr);
+            renderPass->setBindGroup(0, drawItem.forwardBindGroup, 0, nullptr);
             renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
             renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
             renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);

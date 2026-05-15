@@ -106,7 +106,6 @@ bool LegacyScene3D::Initialize(RenderContext& ctx) {
         Object3D& object = m_objects.back();
         object.SetMesh(objectDescription.mesh);
         if (objectDescription.name == "teapot") {
-            object.SetRenderMode(Object3D::ERenderMode::Wireframe);
             LegacyMeshData3D teapotMesh = object.Mesh();
             SetMeshColor(teapotMesh, {0.97f, 0.97f, 0.97f});
             object.SetMesh(teapotMesh);
@@ -298,7 +297,6 @@ void LegacyScene3D::SetCameraMode(const ECameraMode mode) {
 void LegacyScene3D::AppendBuiltinCube() {
     Object3D cube{};
     cube.SetMesh(CreateSolidCubeMesh());
-    cube.SetRenderMode(Object3D::ERenderMode::Solid);
     Transform3D cubeTransform = Transform3D::Identity();
     cubeTransform.Combine(Transform3D::Scale(0.28f, 0.28f, 0.28f));
     cubeTransform.Combine(Transform3D::Translation(-0.35f, -0.25f, -0.05f));

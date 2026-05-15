@@ -1,6 +1,7 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 
 #include <toml.hpp>
+#include <magic_enum.hpp>
 #include "app/Application.h"
 #include "app/ConfigPaths.h"
 
@@ -26,10 +27,15 @@ int main() {
 
     Application app;
 
-    if (surfaceFormat == "BGRA8Unorm") {
+    if (surfaceFormat == "Auto") {
+        app.SetSurfaceFormat(wgpu::TextureFormat::Undefined);
+    } else if (surfaceFormat == "BGRA8Unorm") {
         app.SetSurfaceFormat(wgpu::TextureFormat::BGRA8Unorm);
+    } else if (surfaceFormat == "RGBA8Unorm") {
+        app.SetSurfaceFormat(wgpu::TextureFormat::RGBA8Unorm);
     } else {
         std::cerr << "Unsupported surface format: " << surfaceFormat << std::endl;
+        std::cerr << "Supported values: Auto, BGRA8Unorm, RGBA8Unorm" << std::endl;
         return 1;
     }
 

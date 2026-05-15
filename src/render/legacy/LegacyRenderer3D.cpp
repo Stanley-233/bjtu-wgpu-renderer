@@ -26,7 +26,6 @@ void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>
         m_scene.objects.push_back(RenderObject{
             .worldMatrix = object.Transform().Matrix(),
             .legacyMesh = &object.Mesh(),
-            .renderMode = object.RenderMode(),
         });
     }
 }

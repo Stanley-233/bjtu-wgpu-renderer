@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include "asset/types/AssetVertex3D.h"
 #include "app/WindowContext.h"
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
@@ -226,9 +227,9 @@ RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     RequiredLimits requiredLimits = Default;
     // Emscripten 不支持
     // requiredLimits.limits = supportedLimits.limits;
-    requiredLimits.limits.maxVertexAttributes        = 3;
+    requiredLimits.limits.maxVertexAttributes        = 4;
     requiredLimits.limits.maxVertexBuffers           = 1;
-    requiredLimits.limits.maxVertexBufferArrayStride = 6 * sizeof(float);
+    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(AssetVertex3D);
     requiredLimits.limits.maxBindGroups              = 2;
     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
     requiredLimits.limits.maxUniformBufferBindingSize = 3 * 16 * sizeof(float);

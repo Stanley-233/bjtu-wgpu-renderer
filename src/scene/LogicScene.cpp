@@ -22,37 +22,37 @@
 
 [[maybe_unused]] static MeshAsset CreateSolidCubeMeshAsset() {
     MeshAsset mesh{};
-    constexpr glm::vec3 backColor{0.95f, 0.35f, 0.25f};
-    constexpr glm::vec3 frontColor{0.20f, 0.65f, 0.95f};
-    constexpr glm::vec3 bottomColor{0.95f, 0.85f, 0.25f};
-    constexpr glm::vec3 topColor{0.35f, 0.85f, 0.45f};
-    constexpr glm::vec3 leftColor{0.70f, 0.45f, 0.95f};
-    constexpr glm::vec3 rightColor{0.95f, 0.55f, 0.80f};
+    constexpr glm::vec4 backColor{0.95f, 0.35f, 0.25f, 1.0f};
+    constexpr glm::vec4 frontColor{0.20f, 0.65f, 0.95f, 1.0f};
+    constexpr glm::vec4 bottomColor{0.95f, 0.85f, 0.25f, 1.0f};
+    constexpr glm::vec4 topColor{0.35f, 0.85f, 0.45f, 1.0f};
+    constexpr glm::vec4 leftColor{0.70f, 0.45f, 0.95f, 1.0f};
+    constexpr glm::vec4 rightColor{0.95f, 0.55f, 0.80f, 1.0f};
     mesh.vertices = {
-        {{-0.5f, -0.5f, -0.5f}, backColor},
-        {{0.5f, -0.5f, -0.5f}, backColor},
-        {{0.5f, 0.5f, -0.5f}, backColor},
-        {{-0.5f, 0.5f, -0.5f}, backColor},
-        {{-0.5f, -0.5f, 0.5f}, frontColor},
-        {{0.5f, -0.5f, 0.5f}, frontColor},
-        {{0.5f, 0.5f, 0.5f}, frontColor},
-        {{-0.5f, 0.5f, 0.5f}, frontColor},
-        {{-0.5f, -0.5f, -0.5f}, bottomColor},
-        {{0.5f, -0.5f, -0.5f}, bottomColor},
-        {{0.5f, -0.5f, 0.5f}, bottomColor},
-        {{-0.5f, -0.5f, 0.5f}, bottomColor},
-        {{-0.5f, 0.5f, -0.5f}, topColor},
-        {{0.5f, 0.5f, -0.5f}, topColor},
-        {{0.5f, 0.5f, 0.5f}, topColor},
-        {{-0.5f, 0.5f, 0.5f}, topColor},
-        {{-0.5f, -0.5f, -0.5f}, leftColor},
-        {{-0.5f, 0.5f, -0.5f}, leftColor},
-        {{-0.5f, 0.5f, 0.5f}, leftColor},
-        {{-0.5f, -0.5f, 0.5f}, leftColor},
-        {{0.5f, -0.5f, -0.5f}, rightColor},
-        {{0.5f, 0.5f, -0.5f}, rightColor},
-        {{0.5f, 0.5f, 0.5f}, rightColor},
-        {{0.5f, -0.5f, 0.5f}, rightColor},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 0.0f}, backColor},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 0.0f}, backColor},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {1.0f, 1.0f}, backColor},
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f}, backColor},
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, frontColor},
+        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}, frontColor},
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}, frontColor},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, frontColor},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}, bottomColor},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}, bottomColor},
+        {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}, bottomColor},
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}, bottomColor},
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}, topColor},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, topColor},
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, topColor},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}, topColor},
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, leftColor},
+        {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, leftColor},
+        {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, leftColor},
+        {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, leftColor},
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, rightColor},
+        {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}, rightColor},
+        {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, rightColor},
+        {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}, rightColor},
     };
     mesh.indices = {
         0, 1, 2, 0, 2, 3,
@@ -117,7 +117,6 @@ static Entity SpawnModelEntities(World&             world,
                 .id = primitive.material,
                 .asset = materialAsset,
             };
-            meshComponent.renderMode = Object3D::ERenderMode::Solid;
         }
     }
     return root;
@@ -138,7 +137,7 @@ bool LogicScene::Initialize(RenderContext& ctx) {
         perspectiveCamera->SetPerspective(1.0471976f, 0.1f, 100.0f);
     }
     cameraComponent.camera->SetPose(
-        glm::vec3{0.0f, 0.0f, 2.0f},
+        glm::vec3{0.0f, 0.0f, 3.0f},
         glm::vec3{0.0f, 0.0f, 0.0f},
         glm::vec3{0.0f, 1.0f, 0.0f});
     m_world.SetPrimaryCamera(cameraEntity);
@@ -210,6 +209,7 @@ void LogicScene::OnCameraLookInputEvent(const CameraLookInputEvent& event) {
 
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     RenderScene renderScene{};
+    renderScene.assetServer = &m_assetServer;
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;
@@ -235,9 +235,9 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
         renderScene.objects.push_back(RenderObject{
             .worldMatrix = m_world.WorldMatrixOf(Entity{entityHandle, const_cast<World*>(&m_world)}),
             .meshId = mesh.mesh.id,
+            .materialId = mesh.material.id,
             .mesh = mesh.mesh.asset,
             .material = mesh.material.asset,
-            .renderMode = mesh.renderMode,
         });
     }
 

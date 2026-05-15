@@ -63,6 +63,7 @@ target_include_directories(bjtu_wgpu_renderer
 
 target_compile_definitions(bjtu_wgpu_renderer PRIVATE
         $<$<CONFIG:Debug>:ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets">
+        $<$<CONFIG:Debug>:SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shader">
         $<$<CONFIG:Debug>:LEGACY_ASSET_DIR="${CMAKE_CURRENT_SOURCE_DIR}/assets/legacy">
         $<$<CONFIG:Debug>:LEGACY_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shader/legacy">
         $<$<CONFIG:Debug>:CONFIG_DIR="${CMAKE_CURRENT_SOURCE_DIR}/config">
