@@ -136,6 +136,7 @@ bool LogicScene::Initialize(RenderContext& ctx) {
         glm::vec3{0.0f, 1.0f, 0.0f});
     m_world.SetPrimaryCamera(cameraEntity);
 
+    /*
     const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
     const AssetId<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath);
     if (simpleMeshes.IsValid()) {
@@ -150,20 +151,37 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     } else {
         std::cerr << "[LogicScene] Failed to load " << simpleMeshesPath.string() << std::endl;
     }
+    */
 
-    const auto& simpleTexturePath = AssetPaths::Resolve("gltf-test/SimpleTexture.gltf");
-    const AssetId<ModelAsset> simpleTexture = m_assetServer.LoadModel(simpleTexturePath);
-    if (simpleTexture.IsValid()) {
-        const ModelAsset* model = m_assetServer.Get(simpleTexture);
+    const auto& arkZfyPath= AssetPaths::Resolve("arknights/zhuang_fangyi__arknights_endfield.glb");
+    const AssetId<ModelAsset> arkZfy = m_assetServer.LoadModel(arkZfyPath);
+    if (arkZfy.IsValid()) {
+        const ModelAsset* model = m_assetServer.Get(arkZfy);
         if (model == nullptr) {
-            std::cerr << "[LogicScene] Loaded model id was invalid for " << simpleTexturePath.string() << std::endl;
+            std::cerr << "[LogicScene] Loaded model id was invalid for " << arkZfyPath.string() << std::endl;
             return false;
         }
         Entity simpleTextureRoot = SpawnModelEntities(m_world, m_assetServer, *model, "SimpleTexture");
         auto& [transform] = simpleTextureRoot.GetComponent<TransformComponent>();
         transform.SetTranslation(1.5f, 0.0f, 0.0f);
+        transform = transform.RotationX(-3.14f / 2.0);
     } else {
-        std::cerr << "[LogicScene] Failed to load " << simpleTexturePath.string() << std::endl;
+        std::cerr << "[LogicScene] Failed to load " << arkZfyPath.string() << std::endl;
+    }
+
+    const auto& cornelBoxPath = AssetPaths::Resolve("cornel-box-original/scene.gltf");
+    const AssetId<ModelAsset> cornelBox = m_assetServer.LoadModel(cornelBoxPath);
+    if (cornelBox.IsValid()) {
+        const ModelAsset* model = m_assetServer.Get(cornelBox);
+        if (model == nullptr) {
+            std::cerr << "[LogicScene] Loaded model id was invalid for " << cornelBoxPath.string() << std::endl;
+            return false;
+        }
+        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *model, "cornelBox");
+        auto& [rootTransform] = simpleMeshesRoot.GetComponent<TransformComponent>();
+        rootTransform.SetTranslation(-1.5f, 0.0f, -3.0f);
+    } else {
+        std::cerr << "[LogicScene] Failed to load " << cornelBoxPath.string() << std::endl;
     }
 
     return true;
