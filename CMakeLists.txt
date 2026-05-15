@@ -16,6 +16,15 @@ else()
     target_link_options(glfw INTERFACE -sUSE_GLFW=3)
 endif()
 
+if (NOT DEFINED WEBGPU_BACKEND)
+    set(_default_webgpu_backend "WGPU")
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(_default_webgpu_backend "DAWN")
+    endif()
+    set(WEBGPU_BACKEND "${_default_webgpu_backend}" CACHE STRING "Default WebGPU backend")
+    unset(_default_webgpu_backend)
+endif()
+
 add_subdirectory(ext/webgpu)
 
 add_subdirectory(ext/glfw3webgpu)
