@@ -7,7 +7,7 @@
 #include <string>
 
 #include "asset/AssetPaths.h"
-#include "asset/AssetHandle.h"
+#include "asset/AssetId.h"
 #include "asset/types/MaterialAsset.h"
 #include "asset/types/MeshAsset.h"
 #include "asset/types/ModelAsset.h"
@@ -99,8 +99,8 @@ static Entity SpawnModelEntities(World&             world,
     std::size_t nodeCounter = 0;
     for (const ModelNodeAsset& node : model.nodes) {
         for (const ModelPrimitiveAsset& primitive : node.primitives) {
-            const MeshAsset* meshAsset = assetServer.GetMesh(primitive.mesh);
-            const MaterialAsset* materialAsset = assetServer.GetMaterial(primitive.material);
+            const MeshAsset* meshAsset = assetServer.Get(primitive.mesh);
+            const MaterialAsset* materialAsset = assetServer.Get(primitive.material);
             if (meshAsset == nullptr || materialAsset == nullptr) {
                 continue;
             }
@@ -109,14 +109,8 @@ static Entity SpawnModelEntities(World&             world,
             auto& transform = mesh.AddComponent<TransformComponent>();
             transform.transform.SetMatrix(node.modelMatrix);
             auto& meshComponent = mesh.AddComponent<StaticMeshComponent>();
-            meshComponent.mesh = AssetHandle{
-                .id = primitive.mesh,
-                .asset = meshAsset,
-            };
-            meshComponent.material = AssetHandle{
-                .id = primitive.material,
-                .asset = materialAsset,
-            };
+            meshComponent.mesh = primitive.mesh;
+            meshComponent.material = primitive.material;
         }
     }
     return root;
@@ -143,8 +137,14 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     m_world.SetPrimaryCamera(cameraEntity);
 
     const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
-    if (const AssetHandle<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath)) {
-        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *simpleMeshes.asset, "SimpleMeshes");
+    const AssetId<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath);
+    if (simpleMeshes.IsValid()) {
+        const ModelAsset* model = m_assetServer.Get(simpleMeshes);
+        if (model == nullptr) {
+            std::cerr << "[LogicScene] Loaded model id was invalid for " << simpleMeshesPath.string() << std::endl;
+            return false;
+        }
+        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *model, "SimpleMeshes");
         auto& [rootTransform] = simpleMeshesRoot.GetComponent<TransformComponent>();
         rootTransform.SetTranslation(-1.5f, 0.0f, 0.0f);
     } else {
@@ -152,8 +152,14 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     }
 
     const auto& simpleTexturePath = AssetPaths::Resolve("gltf-test/SimpleTexture.gltf");
-    if (const AssetHandle<ModelAsset> simpleTexture = m_assetServer.LoadModel(simpleTexturePath)) {
-        Entity simpleTextureRoot = SpawnModelEntities(m_world, m_assetServer, *simpleTexture.asset, "SimpleTexture");
+    const AssetId<ModelAsset> simpleTexture = m_assetServer.LoadModel(simpleTexturePath);
+    if (simpleTexture.IsValid()) {
+        const ModelAsset* model = m_assetServer.Get(simpleTexture);
+        if (model == nullptr) {
+            std::cerr << "[LogicScene] Loaded model id was invalid for " << simpleTexturePath.string() << std::endl;
+            return false;
+        }
+        Entity simpleTextureRoot = SpawnModelEntities(m_world, m_assetServer, *model, "SimpleTexture");
         auto& [transform] = simpleTextureRoot.GetComponent<TransformComponent>();
         transform.SetTranslation(1.5f, 0.0f, 0.0f);
     } else {
@@ -234,10 +240,8 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
         const StaticMeshComponent& mesh = view.get<StaticMeshComponent>(entityHandle);
         renderScene.objects.push_back(RenderObject{
             .worldMatrix = m_world.WorldMatrixOf(Entity{entityHandle, const_cast<World*>(&m_world)}),
-            .meshId = mesh.mesh.id,
-            .materialId = mesh.material.id,
-            .mesh = mesh.mesh.asset,
-            .material = mesh.material.asset,
+            .meshId = mesh.mesh,
+            .materialId = mesh.material,
         });
     }
 

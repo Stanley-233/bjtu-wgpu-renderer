@@ -78,7 +78,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
 
     for (std::size_t i = 0; i < scene.objects.size(); ++i) {
         const RenderObject& object = scene.objects[i];
-        const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(ctx, object);
+        const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(ctx, scene.assetServer, object);
         const GpuResourceCache::GpuMaterialResources* materialResources =
             m_resourceCache.SyncMaterial(ctx, scene.assetServer, object);
         if (gpuMesh == nullptr || materialResources == nullptr) {

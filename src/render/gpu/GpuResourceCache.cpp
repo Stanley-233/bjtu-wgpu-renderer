@@ -16,8 +16,8 @@ std::size_t GpuResourceCache::CacheKeyHash::operator()(const CacheKey& key) cons
     return meshBits;
 }
 
-const GpuMesh* GpuResourceCache::SyncMesh(RenderContext& ctx, const RenderObject& object) {
-    const MeshAsset* const assetMesh = object.mesh;
+const GpuMesh* GpuResourceCache::SyncMesh(RenderContext& ctx, const AssetServer* assetServer, const RenderObject& object) {
+    const MeshAsset* const assetMesh = assetServer != nullptr ? assetServer->Get(object.meshId) : nullptr;
     const LegacyMeshData3D* const legacyMesh = object.legacyMesh;
     const bool hasAssetMesh = assetMesh != nullptr && !assetMesh->vertices.empty() && !assetMesh->indices.empty();
     const bool hasLegacyMesh = legacyMesh != nullptr && !legacyMesh->vertices.empty() && !legacyMesh->indices.empty();
@@ -43,7 +43,7 @@ const GpuMesh* GpuResourceCache::SyncMesh(RenderContext& ctx, const RenderObject
                              || mesh.sourceVertexCount != static_cast<uint32_t>(sourceVertexCount)
                              || mesh.sourceIndexCount != sourceIndexCount;
     if (needsUpload) {
-        GpuMesh uploaded = UploadMeshToGpu(ctx, object);
+        GpuMesh uploaded = UploadMeshToGpu(ctx, assetMesh, legacyMesh);
         if (!uploaded.vertexBuffer || !uploaded.indexBuffer || uploaded.indexCount == 0) {
             return nullptr;
         }
@@ -69,7 +69,8 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
         m_sampler = ctx.GetDevice()->createSampler(samplerDesc);
     }
 
-    if (object.material == nullptr || !object.materialId.IsValid()) {
+    const MaterialAsset* const material = assetServer != nullptr ? assetServer->Get(object.materialId) : nullptr;
+    if (material == nullptr || !object.materialId.IsValid()) {
         const GpuTexture2D* whiteTexture = GetOrCreateWhiteTexture(ctx);
         if (whiteTexture == nullptr) {
             return nullptr;
@@ -81,8 +82,8 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
     }
 
     const GpuTexture2D* baseColorTexture = nullptr;
-    if (object.material->baseColorTexture.IsValid()) {
-        baseColorTexture = SyncTexture(ctx, assetServer, object.material->baseColorTexture);
+    if (material->baseColorTexture.IsValid()) {
+        baseColorTexture = SyncTexture(ctx, assetServer, material->baseColorTexture);
     }
     if (baseColorTexture == nullptr) {
         baseColorTexture = GetOrCreateWhiteTexture(ctx);
@@ -94,7 +95,7 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
     auto [it, inserted] = m_materials.try_emplace(object.materialId);
     GpuMaterialResources& resources = it->second;
     const GpuMaterialResources::MaterialUniformData desiredUniform{
-        .baseColorFactor = object.material->baseColorFactor,
+        .baseColorFactor = material->baseColorFactor,
     };
     const bool uniformChanged = std::memcmp(
         &resources.uniformData,
@@ -102,7 +103,7 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
         sizeof(GpuMaterialResources::MaterialUniformData)) != 0;
     const bool needsRebuild = inserted || !resources.uniformBuffer || resources.textureView == nullptr || resources.sampler == nullptr || uniformChanged;
     if (needsRebuild) {
-        resources = BuildMaterialResources(ctx, *object.material, *baseColorTexture);
+        resources = BuildMaterialResources(ctx, *material, *baseColorTexture);
     }
     return &resources;
 }
@@ -116,9 +117,7 @@ void GpuResourceCache::Reset() {
     m_sampler = {};
 }
 
-GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& ctx, const RenderObject& object) {
-    const MeshAsset* const assetMesh = object.mesh;
-    const LegacyMeshData3D* const legacyMesh = object.legacyMesh;
+GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& ctx, const MeshAsset* assetMesh, const LegacyMeshData3D* legacyMesh) {
     const bool hasAssetMesh = assetMesh != nullptr && !assetMesh->vertices.empty() && !assetMesh->indices.empty();
     const bool hasLegacyMesh = legacyMesh != nullptr && !legacyMesh->vertices.empty() && !legacyMesh->indices.empty();
     if (!hasAssetMesh && !hasLegacyMesh) {
@@ -190,7 +189,7 @@ GpuResourceCache::GpuTexture2D GpuResourceCache::UploadTextureToGpu(RenderContex
     textureDesc.size.depthOrArrayLayers = 1;
     textureDesc.sampleCount = 1;
     textureDesc.mipLevelCount = 1;
-    textureDesc.format = image.format == ImageAssetFormat::Rgba8Unorm
+    textureDesc.format = image.format == EImageAssetFormat::Rgba8Unorm
                              ? wgpu::TextureFormat::RGBA8Unorm
                              : wgpu::TextureFormat::RGBA8UnormSrgb;
     textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
@@ -231,7 +230,7 @@ const GpuResourceCache::GpuTexture2D* GpuResourceCache::SyncTexture(
         return nullptr;
     }
 
-    const ImageAsset* image = assetServer->GetImage(imageId);
+    const ImageAsset* image = assetServer->Get(imageId);
     if (image == nullptr || image->width == 0 || image->height == 0 || image->pixels.empty()) {
         return nullptr;
     }
@@ -251,7 +250,7 @@ const GpuResourceCache::GpuTexture2D* GpuResourceCache::GetOrCreateWhiteTexture(
         ImageAsset whiteImage{};
         whiteImage.width = 1;
         whiteImage.height = 1;
-        whiteImage.format = ImageAssetFormat::Rgba8Srgb;
+        whiteImage.format = EImageAssetFormat::Rgba8Srgb;
         whiteImage.pixels = {255U, 255U, 255U, 255U};
         m_whiteTexture = UploadTextureToGpu(ctx, whiteImage);
     }

@@ -19,7 +19,7 @@ class RenderContext;
 
 class GpuResourceCache {
 public:
-    [[nodiscard]] const GpuMesh* SyncMesh(RenderContext& ctx, const RenderObject& object);
+    [[nodiscard]] const GpuMesh* SyncMesh(RenderContext& ctx, const AssetServer* assetServer, const RenderObject& object);
 
     struct GpuMaterialResources {
         struct alignas(16) MaterialUniformData {
@@ -63,7 +63,7 @@ private:
         }
     };
 
-    static GpuMesh UploadMeshToGpu(RenderContext& ctx, const RenderObject& object);
+    static GpuMesh UploadMeshToGpu(RenderContext& ctx, const MeshAsset* assetMesh, const LegacyMeshData3D* legacyMesh);
     static GpuTexture2D UploadTextureToGpu(RenderContext& ctx, const ImageAsset& image);
 
     [[nodiscard]] const GpuTexture2D* SyncTexture(

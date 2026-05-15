@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <vector>
 
-enum class ImageAssetFormat {
+enum class EImageAssetFormat {
     Rgba8Srgb,
     Rgba8Unorm,
 };
@@ -11,6 +11,6 @@ enum class ImageAssetFormat {
 struct ImageAsset {
     uint32_t                     width = 0;
     uint32_t                     height = 0;
-    ImageAssetFormat             format = ImageAssetFormat::Rgba8Srgb;
+    EImageAssetFormat             format = EImageAssetFormat::Rgba8Srgb;
     std::vector<std::uint8_t>    pixels;
 };

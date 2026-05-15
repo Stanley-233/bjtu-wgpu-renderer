@@ -9,11 +9,9 @@
 #include "resource/legacy/LegacyMeshData3D.h"
 
 struct RenderObject {
-    glm::mat4               worldMatrix{1.0f};
-    AssetId<MeshAsset>      meshId{};
-    AssetId<MaterialAsset>  materialId{};
-    const MeshAsset*        mesh = nullptr;
-    const MaterialAsset*    material = nullptr;
+    glm::mat4              worldMatrix{1.0f};
+    AssetId<MeshAsset>     meshId{};
+    AssetId<MaterialAsset> materialId{};
     const LegacyMeshData3D* legacyMesh = nullptr;
 };
 

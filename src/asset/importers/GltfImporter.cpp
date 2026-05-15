@@ -414,7 +414,7 @@ static void LoadNodeRecursive(
                         const tinygltf::Texture& texture = model.textures[static_cast<std::size_t>(textureIndex)];
                         if (texture.source >= 0 && static_cast<std::size_t>(texture.source) < model.images.size()) {
                             const tinygltf::Image& image = model.images[static_cast<std::size_t>(texture.source)];
-                            baseColorTexture = assetServer.CreateImage(DecodeImage(image)).id;
+                            baseColorTexture = assetServer.CreateImage(DecodeImage(image));
                         }
                     }
                 }
@@ -425,15 +425,15 @@ static void LoadNodeRecursive(
                 continue;
             }
 
-            const AssetHandle<MeshAsset> meshHandle = assetServer.CreateMesh(std::move(meshAsset));
+            const AssetId<MeshAsset> meshId = assetServer.CreateMesh(std::move(meshAsset));
             MaterialAsset materialAsset{};
             materialAsset.baseColorFactor = baseColorFactor;
             materialAsset.baseColorTexture = baseColorTexture;
-            const AssetHandle<MaterialAsset> materialHandle = assetServer.CreateMaterial(std::move(materialAsset));
+            const AssetId<MaterialAsset> materialId = assetServer.CreateMaterial(std::move(materialAsset));
 
             outNode.primitives.push_back(ModelPrimitiveAsset{
-                .mesh = meshHandle.id,
-                .material = materialHandle.id,
+                .mesh = meshId,
+                .material = materialId,
                 .primitiveIndex = static_cast<uint32_t>(primitiveIndex),
             });
         }
@@ -451,7 +451,7 @@ static void LoadNodeRecursive(
     }
 }
 
-bool GltfImporter::Import(const std::filesystem::path& path, AssetServer& assetServer, ModelAsset& outModel) const {
+bool GltfImporter::Import(const std::filesystem::path& path, AssetServer& assetServer, ModelAsset& outModel) {
     tinygltf::TinyGLTF loader{};
     tinygltf::Model model{};
     std::string warn{};
