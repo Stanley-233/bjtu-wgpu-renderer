@@ -23,6 +23,8 @@ public:
 
     void OnCameraMoveInputEvent(const CameraMoveInputEvent& event) const;
 
+    void OnCameraLookInputEvent(const CameraLookInputEvent& event) const;
+
 private:
     static const char* KeyName(int key);
 

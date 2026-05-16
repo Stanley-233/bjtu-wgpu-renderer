@@ -162,12 +162,11 @@ void Application::HandleKey(int key, int action, int mods) {
 }
 
 void Application::HandleMouseButton(const int button, const int action, const int mods) {
-    // TODO：后续在这里把 RMB 按下/释放接入 UE 风格漫游视角控制启停链路。
+    (void)mods;
     m_inputManager.EmitMouseButtonEvent(button, action, mods);
 }
 
 void Application::HandleCursorPos(const double xpos, const double ypos) {
-    // TODO：后续在 RMB 视角控制模式生效后，把鼠标移动转成相机视角输入。
     m_inputManager.EmitCursorPosEvent(xpos, ypos);
 }
 

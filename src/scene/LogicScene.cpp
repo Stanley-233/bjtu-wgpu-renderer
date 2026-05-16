@@ -211,13 +211,11 @@ const char* LogicScene::Name() const {
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().connect<&LogicScene::OnCameraLookInputEvent>(*this);
-    // TODO：后续接入鼠标视角事件分发后，在这里把 CameraLookInputEvent 转给当前相机控制器。
 }
 
 void LogicScene::UnregisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().disconnect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().disconnect<&LogicScene::OnCameraLookInputEvent>(*this);
-    // TODO：后续实现鼠标视角控制时，保持这里和 RegisterInputHandlers 中的订阅成对维护。
 }
 
 void LogicScene::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
@@ -227,8 +225,9 @@ void LogicScene::OnCameraMoveInputEvent(const CameraMoveInputEvent& event) {
 }
 
 void LogicScene::OnCameraLookInputEvent(const CameraLookInputEvent& event) {
-    (void)event;
-    // TODO：后续在这里把鼠标驱动的视角输入转发给相机控制器。
+    if (m_cameraController != nullptr) {
+        m_cameraController->OnLookInput(event);
+    }
 }
 
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {

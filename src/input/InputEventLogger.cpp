@@ -93,6 +93,16 @@ void InputEventLogger::OnCameraMoveInputEvent(const CameraMoveInputEvent& event)
               << ", up=" << event.up << std::endl;
 }
 
+void InputEventLogger::OnCameraLookInputEvent(const CameraLookInputEvent& event) const {
+    if (!m_enabled) {
+        return;
+    }
+    std::cout << "[InputManager][Dispatch] CameraLookInputEvent"
+              << " deltaYaw=" << event.deltaYaw
+              << ", deltaPitch=" << event.deltaPitch
+              << ", isLookModeActive=" << (event.isLookModeActive ? "true" : "false") << std::endl;
+}
+
 const char* InputEventLogger::KeyName(const int key) {
     switch (key) {
         case GLFW_KEY_1:
