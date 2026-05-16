@@ -5,6 +5,7 @@
 #include "InputEventBus.h"
 #include "InputState.h"
 #include "policies/AppHotkeyPolicy.h"
+#include "policies/CameraLookPolicy.h"
 #include "policies/CameraMovePolicy.h"
 #include "policies/Transform2DPolicy.h"
 #include "policies/Transform3DPolicy.h"
@@ -32,14 +33,12 @@ private:
     AppHotkeyPolicy    m_appHotkeyPolicy{};
     Transform2DPolicy  m_transform2DPolicy{};
     Transform3DPolicy  m_transform3DPolicy{};
+    CameraLookPolicy   m_cameraLookPolicy{};
     CameraMovePolicy   m_cameraMovePolicy{};
     InputEventBus*     m_eventBus = nullptr;
     InputEventLogger   m_eventLogger{};
     bool               m_debugEnabled = false;
     bool               m_debugSinkConnected = false;
-    bool               m_rmbPressed = false;
-    double             m_lastX = 0.0;
-    double             m_lastY = 0.0;
 };
 
 #endif // BJTU_WGPU_RENDERER_INPUTMANAGER_H

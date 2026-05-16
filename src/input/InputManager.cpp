@@ -106,30 +106,11 @@ void InputManager::EmitKeyEvent(const int key, const int action, const int mods)
 
 void InputManager::EmitMouseButtonEvent(const int button, const int action, const int mods) {
     (void)mods;
-    if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-        if (action == GLFW_PRESS) {
-            m_rmbPressed = true;
-        } else if (action == GLFW_RELEASE) {
-            m_rmbPressed = false;
-            if (m_eventBus == nullptr) return;
-            m_eventBus->Dispatcher().trigger<CameraLookInputEvent>(CameraLookInputEvent{0.0f, 0.0f, false});
-        }
-    }
+    if (m_eventBus == nullptr) return;
+    m_cameraLookPolicy.OnMouseButton(button, action, m_eventBus->Dispatcher());
 }
 
 void InputManager::EmitCursorPosEvent(const double xpos, const double ypos) {
-    // 首次调用时初始化鼠标位置，跳过第一帧跳变
-    if (m_lastX == 0.0 && m_lastY == 0.0) {
-        m_lastX = xpos;
-        m_lastY = ypos;
-        return;
-    }
-    if (m_rmbPressed) {
-        float deltaX = static_cast<float>(xpos - m_lastX);
-        float deltaY = static_cast<float>(m_lastY - ypos);
-        if (m_eventBus == nullptr) return;
-        m_eventBus->Dispatcher().trigger<CameraLookInputEvent>(CameraLookInputEvent{deltaX, deltaY, true});
-    }
-    m_lastX = xpos;
-    m_lastY = ypos;
+    if (m_eventBus == nullptr) return;
+    m_cameraLookPolicy.OnCursorPos(xpos, ypos, m_eventBus->Dispatcher());
 }
