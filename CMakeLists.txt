@@ -152,6 +152,9 @@ if (EMSCRIPTEN)
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
     target_link_options(bjtu_wgpu_renderer PRIVATE
             -sASYNCIFY
+            -sALLOW_MEMORY_GROWTH=1
+            -sINITIAL_MEMORY=134217728
+            -sMAXIMUM_MEMORY=1073741824
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shader@/shader"
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/config@/config"

@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <iostream>
 
-#include "asset/types/AssetVertex3D.h"
 #include "app/WindowContext.h"
 #include <glfw3webgpu.h>
 #include <magic_enum.hpp>
@@ -64,7 +63,8 @@ bool RenderContext::Initialize(WindowContext& windowContext) {
     GetSurfaceSize(framebufferWidth, framebufferHeight);
 
     if (m_surfaceFormat == TextureFormat::Undefined) {
-        std::cout << "[Initialize] Surface format not specified, trying to get the preferred format..." << std::endl;
+        std::cout << "[Initialize] Surface format not specified, trying to get the preferred format..." <<
+            std::endl;
         m_surfaceFormat = m_surface->getPreferredFormat(*adapter);
     }
     std::cout << "Surface format: " << magic_enum::enum_name<WGPUTextureFormat>(m_surfaceFormat) << std::endl;
@@ -88,9 +88,9 @@ void RenderContext::Shutdown() {
     m_surfaceWidth  = 0;
     m_surfaceHeight = 0;
     m_uncapturedErrorCallbackHandle.reset();
-    m_surface = {};
-    m_queue   = {};
-    m_device  = {};
+    m_surface       = {};
+    m_queue         = {};
+    m_device        = {};
     m_windowContext = nullptr;
 }
 
@@ -197,7 +197,7 @@ void RenderContext::Present(SurfaceFrame& surfaceFrame) {
 #endif
 
     surfaceFrame.surfaceTexture.texture = nullptr;
-    surfaceFrame.view = {};
+    surfaceFrame.view                   = {};
 }
 
 raii::Device& RenderContext::GetDevice() {
@@ -227,16 +227,16 @@ RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {
     RequiredLimits requiredLimits = Default;
     // Emscripten 不支持
     // requiredLimits.limits = supportedLimits.limits;
-    requiredLimits.limits.maxVertexAttributes        = 4;
-    requiredLimits.limits.maxVertexBuffers           = 1;
-    requiredLimits.limits.maxVertexBufferArrayStride = sizeof(AssetVertex3D);
-    requiredLimits.limits.maxBindGroups              = 2;
-    requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
-    requiredLimits.limits.maxUniformBufferBindingSize = 3 * 16 * sizeof(float);
-
-#ifndef __EMSCRIPTEN__
-    requiredLimits.limits.maxInterStageShaderComponents = 6;
-#endif
+    //     requiredLimits.limits.maxVertexAttributes             = 4;
+    //     requiredLimits.limits.maxVertexBuffers                = 1;
+    //     requiredLimits.limits.maxVertexBufferArrayStride      = sizeof(AssetVertex3D);
+    //     requiredLimits.limits.maxBindGroups                   = 2;
+    //     requiredLimits.limits.maxUniformBuffersPerShaderStage = 1;
+    //     requiredLimits.limits.maxUniformBufferBindingSize     = 3 * 16 * sizeof(float);
+    //
+    // #ifndef __EMSCRIPTEN__
+    //     requiredLimits.limits.maxInterStageShaderComponents = 6;
+    // #endif
 
     return requiredLimits;
 }
