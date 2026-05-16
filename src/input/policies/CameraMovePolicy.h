@@ -74,8 +74,8 @@ private:
         m_bindings.emplace(GLFW_KEY_S, CameraBinding{-1.0f, 0.0f, 0.0f});
         m_bindings.emplace(GLFW_KEY_A, CameraBinding{0.0f, -1.0f, 0.0f});
         m_bindings.emplace(GLFW_KEY_D, CameraBinding{0.0f, 1.0f, 0.0f});
-        m_bindings.emplace(GLFW_KEY_Q, CameraBinding{0.0f, 0.0f, 1.0f});
-        m_bindings.emplace(GLFW_KEY_E, CameraBinding{0.0f, 0.0f, -1.0f});
+        m_bindings.emplace(GLFW_KEY_Q, CameraBinding{0.0f, 0.0f, -1.0f});
+        m_bindings.emplace(GLFW_KEY_E, CameraBinding{0.0f, 0.0f, 1.0f});
     }
 
     std::unordered_map<int, CameraBinding> m_bindings{};

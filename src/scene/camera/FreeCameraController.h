@@ -14,10 +14,13 @@ public:
 private:
     static constexpr float kMoveSpeed = 2.5f;
 
-    // TODO：后续在这里缓存 yaw/pitch、鼠标灵敏度，以及 RMB 视角控制模式状态。
+    static constexpr float kLookSensitivity = 0.002f;
+
     float m_moveForward = 0.0f;
-    float m_moveRight = 0.0f;
-    float m_moveUp = 0.0f;
+    float m_moveRight  = 0.0f;
+    float m_moveUp     = 0.0f;
+    float m_yaw        = 0.0f;
+    float m_pitch      = 0.0f;
 };
 
 #endif // BJTU_WGPU_RENDERER_FREECAMERACONTROLLER_H

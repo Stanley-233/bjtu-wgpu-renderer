@@ -133,7 +133,7 @@ set_target_properties(bjtu_wgpu_renderer PROPERTIES
 )
 
 if (MSVC)
-    target_compile_options(bjtu_wgpu_renderer PRIVATE /W4)
+    target_compile_options(bjtu_wgpu_renderer PRIVATE /W4 /utf-8)
 else()
     target_compile_options(bjtu_wgpu_renderer PRIVATE -Wall -Wextra -pedantic)
     set_target_properties(bjtu_wgpu_renderer PROPERTIES COMPILE_WARNING_AS_ERROR ON)

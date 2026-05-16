@@ -1,5 +1,6 @@
 #include "FreeCameraController.h"
 
+#include <cmath>
 #include <glm/geometric.hpp>
 
 #include "scene/camera/Camera.h"
@@ -11,8 +12,10 @@ void FreeCameraController::OnMoveInput(const CameraMoveInputEvent& event) {
 }
 
 void FreeCameraController::OnLookInput(const CameraLookInputEvent& event) {
-    (void)event;
-    // TODO：后续在这里应用鼠标驱动的 yaw/pitch 更新。
+    m_yaw += event.deltaYaw * kLookSensitivity;
+    m_pitch += event.deltaPitch * kLookSensitivity;
+    if (m_pitch < -1.5f) m_pitch = -1.5f;
+    if (m_pitch > 1.5f) m_pitch = 1.5f;
 }
 
 void FreeCameraController::Update(const float dt, Camera& camera) {
@@ -30,6 +33,7 @@ void FreeCameraController::Update(const float dt, Camera& camera) {
         return;
     }
 
+    // 平移方向依赖当前朝向
     const glm::vec3 forward = forwardRaw / forwardLen;
     glm::vec3 rightRaw = glm::cross(forward, up);
     const float rightLen = glm::length(rightRaw);
@@ -39,15 +43,20 @@ void FreeCameraController::Update(const float dt, Camera& camera) {
     rightRaw /= rightLen;
 
     constexpr glm::vec3 worldUp{0.0f, 1.0f, 0.0f};
-    glm::vec3 moveDirection = forward * m_moveForward
-                              + rightRaw * m_moveRight
-                              + worldUp * m_moveUp;
+
+    // -- 平移 --
+    glm::vec3 newPos = position;
+    glm::vec3 moveDirection = forward * m_moveForward + rightRaw * m_moveRight + worldUp * m_moveUp;
     const float moveDirectionLen = glm::length(moveDirection);
-    if (moveDirectionLen <= kEpsilon) {
-        return;
+    if (moveDirectionLen > kEpsilon) {
+        newPos = position + (moveDirection / moveDirectionLen) * (kMoveSpeed * dt);
     }
 
-    moveDirection /= moveDirectionLen;
-    const glm::vec3 delta = moveDirection * (kMoveSpeed * dt);
-    camera.SetPose(position + delta, target + delta, up);
+    // -- 旋转 --
+    glm::vec3 lookDir;
+    lookDir.x = std::sin(m_yaw) * std::cos(m_pitch);
+    lookDir.y = std::sin(m_pitch);
+    lookDir.z = -std::cos(m_yaw) * std::cos(m_pitch);
+
+    camera.SetPose(newPos, newPos + lookDir * forwardLen, worldUp);
 }

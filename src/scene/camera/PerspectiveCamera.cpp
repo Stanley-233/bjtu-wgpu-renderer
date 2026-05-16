@@ -1,6 +1,7 @@
 #include "PerspectiveCamera.h"
 
 #include <cmath>
+#include <glm/ext/matrix_transform.hpp>
 
 void PerspectiveCamera::SetPerspective(const float fovYRadians, const float nearPlane, const float farPlane) {
     m_fovYRadians = fovYRadians;
@@ -9,16 +10,7 @@ void PerspectiveCamera::SetPerspective(const float fovYRadians, const float near
 }
 
 glm::mat4 PerspectiveCamera::View() const {
-    // 根据相机位置/目标/up 计算并返回透视相机 View 矩阵
-    const glm::vec3 f = glm::normalize(m_target - m_position);
-    const glm::vec3 s = glm::normalize(glm::cross(f, m_up));
-    const glm::vec3 u = glm::cross(s, f); 
-    return glm::mat4(
-        glm::vec4(s,0),
-        glm::vec4(u,0),
-        glm::vec4(-f,0),
-        glm::vec4(-glm::dot(s, m_position), -glm::dot(u, m_position), glm::dot(f, m_position), 1.0f)
-    );
+    return glm::lookAtRH(m_position, m_target, m_up);
 }
 
 glm::mat4 PerspectiveCamera::Projection(const float aspect) const {

@@ -37,6 +37,9 @@ private:
     InputEventLogger   m_eventLogger{};
     bool               m_debugEnabled = false;
     bool               m_debugSinkConnected = false;
+    bool               m_rmbPressed = false;
+    double             m_lastX = 0.0;
+    double             m_lastY = 0.0;
 };
 
 #endif // BJTU_WGPU_RENDERER_INPUTMANAGER_H

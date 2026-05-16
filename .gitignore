@@ -16,3 +16,6 @@ Makefile
 # Ignore IDE
 .idea/
 .vscode/
+
+# Ignore stray project artifacts
+data/
