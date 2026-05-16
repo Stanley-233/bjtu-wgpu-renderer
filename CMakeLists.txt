@@ -150,13 +150,32 @@ endif()
 if (EMSCRIPTEN)
     # Generate a full web page rather than a simple WebAssembly module
     set_target_properties(bjtu_wgpu_renderer PROPERTIES SUFFIX ".html")
+    set(WEB_SHELL_FILE
+            ${CMAKE_CURRENT_SOURCE_DIR}/web/shell.html
+    )
+    set(WEB_STYLE_FILE
+            ${CMAKE_CURRENT_SOURCE_DIR}/web/style.css
+    )
     target_link_options(bjtu_wgpu_renderer PRIVATE
             -sASYNCIFY
             -sALLOW_MEMORY_GROWTH=1
             -sINITIAL_MEMORY=134217728
             -sMAXIMUM_MEMORY=1073741824
+            "SHELL:--shell-file ${WEB_SHELL_FILE}"
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/assets@/assets"
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/shader@/shader"
             "SHELL:--preload-file ${CMAKE_CURRENT_SOURCE_DIR}/config@/config"
+    )
+
+    set_property(TARGET bjtu_wgpu_renderer APPEND PROPERTY
+            LINK_DEPENDS
+            ${WEB_SHELL_FILE}
+            ${WEB_STYLE_FILE}
+    )
+
+    add_custom_command(TARGET bjtu_wgpu_renderer POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${WEB_STYLE_FILE}
+            $<TARGET_FILE_DIR:bjtu_wgpu_renderer>/style.css
     )
 endif()
