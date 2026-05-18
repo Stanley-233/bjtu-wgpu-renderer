@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 
+#include <glm/geometric.hpp>
+
 #include "asset/AssetPaths.h"
 #include "asset/AssetId.h"
 #include "asset/types/MaterialAsset.h"
@@ -13,6 +15,7 @@
 #include "asset/types/ModelAsset.h"
 #include "Entity.h"
 #include "components/CameraComponent.h"
+#include "components/light/DirectionalLightComponent.h"
 #include "components/StaticMeshComponent.h"
 #include "components/TransformComponent.h"
 #include "input/InputEventBus.h"
@@ -71,6 +74,14 @@
 
 [[maybe_unused]] static MaterialAsset CreateDefaultMaterialAsset() {
     return MaterialAsset{};
+}
+
+glm::vec3 NormalizeDirectionOrDefault(const glm::vec3& direction) {
+    constexpr float kMinDirectionLength = 1.0e-4f;
+    if (glm::length(direction) < kMinDirectionLength) {
+        return {0.0f, -1.0f, 0.0f};
+    }
+    return glm::normalize(direction);
 }
 
 Entity FindPrimaryCamera(World& world) {
@@ -136,6 +147,14 @@ bool LogicScene::Initialize(RenderContext& ctx) {
         glm::vec3{0.0f, 1.0f, 0.0f});
     m_world.SetPrimaryCamera(cameraEntity);
 
+    // 注册平行光
+    Entity directionalLightEntity = m_world.CreateEntity("Main Directional Light");
+    auto&  directionalLight       = directionalLightEntity.AddComponent<DirectionalLightComponent>();
+    directionalLight.direction    = NormalizeDirectionOrDefault(glm::vec3{-0.35f, -1.0f, -0.25f});
+    directionalLight.intensity    = 1.0f;
+    directionalLight.color        = glm::vec3{1.0f, 1.0f, 1.0f};
+    m_world.SetDirectionalLight(directionalLightEntity);
+
     /*
     const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
     const AssetId<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath);
@@ -153,6 +172,7 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     }
     */
 
+    // 小庄模型（二次元渲染最好用Unlit）
     const auto& arkZfyPath= AssetPaths::Resolve("arknights/zhuang_fangyi__arknights_endfield.glb");
     const AssetId<ModelAsset> arkZfy = m_assetServer.LoadModel(arkZfyPath);
     if (arkZfy.IsValid()) {
@@ -268,6 +288,19 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
 }
 
 RenderLightSet LogicScene::BuildRenderLightSet() const {
-    // TODO: 从 World 收集 Directional/Point/Spot Light 渲染快照
-    return {};
+    RenderLightSet lightSet{};
+    const Entity   directionalLightEntity = m_world.DirectionalLight();
+    if (!directionalLightEntity || !directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
+        return lightSet;
+    }
+    const auto&     directionalLight    = directionalLightEntity.GetComponent<DirectionalLightComponent>();
+    const glm::vec3 direction           = NormalizeDirectionOrDefault(directionalLight.direction);
+    lightSet.directionalLight.direction = glm::vec4{direction, 0.0f};
+    lightSet.directionalLight.color     = glm::vec4{
+        directionalLight.color * directionalLight.intensity,
+        1.0f,
+    };
+    lightSet.directionalLightCount = 1;
+    // TODO: 从 World 收集 Point/Spot Light
+    return lightSet;
 }

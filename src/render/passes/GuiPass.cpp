@@ -3,7 +3,8 @@
 #include "render/frame/RenderFrame.h"
 #include "render/legacy/LegacyGuiRenderer.h"
 
-void GuiPass::Render(RenderFrame& frame, const PassContext& context) {
+void GuiPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) {
+    (void)ctx;
     if (!frame.surfaceFrame.view || !frame.encoder || context.guiRenderer == nullptr) {
         return;
     }

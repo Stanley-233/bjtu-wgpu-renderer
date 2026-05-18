@@ -11,7 +11,6 @@ struct SpotLightComponent {
     float     range = 10.0f;
     float     innerConeAngle = 0.25f;
     float     outerConeAngle = 0.5f;
-    glm::vec2 reserved{0.0f, 0.0f};
 };
 
 #endif // BJTU_WGPU_RENDERER_SPOTLIGHTCOMPONENT_H

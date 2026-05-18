@@ -5,7 +5,7 @@
 
 class GuiPass final : public IRenderPass {
 public:
-    void Render(RenderFrame& frame, const PassContext& context) override;
+    void Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) override;
 };
 
 #endif // BJTU_WGPU_RENDERER_GUIPASS_H

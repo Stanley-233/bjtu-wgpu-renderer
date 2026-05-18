@@ -7,25 +7,6 @@
 #include "RenderContext.h"
 
 namespace {
-SceneUniformData BuildSceneUniformData(const RenderScene& scene) {
-    SceneUniformData uniformData{};
-    if (scene.camera.has_value()) {
-        uniformData.view = scene.camera->view;
-        uniformData.projection = scene.camera->projection;
-        uniformData.cameraPosition = glm::vec4{scene.camera->position, 1.0f};
-    }
-    uniformData.lightCounts = glm::uvec4{
-        scene.lights.directionalLightCount,
-        scene.lights.pointLightCount,
-        scene.lights.spotLightCount,
-        0U,
-    };
-    uniformData.directionalLight = scene.lights.directionalLight;
-    uniformData.pointLights = scene.lights.pointLights;
-    uniformData.spotLights = scene.lights.spotLights;
-    return uniformData;
-}
-
 ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
     return ObjectUniformData{
         .model = worldMatrix,
@@ -81,63 +62,13 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
     return frame;
 }
 
-void Renderer::EnsureSceneResources(RenderContext& ctx) {
-    if (!m_sceneResources.uniformBuffer) {
-        wgpu::BufferDescriptor uniformBufferDesc{};
-        uniformBufferDesc.size = sizeof(SceneUniformData);
-        uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-        uniformBufferDesc.mappedAtCreation = false;
-        m_sceneResources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
-    }
-}
-
-void Renderer::EnsureObjectResources(RenderContext& ctx, const std::size_t objectCount) {
-    if (m_objectResources.size() < objectCount) {
-        m_objectResources.resize(objectCount);
-    }
-
-    for (std::size_t i = 0; i < objectCount; ++i) {
-        ObjectResources& resources = m_objectResources[i];
-        if (!resources.uniformBuffer) {
-            wgpu::BufferDescriptor uniformBufferDesc{};
-            uniformBufferDesc.size = sizeof(ObjectUniformData);
-            uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
-            uniformBufferDesc.mappedAtCreation = false;
-            resources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
-        }
-    }
-}
-
-void Renderer::BuildSceneResources(RenderContext& ctx, const RenderScene& scene) {
-    EnsureSceneResources(ctx);
-    if (!m_sceneResources.uniformBuffer || !m_forwardPass.GetSceneBindGroupLayout()) {
-        return;
-    }
-
-    const SceneUniformData uniformData = BuildSceneUniformData(scene);
-    ctx.GetQueue()->writeBuffer(*m_sceneResources.uniformBuffer, 0, &uniformData, sizeof(SceneUniformData));
-
-    wgpu::BindGroupEntry binding{};
-    binding.binding = 0;
-    binding.buffer = *m_sceneResources.uniformBuffer;
-    binding.offset = 0;
-    binding.size = sizeof(SceneUniformData);
-
-    wgpu::BindGroupDescriptor bindGroupDesc{};
-    bindGroupDesc.layout = *m_forwardPass.GetSceneBindGroupLayout();
-    bindGroupDesc.entryCount = 1;
-    bindGroupDesc.entries = &binding;
-    m_sceneResources.sceneBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
-}
-
 void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& scene) {
-    EnsureObjectResources(ctx, scene.objects.size());
-
     m_preparedDrawItems.clear();
+    m_drawItemResources.clear();
     m_preparedDrawItems.reserve(scene.objects.size());
+    m_drawItemResources.reserve(scene.objects.size());
 
-    for (std::size_t i = 0; i < scene.objects.size(); ++i) {
-        const RenderObject& object = scene.objects[i];
+    for (const RenderObject& object : scene.objects) {
         const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(ctx, scene.assetServer, object);
         const GpuResourceCache::GpuMaterialResources* materialResources =
             m_resourceCache.SyncMaterial(ctx, scene.assetServer, object);
@@ -145,27 +76,9 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
             continue;
         }
 
-        ObjectResources& resources = m_objectResources[i];
-        if (!resources.uniformBuffer
-            || !m_forwardPass.GetObjectBindGroupLayout()
-            || !m_forwardPass.GetMaterialBindGroupLayout()) {
+        if (!m_forwardPass.GetMaterialBindGroupLayout()) {
             continue;
         }
-
-        const ObjectUniformData objectUniformData = BuildObjectUniformData(object.worldMatrix);
-        ctx.GetQueue()->writeBuffer(*resources.uniformBuffer, 0, &objectUniformData, sizeof(ObjectUniformData));
-
-        wgpu::BindGroupEntry objectBinding{};
-        objectBinding.binding = 0;
-        objectBinding.buffer = *resources.uniformBuffer;
-        objectBinding.offset = 0;
-        objectBinding.size = sizeof(ObjectUniformData);
-
-        wgpu::BindGroupDescriptor objectBindGroupDesc{};
-        objectBindGroupDesc.layout = *m_forwardPass.GetObjectBindGroupLayout();
-        objectBindGroupDesc.entryCount = 1;
-        objectBindGroupDesc.entries = &objectBinding;
-        resources.objectBindGroup = ctx.GetDevice()->createBindGroup(objectBindGroupDesc);
 
         wgpu::BindGroupEntry materialBindings[3]{};
         materialBindings[0].binding = 0;
@@ -181,14 +94,17 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
         materialBindGroupDesc.layout = *m_forwardPass.GetMaterialBindGroupLayout();
         materialBindGroupDesc.entryCount = 3;
         materialBindGroupDesc.entries = materialBindings;
-        resources.materialBindGroup = ctx.GetDevice()->createBindGroup(materialBindGroupDesc);
+        m_drawItemResources.push_back(DrawItemResources{
+            .materialBindGroup = ctx.GetDevice()->createBindGroup(materialBindGroupDesc),
+        });
+        const DrawItemResources& resources = m_drawItemResources.back();
 
         m_preparedDrawItems.push_back(PreparedDrawItem{
             .shadingModel = static_cast<EMaterialShadingModel>(materialResources->uniformData.surfaceOptions.x),
             .model = object.worldMatrix,
+            .objectUniformData = BuildObjectUniformData(object.worldMatrix),
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
-            .objectBindGroup = resources.objectBindGroup ? *resources.objectBindGroup : nullptr,
             .materialBindGroup = resources.materialBindGroup ? *resources.materialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
@@ -203,19 +119,17 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         return;
     }
 
-    BuildSceneResources(ctx, scene);
     BuildPreparedDrawItems(ctx, scene);
 
     const PassContext passContext{
         .camera = scene.camera,
         .lights = scene.lights,
         .drawItems = m_preparedDrawItems,
-        .sceneBindGroup = m_sceneResources.sceneBindGroup ? *m_sceneResources.sceneBindGroup : nullptr,
         .guiRenderer = &guiRenderer,
         .queue = &*ctx.GetQueue(),
     };
-    m_forwardPass.Render(frame, passContext);
-    m_guiPass.Render(frame, passContext);
+    m_forwardPass.Render(ctx, frame, passContext);
+    m_guiPass.Render(ctx, frame, passContext);
     ctx.Submit(frame.encoder);
     ctx.Present(frame.surfaceFrame);
 }
