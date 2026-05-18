@@ -32,6 +32,8 @@ public:
 private:
     RenderScene BuildRenderScene(const RenderContext& ctx) const;
 
+    RenderLightSet BuildRenderLightSet() const;
+
     World                             m_world{};
     AssetServer                       m_assetServer{};
     Renderer                          m_renderer{};

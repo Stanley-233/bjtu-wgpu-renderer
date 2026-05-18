@@ -41,6 +41,10 @@ public:
 
     [[nodiscard]] Entity PrimaryCamera() const;
 
+    void SetDirectionalLight(Entity entity);
+
+    [[nodiscard]] Entity DirectionalLight() const;
+
     static void Update(float dt);
 
     [[nodiscard]] glm::mat4 WorldMatrixOf(Entity entity) const;
@@ -50,6 +54,7 @@ private:
 
     entt::registry m_registry{};
     entt::entity   m_primaryCamera = entt::null;
+    entt::entity   m_directionalLight = entt::null;
 };
 
 #endif // BJTU_WGPU_RENDERER_WORLD_H

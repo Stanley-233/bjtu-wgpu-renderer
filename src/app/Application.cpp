@@ -5,7 +5,6 @@
 
 #include "scene/LogicScene.h"
 #include "scene/legacy/Scene2D.h"
-#include "scene/legacy/LegacyScene3D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
     m_windowWidth  = width;
@@ -67,9 +66,6 @@ bool Application::Initialize() {
 
     m_sceneManager.RegisterScene(ESceneType::Scene2D, [] {
         return std::make_unique<Scene2D>();
-    });
-    m_sceneManager.RegisterScene(ESceneType::LegacyScene3D, [] {
-        return std::make_unique<LegacyScene3D>();
     });
     m_sceneManager.RegisterScene(ESceneType::LogicScene, [] {
         return std::make_unique<LogicScene>();

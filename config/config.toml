@@ -1,5 +1,5 @@
 [Debug]
-input = true
+input = false
 application = false
 [window]
 width = 1280

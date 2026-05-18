@@ -9,6 +9,20 @@
 #include "asset/types/AssetVertex3D.h"
 #include "render/RenderContext.h"
 
+namespace {
+MaterialUniformData BuildMaterialUniformData(const MaterialAsset& material) {
+    return MaterialUniformData{
+        .baseColorFactor = material.baseColorFactor,
+        .surfaceOptions = glm::uvec4{
+            static_cast<uint32_t>(material.shadingModel),
+            material.useVertexColor ? 1U : 0U,
+            0U,
+            0U,
+        },
+    };
+}
+} // namespace
+
 std::size_t GpuResourceCache::CacheKeyHash::operator()(const CacheKey& key) const {
     const auto meshBits = key.meshId.IsValid()
                               ? static_cast<std::uintptr_t>(key.meshId.value)
@@ -94,13 +108,11 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
 
     auto [it, inserted] = m_materials.try_emplace(object.materialId);
     GpuMaterialResources& resources = it->second;
-    const GpuMaterialResources::MaterialUniformData desiredUniform{
-        .baseColorFactor = material->baseColorFactor,
-    };
+    const MaterialUniformData desiredUniform = BuildMaterialUniformData(*material);
     const bool uniformChanged = std::memcmp(
         &resources.uniformData,
         &desiredUniform,
-        sizeof(GpuMaterialResources::MaterialUniformData)) != 0;
+        sizeof(MaterialUniformData)) != 0;
     const bool needsRebuild = inserted || !resources.uniformBuffer || resources.textureView == nullptr || resources.sampler == nullptr || uniformChanged;
     if (needsRebuild) {
         resources = BuildMaterialResources(ctx, *material, *baseColorTexture);
@@ -265,12 +277,10 @@ GpuResourceCache::GpuMaterialResources GpuResourceCache::BuildMaterialResources(
     const MaterialAsset& material,
     const GpuTexture2D& baseColorTexture) const {
     GpuMaterialResources resources{};
-    resources.uniformData = GpuMaterialResources::MaterialUniformData{
-        .baseColorFactor = material.baseColorFactor,
-    };
+    resources.uniformData = BuildMaterialUniformData(material);
 
     wgpu::BufferDescriptor uniformBufferDesc{};
-    uniformBufferDesc.size = sizeof(GpuMaterialResources::MaterialUniformData);
+    uniformBufferDesc.size = sizeof(MaterialUniformData);
     uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
     uniformBufferDesc.mappedAtCreation = false;
     resources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
@@ -278,7 +288,7 @@ GpuResourceCache::GpuMaterialResources GpuResourceCache::BuildMaterialResources(
         *resources.uniformBuffer,
         0,
         &resources.uniformData,
-        sizeof(GpuMaterialResources::MaterialUniformData));
+        sizeof(MaterialUniformData));
     resources.textureView = *baseColorTexture.view;
     resources.sampler = *m_sampler;
     return resources;

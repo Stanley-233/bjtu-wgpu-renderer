@@ -28,11 +28,6 @@ public:
             return true;
         }
         if (key == GLFW_KEY_2) {
-            dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LegacyScene3D});
-            handledPress = true;
-            return true;
-        }
-        if (key == GLFW_KEY_3) {
             dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LogicScene});
             handledPress = true;
             return true;
@@ -46,7 +41,7 @@ public:
     }
 
     [[nodiscard]] bool HandlesKey(const int key) const override {
-        return key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_3 || key == GLFW_KEY_C;
+        return key == GLFW_KEY_1 || key == GLFW_KEY_2 || key == GLFW_KEY_C;
     }
 };
 

@@ -233,6 +233,7 @@ void LogicScene::OnCameraLookInputEvent(const CameraLookInputEvent& event) {
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     RenderScene renderScene{};
     renderScene.assetServer = &m_assetServer;
+    renderScene.lights = BuildRenderLightSet();
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;
@@ -247,6 +248,7 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
             renderScene.camera = RenderCamera{
                 .view = cameraComponent.camera->View(),
                 .projection = cameraComponent.camera->Projection(aspect),
+                .position = cameraComponent.camera->Position(),
             };
         }
     }
@@ -263,4 +265,9 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     }
 
     return renderScene;
+}
+
+RenderLightSet LogicScene::BuildRenderLightSet() const {
+    // TODO: 从 World 收集 Directional/Point/Spot Light 渲染快照
+    return {};
 }

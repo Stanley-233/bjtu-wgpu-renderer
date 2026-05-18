@@ -47,6 +47,8 @@ struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) uv0: vec2f,
     @location(1) color: vec4f,
+    @location(2) worldPos: vec3f,
+    @location(3) normalWS: vec3f,
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
@@ -58,17 +60,23 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = uScene.projection * uScene.view * uObject.model * vec4f(in.position, 1.0);
+    let worldPosition = uObject.model * vec4f(in.position, 1.0);
+    out.position = uScene.projection * uScene.view * worldPosition;
     out.uv0 = in.uv0;
     out.color = in.color;
+    out.worldPos = worldPosition.xyz;
+    out.normalWS = normalize((uObject.normalMatrix * vec4f(in.normal, 0.0)).xyz);
     return out;
 }
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    var surfaceColor = textureSample(uBaseColorTexture, uBaseColorSampler, in.uv0) * uMaterial.baseColorFactor;
+    let sampled = textureSample(uBaseColorTexture, uBaseColorSampler, in.uv0);
+    var baseColor = sampled * uMaterial.baseColorFactor;
     if (uMaterial.surfaceOptions.y != 0u) {
-        surfaceColor *= in.color;
+        baseColor *= in.color;
     }
-    return surfaceColor;
+    // TODO: 在这里接入 Lambert 光照累加
+    // https://zhuanlan.zhihu.com/p/26829902532
+    return baseColor;
 }

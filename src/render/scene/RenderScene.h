@@ -6,10 +6,12 @@
 
 #include "asset/AssetServer.h"
 #include "RenderCamera.h"
+#include "RenderLightSet.h"
 #include "RenderObject.h"
 
 struct RenderScene {
     std::optional<RenderCamera> camera{};
+    RenderLightSet              lights{};
     const AssetServer*          assetServer = nullptr;
     std::vector<RenderObject>   objects{};
 };

@@ -1,9 +1,9 @@
 #include "Scene3DPipelineFactory.h"
 
+#include <array>
 #include <cstddef>
 #include <filesystem>
 #include <iostream>
-#include <vector>
 
 #include "asset/ShaderPaths.h"
 #include "asset/types/AssetVertex3D.h"
@@ -45,7 +45,6 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
     RenderContext&                ctx,
     const std::filesystem::path&  shaderPath,
     const char*                   label,
-    const bool                    usesMaterialGroup,
     const bool                    hasFragmentStage,
     const WGPUPrimitiveTopology   topology,
     const WGPUCullMode            cullMode,
@@ -63,9 +62,9 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
 
     wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
 
-    RenderPipelineDescriptor     pipelineDesc{};
+    RenderPipelineDescriptor      pipelineDesc{};
     pipelineDesc.label = label;
-    std::vector<VertexAttribute> vertexAttribs(4);
+    std::array<VertexAttribute, 4> vertexAttribs{};
     vertexAttribs[0].shaderLocation = 0;
     vertexAttribs[0].format         = VertexFormat::Float32x3;
     vertexAttribs[0].offset         = offsetof(AssetVertex3D, position);
@@ -140,47 +139,56 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
     pipelineDesc.multisample.mask                   = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
-    std::vector<BindGroupLayoutEntry> bindGroupBindings{};
-    bindGroupBindings.reserve(4);
+    Scene3DPipelineFactory::Pipeline result;
+    {
+        BindGroupLayoutEntry sceneBinding{};
+        sceneBinding.binding = 0;
+        sceneBinding.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+        sceneBinding.buffer.type = BufferBindingType::Uniform;
 
-    BindGroupLayoutEntry objectBindingLayout = Default;
-    objectBindingLayout.binding = 0;
-    objectBindingLayout.visibility = ShaderStage::Vertex;
-    objectBindingLayout.buffer.type = BufferBindingType::Uniform;
-    bindGroupBindings.push_back(objectBindingLayout);
+        BindGroupLayoutDescriptor sceneBindGroupLayoutDesc{};
+        sceneBindGroupLayoutDesc.label = "Scene3D/SceneBindGroupLayout";
+        sceneBindGroupLayoutDesc.entryCount = 1;
+        sceneBindGroupLayoutDesc.entries = &sceneBinding;
+        result.sceneBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(sceneBindGroupLayoutDesc);
+    }
+    {
+        BindGroupLayoutEntry objectBinding{};
+        objectBinding.binding = 0;
+        objectBinding.visibility = ShaderStage::Vertex;
+        objectBinding.buffer.type = BufferBindingType::Uniform;
 
-    if (usesMaterialGroup) {
-        BindGroupLayoutEntry materialUniformBinding = Default;
-        materialUniformBinding.binding = 1;
-        materialUniformBinding.visibility = ShaderStage::Fragment;
-        materialUniformBinding.buffer.type = BufferBindingType::Uniform;
-        bindGroupBindings.push_back(materialUniformBinding);
+        BindGroupLayoutDescriptor objectBindGroupLayoutDesc{};
+        objectBindGroupLayoutDesc.label = "Scene3D/ObjectBindGroupLayout";
+        objectBindGroupLayoutDesc.entryCount = 1;
+        objectBindGroupLayoutDesc.entries = &objectBinding;
+        result.objectBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(objectBindGroupLayoutDesc);
+    }
+    {
+        std::array<BindGroupLayoutEntry, 3> materialBindings{};
+        materialBindings[0].binding = 0;
+        materialBindings[0].visibility = ShaderStage::Fragment;
+        materialBindings[0].buffer.type = BufferBindingType::Uniform;
+        materialBindings[1].binding = 1;
+        materialBindings[1].visibility = ShaderStage::Fragment;
+        materialBindings[1].texture.sampleType = TextureSampleType::Float;
+        materialBindings[1].texture.viewDimension = TextureViewDimension::_2D;
+        materialBindings[2].binding = 2;
+        materialBindings[2].visibility = ShaderStage::Fragment;
+        materialBindings[2].sampler.type = SamplerBindingType::Filtering;
 
-        BindGroupLayoutEntry textureBinding = Default;
-        textureBinding.binding = 2;
-        textureBinding.visibility = ShaderStage::Fragment;
-        textureBinding.texture.sampleType = TextureSampleType::Float;
-        textureBinding.texture.viewDimension = TextureViewDimension::_2D;
-        bindGroupBindings.push_back(textureBinding);
-
-        BindGroupLayoutEntry samplerBinding = Default;
-        samplerBinding.binding = 3;
-        samplerBinding.visibility = ShaderStage::Fragment;
-        samplerBinding.sampler.type = SamplerBindingType::Filtering;
-        bindGroupBindings.push_back(samplerBinding);
+        BindGroupLayoutDescriptor materialBindGroupLayoutDesc{};
+        materialBindGroupLayoutDesc.label = "Scene3D/MaterialBindGroupLayout";
+        materialBindGroupLayoutDesc.entryCount = static_cast<uint32_t>(materialBindings.size());
+        materialBindGroupLayoutDesc.entries = materialBindings.data();
+        result.materialBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(materialBindGroupLayoutDesc);
     }
 
-    BindGroupLayoutDescriptor objectBindGroupLayoutDesc{};
-    objectBindGroupLayoutDesc.label = "Scene3D/ObjectBindGroupLayout";
-    objectBindGroupLayoutDesc.entryCount = static_cast<uint32_t>(bindGroupBindings.size());
-    objectBindGroupLayoutDesc.entries = bindGroupBindings.data();
-
-    Scene3DPipelineFactory::Pipeline result;
-    result.objectBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(objectBindGroupLayoutDesc);
-
-    std::vector<WGPUBindGroupLayout> bindGroupLayouts;
-    bindGroupLayouts.reserve(1);
-    bindGroupLayouts.push_back(*result.objectBindGroupLayout);
+    std::array<WGPUBindGroupLayout, 3> bindGroupLayouts{
+        *result.sceneBindGroupLayout,
+        *result.objectBindGroupLayout,
+        *result.materialBindGroupLayout,
+    };
 
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.label = "Scene3D/PipelineLayout";
@@ -196,16 +204,21 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
     return result;
 }
 
-Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateForwardPipeline(RenderContext& ctx) {
+Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& ctx) {
     return CreatePipeline(
         ctx,
         ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
-        "Scene3DPipelineFactory/Forward",
-        true,
+        "Scene3DPipelineFactory/ForwardUnlit",
         true,
         PrimitiveTopology::TriangleList,
         CullMode::None,
         true,
         CompareFunction::Less,
         ColorWriteMask::All);
+}
+
+Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& ctx) {
+    (void)ctx;
+    // TODO: 接入 Lambert 前向渲染管线创建
+    return {};
 }

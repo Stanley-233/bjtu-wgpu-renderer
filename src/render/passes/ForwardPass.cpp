@@ -3,21 +3,13 @@
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
-namespace {
-constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
-
-struct SceneUniform {
-    glm::mat4 model{1.0f};
-    glm::mat4 view{1.0f};
-    glm::mat4 projection{1.0f};
-};
-}
-
 void ForwardPass::Initialize(RenderContext& ctx) {
-    auto pipeline = Scene3DPipelineFactory::CreateForwardPipeline(ctx);
-    m_bindGroupLayout = std::move(pipeline.objectBindGroupLayout);
+    auto pipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx);
+    m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
+    m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
+    m_materialBindGroupLayout = std::move(pipeline.materialBindGroupLayout);
     m_layout = std::move(pipeline.layout);
-    m_pipeline = std::move(pipeline.pipeline);
+    m_unlitPipeline = std::move(pipeline.pipeline);
 }
 
 void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
@@ -54,24 +46,22 @@ void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
     }
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    if (m_pipeline && context.camera.has_value() && context.queue != nullptr) {
-        renderPass->setPipeline(*m_pipeline);
+    if (context.sceneBindGroup != nullptr) {
+        renderPass->setBindGroup(0, context.sceneBindGroup, 0, nullptr);
         for (const PreparedDrawItem& drawItem : context.drawItems) {
-            if (drawItem.forwardBindGroup == nullptr
-                || drawItem.uniformBuffer == nullptr
+            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel);
+            if (pipeline == nullptr
+                || drawItem.objectBindGroup == nullptr
+                || drawItem.materialBindGroup == nullptr
                 || drawItem.vertexBuffer == nullptr
                 || drawItem.indexBuffer == nullptr
                 || drawItem.indexCount == 0) {
                 continue;
             }
 
-            const SceneUniform uniform{
-                .model = drawItem.model,
-                .view = context.camera->view,
-                .projection = context.camera->projection,
-            };
-            context.queue->writeBuffer(drawItem.uniformBuffer, 0, &uniform, kSceneUniformSize);
-            renderPass->setBindGroup(0, drawItem.forwardBindGroup, 0, nullptr);
+            renderPass->setPipeline(pipeline);
+            renderPass->setBindGroup(1, drawItem.objectBindGroup, 0, nullptr);
+            renderPass->setBindGroup(2, drawItem.materialBindGroup, 0, nullptr);
             renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
             renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
             renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
@@ -80,6 +70,25 @@ void ForwardPass::Render(RenderFrame& frame, const PassContext& context) {
     renderPass->end();
 }
 
-const wgpu::raii::BindGroupLayout& ForwardPass::GetBindGroupLayout() const {
-    return m_bindGroupLayout;
+const wgpu::raii::BindGroupLayout& ForwardPass::GetSceneBindGroupLayout() const {
+    return m_sceneBindGroupLayout;
+}
+
+const wgpu::raii::BindGroupLayout& ForwardPass::GetObjectBindGroupLayout() const {
+    return m_objectBindGroupLayout;
+}
+
+const wgpu::raii::BindGroupLayout& ForwardPass::GetMaterialBindGroupLayout() const {
+    return m_materialBindGroupLayout;
+}
+
+wgpu::RenderPipeline ForwardPass::SelectPipeline(const EMaterialShadingModel shadingModel) const {
+    switch (shadingModel) {
+    case EMaterialShadingModel::Unlit:
+        return m_unlitPipeline ? *m_unlitPipeline : nullptr;
+    case EMaterialShadingModel::Lambert:
+        // TODO: 接入 Lambert 前向渲染管线选择
+        return nullptr;
+    }
+    return nullptr;
 }

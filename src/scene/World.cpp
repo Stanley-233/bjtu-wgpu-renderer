@@ -33,6 +33,9 @@ void World::DestroyEntityRecursive(const entt::entity entity) {
     if (entity == m_primaryCamera) {
         m_primaryCamera = entt::null;
     }
+    if (entity == m_directionalLight) {
+        m_directionalLight = entt::null;
+    }
     // 先复制 children，避免递归 destroy 时修改 vector 导致迭代器失效
     std::vector<entt::entity> childrenToDestroy;
     if (m_registry.all_of<ChildrenComponent>(entity)) {
@@ -149,6 +152,19 @@ Entity World::PrimaryCamera() const {
         return {};
     }
     return {m_primaryCamera, const_cast<World*>(this)};
+}
+
+void World::SetDirectionalLight(const Entity entity) {
+    // TODO: 后续在这里补唯一方向光的注册与校验逻辑
+    m_directionalLight = entity.IsValid() ? entity.Handle() : entt::null;
+}
+
+Entity World::DirectionalLight() const {
+    // TODO: 后续在这里补唯一方向光缺省发现逻辑
+    if (m_directionalLight == entt::null || !m_registry.valid(m_directionalLight)) {
+        return {};
+    }
+    return {m_directionalLight, const_cast<World*>(this)};
 }
 
 void World::Update(const float dt) {

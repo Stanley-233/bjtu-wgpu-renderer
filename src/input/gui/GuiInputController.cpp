@@ -29,10 +29,6 @@ void GuiInputController::BuildUi(const char* activeSceneName) {
             m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene2D});
         }
         ImGui::SameLine();
-        if (ImGui::Button("Switch LegacyScene3D")) {
-            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LegacyScene3D});
-        }
-        ImGui::SameLine();
         if (ImGui::Button("Switch LogicScene")) {
             m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LogicScene});
         }

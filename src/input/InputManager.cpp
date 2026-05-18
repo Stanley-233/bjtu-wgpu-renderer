@@ -99,7 +99,6 @@ void InputManager::EmitKeyEvent(const int key, const int action, const int mods)
         && !m_transform2DPolicy.HandlesKey(key)
         && !m_transform3DPolicy.HandlesKey(key)
         && !ShouldSuppressNoBindingLog(key)) {
-        // TODO：后续鼠标视角绑定应使用独立的鼠标诊断日志，而不是复用这里的键盘兜底日志。
         m_eventLogger.LogNoBinding(key);
     }
 }

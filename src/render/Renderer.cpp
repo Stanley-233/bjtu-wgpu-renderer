@@ -2,9 +2,37 @@
 
 #include <algorithm>
 
+#include <glm/matrix.hpp>
+
 #include "RenderContext.h"
 
-constexpr std::size_t kSceneUniformSize = sizeof(glm::mat4) * 3;
+namespace {
+SceneUniformData BuildSceneUniformData(const RenderScene& scene) {
+    SceneUniformData uniformData{};
+    if (scene.camera.has_value()) {
+        uniformData.view = scene.camera->view;
+        uniformData.projection = scene.camera->projection;
+        uniformData.cameraPosition = glm::vec4{scene.camera->position, 1.0f};
+    }
+    uniformData.lightCounts = glm::uvec4{
+        scene.lights.directionalLightCount,
+        scene.lights.pointLightCount,
+        scene.lights.spotLightCount,
+        0U,
+    };
+    uniformData.directionalLight = scene.lights.directionalLight;
+    uniformData.pointLights = scene.lights.pointLights;
+    uniformData.spotLights = scene.lights.spotLights;
+    return uniformData;
+}
+
+ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
+    return ObjectUniformData{
+        .model = worldMatrix,
+        .normalMatrix = glm::transpose(glm::inverse(worldMatrix)),
+    };
+}
+} // namespace
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_forwardPass.Initialize(ctx);
@@ -53,6 +81,16 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
     return frame;
 }
 
+void Renderer::EnsureSceneResources(RenderContext& ctx) {
+    if (!m_sceneResources.uniformBuffer) {
+        wgpu::BufferDescriptor uniformBufferDesc{};
+        uniformBufferDesc.size = sizeof(SceneUniformData);
+        uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        uniformBufferDesc.mappedAtCreation = false;
+        m_sceneResources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+    }
+}
+
 void Renderer::EnsureObjectResources(RenderContext& ctx, const std::size_t objectCount) {
     if (m_objectResources.size() < objectCount) {
         m_objectResources.resize(objectCount);
@@ -62,12 +100,34 @@ void Renderer::EnsureObjectResources(RenderContext& ctx, const std::size_t objec
         ObjectResources& resources = m_objectResources[i];
         if (!resources.uniformBuffer) {
             wgpu::BufferDescriptor uniformBufferDesc{};
-            uniformBufferDesc.size = kSceneUniformSize;
+            uniformBufferDesc.size = sizeof(ObjectUniformData);
             uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
             uniformBufferDesc.mappedAtCreation = false;
             resources.uniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
         }
     }
+}
+
+void Renderer::BuildSceneResources(RenderContext& ctx, const RenderScene& scene) {
+    EnsureSceneResources(ctx);
+    if (!m_sceneResources.uniformBuffer || !m_forwardPass.GetSceneBindGroupLayout()) {
+        return;
+    }
+
+    const SceneUniformData uniformData = BuildSceneUniformData(scene);
+    ctx.GetQueue()->writeBuffer(*m_sceneResources.uniformBuffer, 0, &uniformData, sizeof(SceneUniformData));
+
+    wgpu::BindGroupEntry binding{};
+    binding.binding = 0;
+    binding.buffer = *m_sceneResources.uniformBuffer;
+    binding.offset = 0;
+    binding.size = sizeof(SceneUniformData);
+
+    wgpu::BindGroupDescriptor bindGroupDesc{};
+    bindGroupDesc.layout = *m_forwardPass.GetSceneBindGroupLayout();
+    bindGroupDesc.entryCount = 1;
+    bindGroupDesc.entries = &binding;
+    m_sceneResources.sceneBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
 void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& scene) {
@@ -86,35 +146,50 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
         }
 
         ObjectResources& resources = m_objectResources[i];
-        if (!resources.uniformBuffer || !m_forwardPass.GetBindGroupLayout()) {
+        if (!resources.uniformBuffer
+            || !m_forwardPass.GetObjectBindGroupLayout()
+            || !m_forwardPass.GetMaterialBindGroupLayout()) {
             continue;
         }
-        wgpu::BindGroupEntry bindings[4]{};
-        bindings[0].binding = 0;
-        bindings[0].buffer = *resources.uniformBuffer;
-        bindings[0].offset = 0;
-        bindings[0].size = kSceneUniformSize;
-        bindings[1].binding = 1;
-        bindings[1].buffer = *materialResources->uniformBuffer;
-        bindings[1].offset = 0;
-        bindings[1].size = sizeof(GpuResourceCache::GpuMaterialResources::MaterialUniformData);
-        bindings[2].binding = 2;
-        bindings[2].textureView = materialResources->textureView;
-        bindings[3].binding = 3;
-        bindings[3].sampler = materialResources->sampler;
 
-        wgpu::BindGroupDescriptor bindGroupDesc{};
-        bindGroupDesc.layout = *m_forwardPass.GetBindGroupLayout();
-        bindGroupDesc.entryCount = 4;
-        bindGroupDesc.entries = bindings;
-        resources.forwardBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+        const ObjectUniformData objectUniformData = BuildObjectUniformData(object.worldMatrix);
+        ctx.GetQueue()->writeBuffer(*resources.uniformBuffer, 0, &objectUniformData, sizeof(ObjectUniformData));
+
+        wgpu::BindGroupEntry objectBinding{};
+        objectBinding.binding = 0;
+        objectBinding.buffer = *resources.uniformBuffer;
+        objectBinding.offset = 0;
+        objectBinding.size = sizeof(ObjectUniformData);
+
+        wgpu::BindGroupDescriptor objectBindGroupDesc{};
+        objectBindGroupDesc.layout = *m_forwardPass.GetObjectBindGroupLayout();
+        objectBindGroupDesc.entryCount = 1;
+        objectBindGroupDesc.entries = &objectBinding;
+        resources.objectBindGroup = ctx.GetDevice()->createBindGroup(objectBindGroupDesc);
+
+        wgpu::BindGroupEntry materialBindings[3]{};
+        materialBindings[0].binding = 0;
+        materialBindings[0].buffer = *materialResources->uniformBuffer;
+        materialBindings[0].offset = 0;
+        materialBindings[0].size = sizeof(MaterialUniformData);
+        materialBindings[1].binding = 1;
+        materialBindings[1].textureView = materialResources->textureView;
+        materialBindings[2].binding = 2;
+        materialBindings[2].sampler = materialResources->sampler;
+
+        wgpu::BindGroupDescriptor materialBindGroupDesc{};
+        materialBindGroupDesc.layout = *m_forwardPass.GetMaterialBindGroupLayout();
+        materialBindGroupDesc.entryCount = 3;
+        materialBindGroupDesc.entries = materialBindings;
+        resources.materialBindGroup = ctx.GetDevice()->createBindGroup(materialBindGroupDesc);
 
         m_preparedDrawItems.push_back(PreparedDrawItem{
+            .shadingModel = static_cast<EMaterialShadingModel>(materialResources->uniformData.surfaceOptions.x),
             .model = object.worldMatrix,
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
-            .uniformBuffer = *resources.uniformBuffer,
-            .forwardBindGroup = resources.forwardBindGroup ? *resources.forwardBindGroup : nullptr,
+            .objectBindGroup = resources.objectBindGroup ? *resources.objectBindGroup : nullptr,
+            .materialBindGroup = resources.materialBindGroup ? *resources.materialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
             .indexCount = gpuMesh->indexCount,
@@ -128,11 +203,14 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         return;
     }
 
+    BuildSceneResources(ctx, scene);
     BuildPreparedDrawItems(ctx, scene);
 
     const PassContext passContext{
         .camera = scene.camera,
+        .lights = scene.lights,
         .drawItems = m_preparedDrawItems,
+        .sceneBindGroup = m_sceneResources.sceneBindGroup ? *m_sceneResources.sceneBindGroup : nullptr,
         .guiRenderer = &guiRenderer,
         .queue = &*ctx.GetQueue(),
     };

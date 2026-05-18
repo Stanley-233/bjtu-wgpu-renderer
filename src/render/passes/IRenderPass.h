@@ -6,6 +6,7 @@
 
 #include "PreparedDrawItem.h"
 #include "render/scene/RenderCamera.h"
+#include "render/scene/RenderLightSet.h"
 #include "webgpu-raii.hpp"
 
 class LegacyGuiRenderer;
@@ -13,7 +14,9 @@ struct RenderFrame;
 
 struct PassContext {
     std::optional<RenderCamera>       camera{};
+    RenderLightSet                    lights{};
     std::span<const PreparedDrawItem> drawItems{};
+    wgpu::BindGroup                   sceneBindGroup = nullptr;
     LegacyGuiRenderer*              guiRenderer = nullptr;
     wgpu::Queue*                    queue = nullptr;
 };

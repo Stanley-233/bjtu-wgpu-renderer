@@ -14,6 +14,7 @@
 #include "asset/types/MeshAsset.h"
 #include "GpuMesh.h"
 #include "render/scene/RenderObject.h"
+#include "render/scene/RenderUniformData.h"
 
 class RenderContext;
 
@@ -22,10 +23,6 @@ public:
     [[nodiscard]] const GpuMesh* SyncMesh(RenderContext& ctx, const AssetServer* assetServer, const RenderObject& object);
 
     struct GpuMaterialResources {
-        struct alignas(16) MaterialUniformData {
-            glm::vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
-        };
-
         MaterialUniformData uniformData{};
         wgpu::raii::Buffer  uniformBuffer;
         wgpu::TextureView   textureView = nullptr;
