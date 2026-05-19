@@ -77,11 +77,13 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         baseColor *= in.color;
     }
 
-    var diffuseLighting = vec3f(0.0, 0.0, 0.0);
+    var diffuseLighting = vec3f(0.3, 0.3, 0.3);
     if (uScene.lightCounts.x > 0u) {
         let normal = normalize(in.normalWS);
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
         let ndotl = max(dot(normal, lightDir), 0.0);
+        let ambientFactor = 0.15;
+        diffuseLighting = uScene.directionalLight.color.rgb * ambientFactor;
         diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
     }
 
