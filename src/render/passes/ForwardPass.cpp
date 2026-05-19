@@ -26,12 +26,15 @@ SceneUniformData BuildSceneUniformData(const PassContext& context) {
 } // namespace
 
 void ForwardPass::Initialize(RenderContext& ctx) {
-    auto pipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx);
-    m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
-    m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
-    m_materialBindGroupLayout = std::move(pipeline.materialBindGroupLayout);
-    m_layout = std::move(pipeline.layout);
-    m_unlitPipeline = std::move(pipeline.pipeline);
+    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx);
+    m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
+    m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
+    m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
+    m_layout = std::move(unlitPipeline.layout);
+    m_unlitPipeline = std::move(unlitPipeline.pipeline);
+
+    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(ctx);
+    m_lambertPipeline = std::move(lambertPipeline.pipeline);
 }
 
 void ForwardPass::EnsureSceneResources(RenderContext& ctx) {
@@ -203,8 +206,7 @@ wgpu::RenderPipeline ForwardPass::SelectPipeline(const EMaterialShadingModel sha
     case EMaterialShadingModel::Unlit:
         return m_unlitPipeline ? *m_unlitPipeline : nullptr;
     case EMaterialShadingModel::Lambert:
-        // TODO: 接入 Lambert 前向渲染管线选择
-        return nullptr;
+        return m_lambertPipeline ? *m_lambertPipeline : nullptr;
     }
     return nullptr;
 }

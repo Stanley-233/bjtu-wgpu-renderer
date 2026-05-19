@@ -47,6 +47,7 @@ file(GLOB_RECURSE BJTU_RENDERER_SOURCES CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp"
 )
+list(FILTER BJTU_RENDERER_SOURCES EXCLUDE REGEX "/CMakeFiles/")
 
 add_executable(bjtu_wgpu_renderer
         ${BJTU_RENDERER_SOURCES}

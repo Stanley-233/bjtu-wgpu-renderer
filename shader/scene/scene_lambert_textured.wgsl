@@ -76,7 +76,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         baseColor *= in.color;
     }
-    // TODO: 在这里接入 Lambert 光照累加
-    // https://zhuanlan.zhihu.com/p/26829902532
-    return baseColor;
+
+    var diffuseLighting = vec3f(0.3, 0.3, 0.3);
+    if (uScene.lightCounts.x > 0u) {
+        let normal = normalize(in.normalWS);
+        let lightDir = normalize(-uScene.directionalLight.direction.xyz);
+        let ndotl = max(dot(normal, lightDir), 0.0);
+        let ambientFactor = 0.15;
+        diffuseLighting = uScene.directionalLight.color.rgb * ambientFactor;
+        diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
+    }
+
+    return vec4f(baseColor.rgb * diffuseLighting, baseColor.a);
 }
