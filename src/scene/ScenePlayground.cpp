@@ -11,7 +11,13 @@ const char* ScenePlayground::Name() const {
 }
 
 bool ScenePlayground::BuildSceneContent() {
-    Entity arkZfyRoot = LoadModelRoot("arknights/zhuang_fangyi__arknights_endfield.glb", "SimpleTexture");
+    const ModelSpawnOptions arknightsOptions{
+        .shadingModelOverride = EMaterialShadingModel::Unlit,
+    };
+    Entity arkZfyRoot = LoadModelRoot(
+        "arknights/zhuang_fangyi__arknights_endfield.glb",
+        "SimpleTexture",
+        arknightsOptions);
     if (!arkZfyRoot) {
         return false;
     }

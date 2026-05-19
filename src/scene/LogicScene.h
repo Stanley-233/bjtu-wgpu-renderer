@@ -3,9 +3,11 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "asset/AssetServer.h"
+#include "asset/types/MaterialAsset.h"
 #include "render/Renderer.h"
 #include "scene/IScene.h"
 #include "scene/World.h"
@@ -17,6 +19,10 @@ struct ModelAsset;
 
 class LogicScene : public IScene, public ICameraMoveInputSink, public ICameraLookInputSink {
 public:
+    struct ModelSpawnOptions {
+        std::optional<EMaterialShadingModel> shadingModelOverride{};
+    };
+
     LogicScene();
 
     bool Initialize(RenderContext& ctx) override;
@@ -52,7 +58,21 @@ protected:
 
     [[nodiscard]] Entity LoadModelRoot(const std::filesystem::path& path, std::string_view namePrefix);
 
+    [[nodiscard]] Entity LoadModelRoot(
+        const std::filesystem::path& path,
+        std::string_view             namePrefix,
+        ModelSpawnOptions            options);
+
     [[nodiscard]] Entity SpawnModelEntities(const ModelAsset& model, std::string_view namePrefix);
+
+    [[nodiscard]] Entity SpawnModelEntities(
+        const ModelAsset&  model,
+        std::string_view   namePrefix,
+        ModelSpawnOptions  options);
+
+    void SetStaticMeshShadingModelOverride(Entity entity, std::optional<EMaterialShadingModel> shadingModel);
+
+    void SetStaticMeshShadingModelOverrideRecursive(Entity root, std::optional<EMaterialShadingModel> shadingModel);
 
 private:
     RenderScene BuildRenderScene(const RenderContext& ctx) const;

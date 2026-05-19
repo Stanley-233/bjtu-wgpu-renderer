@@ -6,14 +6,12 @@
 
 #include "RenderContext.h"
 
-namespace {
-ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
+static ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
     return ObjectUniformData{
         .model = worldMatrix,
         .normalMatrix = glm::transpose(glm::inverse(worldMatrix)),
     };
 }
-} // namespace
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_forwardPass.Initialize(ctx);
@@ -100,7 +98,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
         const DrawItemResources& resources = m_drawItemResources.back();
 
         m_preparedDrawItems.push_back(PreparedDrawItem{
-            .shadingModel = static_cast<EMaterialShadingModel>(materialResources->uniformData.surfaceOptions.x),
+            .shadingModel = object.shadingModel,
             .model = object.worldMatrix,
             .objectUniformData = BuildObjectUniformData(object.worldMatrix),
             .vertexBuffer = *gpuMesh->vertexBuffer,

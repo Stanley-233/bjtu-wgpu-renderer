@@ -10,11 +10,13 @@
 #include "render/RenderContext.h"
 
 namespace {
-MaterialUniformData BuildMaterialUniformData(const MaterialAsset& material) {
+MaterialUniformData BuildMaterialUniformData(
+    const MaterialAsset& material,
+    const EMaterialShadingModel shadingModel) {
     return MaterialUniformData{
         .baseColorFactor = material.baseColorFactor,
         .surfaceOptions = glm::uvec4{
-            static_cast<uint32_t>(material.shadingModel),
+            static_cast<uint32_t>(shadingModel),
             material.useVertexColor ? 1U : 0U,
             0U,
             0U,
@@ -28,6 +30,11 @@ std::size_t GpuResourceCache::CacheKeyHash::operator()(const CacheKey& key) cons
                               ? static_cast<std::uintptr_t>(key.meshId.value)
                               : reinterpret_cast<std::uintptr_t>(key.legacyMesh);
     return meshBits;
+}
+
+std::size_t GpuResourceCache::MaterialCacheKeyHash::operator()(const MaterialCacheKey& key) const {
+    return (static_cast<std::size_t>(key.materialId.value) << 2U)
+           ^ static_cast<std::size_t>(key.shadingModel);
 }
 
 const GpuMesh* GpuResourceCache::SyncMesh(RenderContext& ctx, const AssetServer* assetServer, const RenderObject& object) {
@@ -84,20 +91,14 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
     }
 
     const MaterialAsset* const material = assetServer != nullptr ? assetServer->Get(object.materialId) : nullptr;
-    if (material == nullptr || !object.materialId.IsValid()) {
-        const GpuTexture2D* whiteTexture = GetOrCreateWhiteTexture(ctx);
-        if (whiteTexture == nullptr) {
-            return nullptr;
-        }
-        if (!m_defaultMaterial.has_value() || !m_defaultMaterial->uniformBuffer) {
-            m_defaultMaterial = BuildMaterialResources(ctx, MaterialAsset{}, *whiteTexture);
-        }
-        return &*m_defaultMaterial;
-    }
+    const MaterialAsset fallbackMaterial{};
+    const MaterialAsset& effectiveMaterial = material != nullptr && object.materialId.IsValid()
+                                                 ? *material
+                                                 : fallbackMaterial;
 
     const GpuTexture2D* baseColorTexture = nullptr;
-    if (material->baseColorTexture.IsValid()) {
-        baseColorTexture = SyncTexture(ctx, assetServer, material->baseColorTexture);
+    if (effectiveMaterial.baseColorTexture.IsValid()) {
+        baseColorTexture = SyncTexture(ctx, assetServer, effectiveMaterial.baseColorTexture);
     }
     if (baseColorTexture == nullptr) {
         baseColorTexture = GetOrCreateWhiteTexture(ctx);
@@ -106,16 +107,26 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
         return nullptr;
     }
 
-    auto [it, inserted] = m_materials.try_emplace(object.materialId);
+    const MaterialCacheKey key{
+        .materialId = object.materialId,
+        .shadingModel = object.shadingModel,
+    };
+    auto [it, inserted] = m_materials.try_emplace(key);
     GpuMaterialResources& resources = it->second;
-    const MaterialUniformData desiredUniform = BuildMaterialUniformData(*material);
+    const MaterialUniformData desiredUniform = BuildMaterialUniformData(effectiveMaterial, object.shadingModel);
     const bool uniformChanged = std::memcmp(
         &resources.uniformData,
         &desiredUniform,
         sizeof(MaterialUniformData)) != 0;
-    const bool needsRebuild = inserted || !resources.uniformBuffer || resources.textureView == nullptr || resources.sampler == nullptr || uniformChanged;
+    const bool textureChanged = resources.textureView == nullptr || resources.textureView != *baseColorTexture->view;
+    const bool samplerChanged = resources.sampler == nullptr || resources.sampler != *m_sampler;
+    const bool needsRebuild = inserted
+                              || !resources.uniformBuffer
+                              || textureChanged
+                              || samplerChanged
+                              || uniformChanged;
     if (needsRebuild) {
-        resources = BuildMaterialResources(ctx, *material, *baseColorTexture);
+        resources = BuildMaterialResources(ctx, effectiveMaterial, object.shadingModel, *baseColorTexture);
     }
     return &resources;
 }
@@ -125,7 +136,6 @@ void GpuResourceCache::Reset() {
     m_textures.clear();
     m_materials.clear();
     m_whiteTexture.reset();
-    m_defaultMaterial.reset();
     m_sampler = {};
 }
 
@@ -275,9 +285,10 @@ const GpuResourceCache::GpuTexture2D* GpuResourceCache::GetOrCreateWhiteTexture(
 GpuResourceCache::GpuMaterialResources GpuResourceCache::BuildMaterialResources(
     RenderContext& ctx,
     const MaterialAsset& material,
+    const EMaterialShadingModel shadingModel,
     const GpuTexture2D& baseColorTexture) const {
     GpuMaterialResources resources{};
-    resources.uniformData = BuildMaterialUniformData(material);
+    resources.uniformData = BuildMaterialUniformData(material, shadingModel);
 
     wgpu::BufferDescriptor uniformBufferDesc{};
     uniformBufferDesc.size = sizeof(MaterialUniformData);

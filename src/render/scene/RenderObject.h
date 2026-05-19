@@ -12,6 +12,7 @@ struct RenderObject {
     glm::mat4              worldMatrix{1.0f};
     AssetId<MeshAsset>     meshId{};
     AssetId<MaterialAsset> materialId{};
+    EMaterialShadingModel  shadingModel{EMaterialShadingModel::Unlit};
     const LegacyMeshData3D* legacyMesh = nullptr;
 };
 

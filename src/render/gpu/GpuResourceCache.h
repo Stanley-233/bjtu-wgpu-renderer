@@ -42,6 +42,13 @@ private:
         wgpu::raii::TextureView view;
     };
 
+    struct MaterialCacheKey {
+        AssetId<MaterialAsset> materialId{};
+        EMaterialShadingModel  shadingModel{EMaterialShadingModel::Unlit};
+
+        bool operator==(const MaterialCacheKey& other) const = default;
+    };
+
     struct CacheKey {
         AssetId<MeshAsset>      meshId{};
         const LegacyMeshData3D* legacyMesh = nullptr;
@@ -51,6 +58,10 @@ private:
 
     struct CacheKeyHash {
         std::size_t operator()(const CacheKey& key) const;
+    };
+
+    struct MaterialCacheKeyHash {
+        std::size_t operator()(const MaterialCacheKey& key) const;
     };
 
     struct AssetIdHash {
@@ -73,14 +84,14 @@ private:
     [[nodiscard]] GpuMaterialResources BuildMaterialResources(
         RenderContext& ctx,
         const MaterialAsset& material,
+        EMaterialShadingModel shadingModel,
         const GpuTexture2D& baseColorTexture) const;
 
-    std::unordered_map<CacheKey, GpuMesh, CacheKeyHash>                  m_meshes;
-    std::unordered_map<AssetId<ImageAsset>, GpuTexture2D, AssetIdHash>   m_textures;
-    std::unordered_map<AssetId<MaterialAsset>, GpuMaterialResources, AssetIdHash> m_materials;
-    std::optional<GpuTexture2D>                                           m_whiteTexture;
-    std::optional<GpuMaterialResources>                                   m_defaultMaterial;
-    wgpu::raii::Sampler                                                   m_sampler;
+    std::unordered_map<CacheKey, GpuMesh, CacheKeyHash> m_meshes;
+    std::unordered_map<AssetId<ImageAsset>, GpuTexture2D, AssetIdHash> m_textures;
+    std::unordered_map<MaterialCacheKey, GpuMaterialResources, MaterialCacheKeyHash> m_materials;
+    std::optional<GpuTexture2D> m_whiteTexture;
+    wgpu::raii::Sampler m_sampler;
 };
 
 #endif // BJTU_WGPU_RENDERER_GPURESOURCECACHE_H

@@ -100,6 +100,21 @@ Entity FindPrimaryCamera(World& world) {
     return {};
 }
 
+void ApplyStaticMeshShadingModelOverride(
+    const Entity entity,
+    const std::optional<EMaterialShadingModel>& shadingModel) {
+    if (!entity || !entity.HasComponent<StaticMeshComponent>()) {
+        return;
+    }
+
+    auto& meshComponent = entity.GetComponent<StaticMeshComponent>();
+    if (shadingModel.has_value()) {
+        meshComponent.SetShadingModelOverride(*shadingModel);
+        return;
+    }
+    meshComponent.ClearShadingModelOverride();
+}
+
 LogicScene::LogicScene()
     : m_cameraController(std::make_unique<FreeCameraController>()) {
 }
@@ -182,6 +197,13 @@ const AssetServer& LogicScene::GetAssetServer() const {
 }
 
 Entity LogicScene::LoadModelRoot(const std::filesystem::path& path, const std::string_view namePrefix) {
+    return LoadModelRoot(path, namePrefix, ModelSpawnOptions{});
+}
+
+Entity LogicScene::LoadModelRoot(
+    const std::filesystem::path& path,
+    const std::string_view       namePrefix,
+    ModelSpawnOptions            options) {
     const std::filesystem::path resolvedPath = path.is_absolute() ? path : AssetPaths::Resolve(path);
     const AssetId<ModelAsset> modelId = m_assetServer.LoadModel(resolvedPath);
     if (!modelId.IsValid()) {
@@ -195,10 +217,17 @@ Entity LogicScene::LoadModelRoot(const std::filesystem::path& path, const std::s
         return {};
     }
 
-    return SpawnModelEntities(*model, namePrefix);
+    return SpawnModelEntities(*model, namePrefix, options);
 }
 
 Entity LogicScene::SpawnModelEntities(const ModelAsset& model, const std::string_view namePrefix) {
+    return SpawnModelEntities(model, namePrefix, ModelSpawnOptions{});
+}
+
+Entity LogicScene::SpawnModelEntities(
+    const ModelAsset&      model,
+    const std::string_view namePrefix,
+    ModelSpawnOptions      options) {
     const std::string rootName{namePrefix};
     Entity root = m_world.CreateEntity(rootName);
     (void)root.AddComponent<TransformComponent>();
@@ -219,9 +248,31 @@ Entity LogicScene::SpawnModelEntities(const ModelAsset& model, const std::string
             auto& meshComponent = mesh.AddComponent<StaticMeshComponent>();
             meshComponent.mesh = primitive.mesh;
             meshComponent.material = primitive.material;
+            if (options.shadingModelOverride.has_value()) {
+                meshComponent.SetShadingModelOverride(*options.shadingModelOverride);
+            }
         }
     }
     return root;
+}
+
+void LogicScene::SetStaticMeshShadingModelOverride(
+    const Entity entity,
+    const std::optional<EMaterialShadingModel> shadingModel) {
+    ApplyStaticMeshShadingModelOverride(entity, shadingModel);
+}
+
+void LogicScene::SetStaticMeshShadingModelOverrideRecursive(
+    const Entity root,
+    const std::optional<EMaterialShadingModel> shadingModel) {
+    if (!root) {
+        return;
+    }
+
+    ApplyStaticMeshShadingModelOverride(root, shadingModel);
+    for (const Entity child : root.GetChildren()) {
+        SetStaticMeshShadingModelOverrideRecursive(child, shadingModel);
+    }
 }
 
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
@@ -251,10 +302,12 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     renderScene.objects.reserve(view.size_hint());
     for (const entt::entity entityHandle : view) {
         const StaticMeshComponent& mesh = view.get<StaticMeshComponent>(entityHandle);
+        const MaterialAsset* const materialAsset = m_assetServer.Get(mesh.material);
         renderScene.objects.push_back(RenderObject{
             .worldMatrix = m_world.WorldMatrixOf(Entity{entityHandle, const_cast<World*>(&m_world)}),
             .meshId = mesh.mesh,
             .materialId = mesh.material,
+            .shadingModel = mesh.ResolveShadingModel(materialAsset),
         });
     }
 
