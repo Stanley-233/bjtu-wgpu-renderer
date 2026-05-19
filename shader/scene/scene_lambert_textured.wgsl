@@ -38,6 +38,11 @@ struct ObjectUniform {
     normalMatrix: mat4x4f,
 };
 
+struct DirectionalShadowUniform {
+    lightViewProjection: mat4x4f,
+    shadowParams: vec4f,
+};
+
 struct MaterialUniform {
     baseColorFactor: vec4f,
     surfaceOptions: vec4u,
@@ -52,6 +57,11 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
+@group(0) @binding(1) var<uniform> uDirectionalShadow: DirectionalShadowUniform;
+@group(0) @binding(2) var uDirectionalShadowMap: texture_depth_2d;
+@group(0) @binding(3) var uDirectionalShadowSampler: sampler_comparison;
+@group(0) @binding(4) var uAmbientOcclusionTexture: texture_2d<f32>;
+@group(0) @binding(5) var uAmbientOcclusionSampler: sampler;
 @group(1) @binding(0) var<uniform> uObject: ObjectUniform;
 @group(2) @binding(0) var<uniform> uMaterial: MaterialUniform;
 @group(2) @binding(1) var uBaseColorTexture: texture_2d<f32>;
@@ -86,6 +96,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         diffuseLighting = uScene.directionalLight.color.rgb * ambientFactor;
         diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
     }
-    // TODO: [Shadow] 将 worldPos 变换到 light space，并结合 uDirectionalShadowMap / uDirectionalShadowSampler 计算 shadow factor。
-    return vec4f(baseColor.rgb * diffuseLighting, baseColor.a);
+
+    let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
+    let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
+    let ambientOcclusion = textureSample(uAmbientOcclusionTexture, uAmbientOcclusionSampler, aoUv).r;
+
+    var shadowFactor = 1.0;
+    if (uDirectionalShadow.shadowParams.x > 0.0) {
+        // TODO: [Shadow] 将 worldPos 变换到 light space，并结合 uDirectionalShadowMap / uDirectionalShadowSampler 计算 shadow factor。
+        let shadowCoord = uDirectionalShadow.lightViewProjection * vec4f(in.worldPos, 1.0);
+        shadowFactor *= 1.0 + 0.0 * shadowCoord.x;
+    }
+
+    return vec4f(baseColor.rgb * diffuseLighting * ambientOcclusion * shadowFactor, baseColor.a);
 }

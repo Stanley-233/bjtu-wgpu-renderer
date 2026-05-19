@@ -5,9 +5,13 @@
 
 #include "frame/RenderFrame.h"
 #include "gpu/GpuResourceCache.h"
-#include "passes/ForwardPass.h"
+#include "passes/CompositePass.h"
+#include "passes/DepthPrepass.h"
+#include "passes/ForwardOpaquePass.h"
 #include "passes/GuiPass.h"
 #include "passes/PreparedDrawItem.h"
+#include "passes/SceneNormalPass.h"
+#include "passes/SSAOPass.h"
 #include "passes/ShadowPass.h"
 #include "render/scene/RenderScene.h"
 #include "webgpu-raii.hpp"
@@ -32,7 +36,7 @@ private:
 
     [[nodiscard]] RenderFrame BeginRenderFrame(RenderContext& ctx);
 
-    void EnsureDepthResources(RenderContext& ctx, int width, int height);
+    void EnsureFrameResources(RenderContext& ctx, int width, int height);
 
     void EnsureDirectionalShadowResources(RenderContext& ctx, uint32_t width, uint32_t height);
 
@@ -40,25 +44,35 @@ private:
 
     void BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& scene);
 
-    GpuResourceCache               m_resourceCache;
-    ShadowPass                     m_shadowPass;
-    ForwardPass                    m_forwardPass;
-    GuiPass                        m_guiPass;
-    wgpu::raii::Texture            m_depthTexture;
-    wgpu::raii::TextureView        m_depthView;
-    wgpu::raii::Texture            m_directionalShadowTexture;
-    wgpu::raii::TextureView        m_directionalShadowView;
-    wgpu::raii::Sampler            m_directionalShadowSampler;
-    wgpu::raii::Texture            m_fallbackShadowTexture;
-    wgpu::raii::TextureView        m_fallbackShadowView;
-    wgpu::raii::Sampler            m_fallbackShadowSampler;
-    int                            m_depthWidth  = 0;
-    int                            m_depthHeight = 0;
-    uint32_t                       m_directionalShadowWidth  = 0;
-    uint32_t                       m_directionalShadowHeight = 0;
-    std::vector<DrawItemResources> m_drawItemResources;
-    std::vector<PreparedDrawItem> m_preparedDrawItems;
-    wgpu::Color                    m_clearColor{0.08, 0.09, 0.12, 1.0};
+    GpuResourceCache                m_resourceCache;
+    ShadowPass                      m_shadowPass;
+    DepthPrepass                    m_depthPrepass;
+    SceneNormalPass                 m_sceneNormalPass;
+    SSAOPass                        m_ssaoPass;
+    ForwardOpaquePass               m_forwardOpaquePass;
+    CompositePass                   m_compositePass;
+    GuiPass                         m_guiPass;
+    wgpu::raii::Texture             m_sceneDepthTexture;
+    wgpu::raii::TextureView         m_sceneDepthView;
+    wgpu::raii::Texture             m_sceneAoTexture;
+    wgpu::raii::TextureView         m_sceneAoView;
+    wgpu::raii::Texture             m_sceneColorTexture;
+    wgpu::raii::TextureView         m_sceneColorView;
+    wgpu::raii::Texture             m_sceneNormalTexture;
+    wgpu::raii::TextureView         m_sceneNormalView;
+    wgpu::raii::Texture             m_directionalShadowTexture;
+    wgpu::raii::TextureView         m_directionalShadowView;
+    wgpu::raii::Sampler             m_directionalShadowSampler;
+    wgpu::raii::Texture             m_fallbackShadowTexture;
+    wgpu::raii::TextureView         m_fallbackShadowView;
+    wgpu::raii::Sampler             m_fallbackShadowSampler;
+    int                             m_frameResourceWidth  = 0;
+    int                             m_frameResourceHeight = 0;
+    uint32_t                        m_directionalShadowWidth  = 0;
+    uint32_t                        m_directionalShadowHeight = 0;
+    std::vector<DrawItemResources>  m_drawItemResources;
+    std::vector<PreparedDrawItem>   m_preparedDrawItems;
+    wgpu::Color                     m_clearColor{0.08, 0.09, 0.12, 1.0};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERER_H

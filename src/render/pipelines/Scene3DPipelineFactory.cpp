@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 
@@ -12,9 +13,8 @@
 
 using namespace wgpu;
 
-namespace {
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-void FlushDeviceValidation(RenderContext& ctx) {
+static void FlushDeviceValidation(RenderContext& ctx) {
 #ifdef WEBGPU_BACKEND_DAWN
     ctx.GetDevice()->tick();
 #elif WEBGPU_BACKEND_WGPU
@@ -22,7 +22,7 @@ void FlushDeviceValidation(RenderContext& ctx) {
 #endif
 }
 
-void PopValidationScope(RenderContext& ctx, const char* label) {
+static void PopValidationScope(RenderContext& ctx, const char* label) {
     wgpuDevicePopErrorScope(
         *ctx.GetDevice(),
         [](const WGPUErrorType type, const char* message, void* userdata) {
@@ -39,40 +39,11 @@ void PopValidationScope(RenderContext& ctx, const char* label) {
     FlushDeviceValidation(ctx);
 }
 #endif
-} // namespace
 
-static VertexBufferLayout CreateSceneVertexBufferLayout(std::array<VertexAttribute, 4>& vertexAttribs) {
-    vertexAttribs[0].shaderLocation = 0;
-    vertexAttribs[0].format         = VertexFormat::Float32x3;
-    vertexAttribs[0].offset         = offsetof(AssetVertex3D, position);
-    vertexAttribs[1].shaderLocation = 1;
-    vertexAttribs[1].format         = VertexFormat::Float32x3;
-    vertexAttribs[1].offset         = offsetof(AssetVertex3D, normal);
-    vertexAttribs[2].shaderLocation = 2;
-    vertexAttribs[2].format         = VertexFormat::Float32x2;
-    vertexAttribs[2].offset         = offsetof(AssetVertex3D, uv0);
-    vertexAttribs[3].shaderLocation = 3;
-    vertexAttribs[3].format         = VertexFormat::Float32x4;
-    vertexAttribs[3].offset         = offsetof(AssetVertex3D, color);
-
-    VertexBufferLayout vertexBufferLayout{};
-    vertexBufferLayout.attributeCount = static_cast<uint32_t>(vertexAttribs.size());
-    vertexBufferLayout.attributes     = vertexAttribs.data();
-    vertexBufferLayout.arrayStride    = sizeof(AssetVertex3D);
-    vertexBufferLayout.stepMode       = VertexStepMode::Vertex;
-    return vertexBufferLayout;
-}
-
-static Scene3DPipelineFactory::Pipeline CreatePipeline(
-    RenderContext&                ctx,
-    const std::filesystem::path&  shaderPath,
-    const char*                   label,
-    const bool                    hasFragmentStage,
-    const WGPUPrimitiveTopology   topology,
-    const WGPUCullMode            cullMode,
-    const bool                    depthWriteEnabled,
-    const WGPUCompareFunction     depthCompare,
-    const WGPUColorWriteMaskFlags colorWriteMask) {
+static ShaderModule LoadShaderModule(
+    RenderContext&               ctx,
+    const std::filesystem::path& shaderPath,
+    const char*                  label) {
     std::cout << "[" << label << "] Creating shader module..." << std::endl;
     ShaderModule shaderModule = ShaderLoader::Load(shaderPath, *ctx.GetDevice());
     std::cout << "[" << label << "] Shader module: " << shaderModule << std::endl;
@@ -81,123 +52,237 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
         std::cerr << "[" << label << "] Could not load shader!" << std::endl;
         std::exit(1);
     }
+    return shaderModule;
+}
+
+static void BuildMeshVertexState(
+    std::array<VertexAttribute, 4>& attributes,
+    VertexBufferLayout&             layout) {
+    attributes[0].shaderLocation = 0;
+    attributes[0].format = VertexFormat::Float32x3;
+    attributes[0].offset = offsetof(AssetVertex3D, position);
+    attributes[1].shaderLocation = 1;
+    attributes[1].format = VertexFormat::Float32x3;
+    attributes[1].offset = offsetof(AssetVertex3D, normal);
+    attributes[2].shaderLocation = 2;
+    attributes[2].format = VertexFormat::Float32x2;
+    attributes[2].offset = offsetof(AssetVertex3D, uv0);
+    attributes[3].shaderLocation = 3;
+    attributes[3].format = VertexFormat::Float32x4;
+    attributes[3].offset = offsetof(AssetVertex3D, color);
+
+    layout.attributeCount = static_cast<uint32_t>(attributes.size());
+    layout.attributes = attributes.data();
+    layout.arrayStride = sizeof(AssetVertex3D);
+    layout.stepMode = VertexStepMode::Vertex;
+}
+
+static wgpu::raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderContext& ctx) {
+    std::array<BindGroupLayoutEntry, 6> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindings[0].buffer.type = BufferBindingType::Uniform;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    bindings[1].buffer.type = BufferBindingType::Uniform;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].texture.sampleType = TextureSampleType::Depth;
+    bindings[2].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[3].binding = 3;
+    bindings[3].visibility = ShaderStage::Fragment;
+    bindings[3].sampler.type = SamplerBindingType::Comparison;
+    bindings[4].binding = 4;
+    bindings[4].visibility = ShaderStage::Fragment;
+    bindings[4].texture.sampleType = TextureSampleType::Float;
+    bindings[4].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[5].binding = 5;
+    bindings[5].visibility = ShaderStage::Fragment;
+    bindings[5].sampler.type = SamplerBindingType::Filtering;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/ForwardSceneBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateSceneUniformBindGroupLayout(RenderContext& ctx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+    binding.buffer.type = BufferBindingType::Uniform;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/SceneUniformBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateShadowSceneBindGroupLayout(RenderContext& ctx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Vertex;
+    binding.buffer.type = BufferBindingType::Uniform;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/ShadowSceneBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateObjectBindGroupLayout(RenderContext& ctx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Vertex;
+    binding.buffer.type = BufferBindingType::Uniform;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/ObjectBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& ctx) {
+    std::array<BindGroupLayoutEntry, 3> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].buffer.type = BufferBindingType::Uniform;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].texture.sampleType = TextureSampleType::Float;
+    bindings[1].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].sampler.type = SamplerBindingType::Filtering;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/MaterialBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateDepthTextureBindGroupLayout(RenderContext& ctx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Fragment;
+    binding.texture.sampleType = TextureSampleType::Depth;
+    binding.texture.viewDimension = TextureViewDimension::_2D;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/SsaoDepthBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static wgpu::raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& ctx) {
+    std::array<BindGroupLayoutEntry, 2> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].texture.sampleType = TextureSampleType::Float;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].sampler.type = SamplerBindingType::Filtering;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/CompositeSceneColorBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return ctx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static void SetCommonPrimitiveState(
+    RenderPipelineDescriptor& pipelineDesc,
+    const WGPUPrimitiveTopology topology,
+    const WGPUCullMode          cullMode) {
+    pipelineDesc.primitive.topology = topology;
+    pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
+    pipelineDesc.primitive.frontFace = FrontFace::CCW;
+    pipelineDesc.primitive.cullMode = cullMode;
+    pipelineDesc.multisample.count = 1;
+    pipelineDesc.multisample.mask = ~0u;
+    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+}
+
+static DepthStencilState BuildDepthStencilState(
+    const bool                depthWriteEnabled,
+    const WGPUCompareFunction depthCompare) {
+    DepthStencilState depthStencil{};
+    depthStencil.format = TextureFormat::Depth24Plus;
+    depthStencil.depthWriteEnabled = depthWriteEnabled;
+    depthStencil.depthCompare = depthCompare;
+    depthStencil.stencilFront.compare = CompareFunction::Always;
+    depthStencil.stencilBack.compare = CompareFunction::Always;
+    depthStencil.stencilReadMask = 0;
+    depthStencil.stencilWriteMask = 0;
+    depthStencil.depthBias = 0;
+    depthStencil.depthBiasSlopeScale = 0.0f;
+    depthStencil.depthBiasClamp = 0.0f;
+    return depthStencil;
+}
+
+static WGPUTextureFormat ToNativeTextureFormat(wgpu::TextureFormat format) {
+    return format;
+}
+
+static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
+    RenderContext&               ctx,
+    const std::filesystem::path& shaderPath,
+    const char*                  label,
+    const wgpu::TextureFormat    colorTargetFormat) {
+    ShaderModule shaderModule = LoadShaderModule(ctx, shaderPath, label);
 
     wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
 
-    RenderPipelineDescriptor      pipelineDesc{};
+    std::array<VertexAttribute, 4> vertexAttributes{};
+    VertexBufferLayout             vertexBufferLayout{};
+    BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
+
+    RenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.label = label;
-    std::array<VertexAttribute, 4> vertexAttribs{};
-    const VertexBufferLayout       vertexBufferLayout = CreateSceneVertexBufferLayout(vertexAttribs);
-
-    pipelineDesc.vertex.bufferCount   = 1;
-    pipelineDesc.vertex.buffers       = &vertexBufferLayout;
-    pipelineDesc.vertex.module        = shaderModule;
-    pipelineDesc.vertex.entryPoint    = "vs_main";
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
-    pipelineDesc.vertex.constants     = nullptr;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
 
-    pipelineDesc.primitive.topology         = topology;
-    pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
-    pipelineDesc.primitive.frontFace        = FrontFace::CCW;
-    pipelineDesc.primitive.cullMode         = cullMode;
+    DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
+    pipelineDesc.depthStencil = &depthStencil;
 
-    FragmentState    fragmentState{};
-    BlendState       blendState{};
+    BlendState blendState{};
+    blendState.color.srcFactor = BlendFactor::SrcAlpha;
+    blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
+    blendState.color.operation = BlendOperation::Add;
+    blendState.alpha.srcFactor = BlendFactor::Zero;
+    blendState.alpha.dstFactor = BlendFactor::One;
+    blendState.alpha.operation = BlendOperation::Add;
+
     ColorTargetState colorTarget{};
-    if (hasFragmentStage) {
-        fragmentState.module        = shaderModule;
-        fragmentState.entryPoint    = "fs_main";
-        fragmentState.constantCount = 0;
-        fragmentState.constants     = nullptr;
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = ColorWriteMask::All;
 
-        blendState.color.srcFactor = BlendFactor::SrcAlpha;
-        blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
-        blendState.color.operation = BlendOperation::Add;
-        blendState.alpha.srcFactor = BlendFactor::Zero;
-        blendState.alpha.dstFactor = BlendFactor::One;
-        blendState.alpha.operation = BlendOperation::Add;
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
 
-        colorTarget.format    = ctx.GetSurfaceFormat();
-        colorTarget.blend     = &blendState;
-        colorTarget.writeMask = colorWriteMask;
-
-        fragmentState.targetCount = 1;
-        fragmentState.targets     = &colorTarget;
-        pipelineDesc.fragment     = &fragmentState;
-    } else {
-        pipelineDesc.fragment = nullptr;
-    }
-
-    DepthStencilState depthStencil{};
-    depthStencil.format                             = TextureFormat::Depth24Plus;
-    depthStencil.depthWriteEnabled                  = depthWriteEnabled;
-    depthStencil.depthCompare                       = depthCompare;
-    depthStencil.stencilFront.compare               = CompareFunction::Always;
-    depthStencil.stencilBack.compare                = CompareFunction::Always;
-    depthStencil.stencilReadMask                    = 0;
-    depthStencil.stencilWriteMask                   = 0;
-    depthStencil.depthBias                          = 0;
-    depthStencil.depthBiasSlopeScale                = 0.0f;
-    depthStencil.depthBiasClamp                     = 0.0f;
-    pipelineDesc.depthStencil                       = &depthStencil;
-    pipelineDesc.multisample.count                  = 1;
-    pipelineDesc.multisample.mask                   = ~0u;
-    pipelineDesc.multisample.alphaToCoverageEnabled = false;
-
-    Scene3DPipelineFactory::Pipeline result;
-    {
-        std::array<BindGroupLayoutEntry, 4> sceneBindings{};
-        sceneBindings[0].binding = 0;
-        sceneBindings[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-        sceneBindings[0].buffer.type = BufferBindingType::Uniform;
-        sceneBindings[1].binding = 1;
-        sceneBindings[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-        sceneBindings[1].buffer.type = BufferBindingType::Uniform;
-        sceneBindings[2].binding = 2;
-        sceneBindings[2].visibility = ShaderStage::Fragment;
-        sceneBindings[2].texture.sampleType = TextureSampleType::Depth;
-        sceneBindings[2].texture.viewDimension = TextureViewDimension::_2D;
-        sceneBindings[3].binding = 3;
-        sceneBindings[3].visibility = ShaderStage::Fragment;
-        sceneBindings[3].sampler.type = SamplerBindingType::Comparison;
-
-        BindGroupLayoutDescriptor sceneBindGroupLayoutDesc{};
-        sceneBindGroupLayoutDesc.label = "Scene3D/SceneBindGroupLayout";
-        sceneBindGroupLayoutDesc.entryCount = static_cast<uint32_t>(sceneBindings.size());
-        sceneBindGroupLayoutDesc.entries = sceneBindings.data();
-        result.sceneBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(sceneBindGroupLayoutDesc);
-    }
-    {
-        BindGroupLayoutEntry objectBinding{};
-        objectBinding.binding = 0;
-        objectBinding.visibility = ShaderStage::Vertex;
-        objectBinding.buffer.type = BufferBindingType::Uniform;
-
-        BindGroupLayoutDescriptor objectBindGroupLayoutDesc{};
-        objectBindGroupLayoutDesc.label = "Scene3D/ObjectBindGroupLayout";
-        objectBindGroupLayoutDesc.entryCount = 1;
-        objectBindGroupLayoutDesc.entries = &objectBinding;
-        result.objectBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(objectBindGroupLayoutDesc);
-    }
-    {
-        std::array<BindGroupLayoutEntry, 3> materialBindings{};
-        materialBindings[0].binding = 0;
-        materialBindings[0].visibility = ShaderStage::Fragment;
-        materialBindings[0].buffer.type = BufferBindingType::Uniform;
-        materialBindings[1].binding = 1;
-        materialBindings[1].visibility = ShaderStage::Fragment;
-        materialBindings[1].texture.sampleType = TextureSampleType::Float;
-        materialBindings[1].texture.viewDimension = TextureViewDimension::_2D;
-        materialBindings[2].binding = 2;
-        materialBindings[2].visibility = ShaderStage::Fragment;
-        materialBindings[2].sampler.type = SamplerBindingType::Filtering;
-
-        BindGroupLayoutDescriptor materialBindGroupLayoutDesc{};
-        materialBindGroupLayoutDesc.label = "Scene3D/MaterialBindGroupLayout";
-        materialBindGroupLayoutDesc.entryCount = static_cast<uint32_t>(materialBindings.size());
-        materialBindGroupLayoutDesc.entries = materialBindings.data();
-        result.materialBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(materialBindGroupLayoutDesc);
-    }
+    Scene3DPipelineFactory::ForwardPipeline result;
+    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(ctx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
+    result.materialBindGroupLayout = CreateMaterialBindGroupLayout(ctx);
 
     std::array<WGPUBindGroupLayout, 3> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -206,94 +291,278 @@ static Scene3DPipelineFactory::Pipeline CreatePipeline(
     };
 
     PipelineLayoutDescriptor layoutDesc{};
-    layoutDesc.label = "Scene3D/PipelineLayout";
+    layoutDesc.label = "Scene3D/ForwardPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
-    layoutDesc.bindGroupLayouts     = bindGroupLayouts.data();
-    result.layout                   = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline     = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
     PopValidationScope(ctx, label);
 #endif
     return result;
 }
 
-static Scene3DPipelineFactory::ShadowPipeline CreateShadowPipeline(
-    RenderContext&               ctx,
-    const std::filesystem::path& shaderPath,
-    const char*                  label,
-    const WGPUPrimitiveTopology  topology,
-    const WGPUCullMode           cullMode) {
-    std::cout << "[" << label << "] Creating shader module..." << std::endl;
-    ShaderModule shaderModule = ShaderLoader::Load(shaderPath, *ctx.GetDevice());
-    std::cout << "[" << label << "] Shader module: " << shaderModule << std::endl;
+Scene3DPipelineFactory::ForwardPipeline
+Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+    return CreateForwardPipeline(
+        ctx,
+        ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
+        "Scene3DPipelineFactory/ForwardUnlit",
+        colorTargetFormat);
+}
 
-    if (shaderModule == nullptr) {
-        std::cerr << "[" << label << "] Could not load shader!" << std::endl;
-        std::exit(1);
-    }
+Scene3DPipelineFactory::ForwardPipeline
+Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+    return CreateForwardPipeline(
+        ctx,
+        ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
+        "Scene3DPipelineFactory/ForwardLambert",
+        colorTargetFormat);
+}
+
+Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepthPrepassPipeline(RenderContext& ctx) {
+    constexpr const char* label = "Scene3DPipelineFactory/DepthPrepass";
+    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_depth_prepass.wgsl"), label);
 
     wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
 
-    RenderPipelineDescriptor      pipelineDesc{};
+    std::array<VertexAttribute, 4> vertexAttributes{};
+    VertexBufferLayout             vertexBufferLayout{};
+    BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
+
+    RenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.label = label;
-    std::array<VertexAttribute, 4> vertexAttribs{};
-    const VertexBufferLayout       vertexBufferLayout = CreateSceneVertexBufferLayout(vertexAttribs);
-    pipelineDesc.vertex.bufferCount   = 1;
-    pipelineDesc.vertex.buffers       = &vertexBufferLayout;
-    pipelineDesc.vertex.module        = shaderModule;
-    pipelineDesc.vertex.entryPoint    = "vs_main";
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
-    pipelineDesc.vertex.constants     = nullptr;
-    pipelineDesc.fragment             = nullptr;
+    pipelineDesc.vertex.constants = nullptr;
+    pipelineDesc.fragment = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
 
-    pipelineDesc.primitive.topology         = topology;
-    pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
-    pipelineDesc.primitive.frontFace        = FrontFace::CCW;
-    pipelineDesc.primitive.cullMode         = cullMode;
+    DepthStencilState depthStencil = BuildDepthStencilState(true, CompareFunction::Less);
+    pipelineDesc.depthStencil = &depthStencil;
 
-    DepthStencilState depthStencil{};
-    depthStencil.format                             = TextureFormat::Depth24Plus;
-    depthStencil.depthWriteEnabled                  = true;
-    depthStencil.depthCompare                       = CompareFunction::Less;
-    depthStencil.stencilFront.compare               = CompareFunction::Always;
-    depthStencil.stencilBack.compare                = CompareFunction::Always;
-    depthStencil.stencilReadMask                    = 0;
-    depthStencil.stencilWriteMask                   = 0;
-    depthStencil.depthBias                          = 0;
-    depthStencil.depthBiasSlopeScale                = 0.0f;
-    depthStencil.depthBiasClamp                     = 0.0f;
-    pipelineDesc.depthStencil                       = &depthStencil;
-    pipelineDesc.multisample.count                  = 1;
-    pipelineDesc.multisample.mask                   = ~0u;
-    pipelineDesc.multisample.alphaToCoverageEnabled = false;
+    DepthPrepassPipeline result;
+    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(ctx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
 
-    Scene3DPipelineFactory::ShadowPipeline result;
-    {
-        BindGroupLayoutEntry sceneBinding{};
-        sceneBinding.binding = 0;
-        sceneBinding.visibility = ShaderStage::Vertex;
-        sceneBinding.buffer.type = BufferBindingType::Uniform;
+    std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
+        *result.sceneBindGroupLayout,
+        *result.objectBindGroupLayout,
+    };
 
-        BindGroupLayoutDescriptor sceneBindGroupLayoutDesc{};
-        sceneBindGroupLayoutDesc.label = "Scene3D/ShadowSceneBindGroupLayout";
-        sceneBindGroupLayoutDesc.entryCount = 1;
-        sceneBindGroupLayoutDesc.entries = &sceneBinding;
-        result.sceneBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(sceneBindGroupLayoutDesc);
-    }
-    {
-        BindGroupLayoutEntry objectBinding{};
-        objectBinding.binding = 0;
-        objectBinding.visibility = ShaderStage::Vertex;
-        objectBinding.buffer.type = BufferBindingType::Uniform;
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/DepthPrepassPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
 
-        BindGroupLayoutDescriptor objectBindGroupLayoutDesc{};
-        objectBindGroupLayoutDesc.label = "Scene3D/ShadowObjectBindGroupLayout";
-        objectBindGroupLayoutDesc.entryCount = 1;
-        objectBindGroupLayoutDesc.entries = &objectBinding;
-        result.objectBindGroupLayout = ctx.GetDevice()->createBindGroupLayout(objectBindGroupLayoutDesc);
-    }
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(ctx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::SceneNormalPipeline
+Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/SceneNormal";
+    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_normal_prepass.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+
+    std::array<VertexAttribute, 4> vertexAttributes{};
+    VertexBufferLayout             vertexBufferLayout{};
+    BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+
+    DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
+    pipelineDesc.depthStencil = &depthStencil;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    SceneNormalPipeline result;
+    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(ctx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
+
+    std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
+        *result.sceneBindGroupLayout,
+        *result.objectBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/SceneNormalPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(ctx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::SsaoPipeline Scene3DPipelineFactory::CreateSsaoPipeline(RenderContext& ctx) {
+    constexpr const char* label = "Scene3DPipelineFactory/SSAO";
+    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_ssao.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = TextureFormat::R8Unorm;
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    SsaoPipeline result;
+    result.depthBindGroupLayout = CreateDepthTextureBindGroupLayout(ctx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.depthBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/SsaoPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(ctx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::CompositePipeline
+Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/Composite";
+    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_composite.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    CompositePipeline result;
+    result.sceneColorBindGroupLayout = CreateSceneColorBindGroupLayout(ctx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.sceneColorBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/CompositePipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(ctx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectionalShadowPipeline(RenderContext& ctx) {
+    constexpr const char* label = "Scene3DPipelineFactory/DirectionalShadow";
+    ShaderModule shaderModule =
+        LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_directional_shadow.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+
+    std::array<VertexAttribute, 4> vertexAttributes{};
+    VertexBufferLayout             vertexBufferLayout{};
+    BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    pipelineDesc.fragment = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+
+    DepthStencilState depthStencil = BuildDepthStencilState(true, CompareFunction::Less);
+    pipelineDesc.depthStencil = &depthStencil;
+
+    ShadowPipeline result;
+    result.sceneBindGroupLayout = CreateShadowSceneBindGroupLayout(ctx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
 
     std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -303,48 +572,13 @@ static Scene3DPipelineFactory::ShadowPipeline CreateShadowPipeline(
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.label = "Scene3D/ShadowPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
-    layoutDesc.bindGroupLayouts     = bindGroupLayouts.data();
-    result.layout                   = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline     = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
     PopValidationScope(ctx, label);
 #endif
     return result;
-}
-
-Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& ctx) {
-    return CreatePipeline(
-        ctx,
-        ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
-        "Scene3DPipelineFactory/ForwardUnlit",
-        true,
-        PrimitiveTopology::TriangleList,
-        CullMode::None,
-        true,
-        CompareFunction::Less,
-        ColorWriteMask::All);
-}
-
-Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& ctx) {
-    return CreatePipeline(
-        ctx,
-        ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
-        "Scene3DPipelineFactory/ForwardLambert",
-        true,
-        PrimitiveTopology::TriangleList,
-        CullMode::None,
-        true,
-        CompareFunction::Less,
-        ColorWriteMask::All);
-}
-
-Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectionalShadowPipeline(RenderContext& ctx) {
-    return CreateShadowPipeline(
-        ctx,
-        ShaderPaths::Resolve("scene/scene_directional_shadow.wgsl"),
-        "Scene3DPipelineFactory/DirectionalShadow",
-        PrimitiveTopology::TriangleList,
-        CullMode::None);
 }

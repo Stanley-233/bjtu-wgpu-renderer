@@ -5,7 +5,7 @@
 - `Application` 负责应用生命周期、主循环编排、场景切换、输入系统接线和 GUI 帧驱动。
 - `WindowContext` 负责 GLFW 窗口生命周期、事件轮询和 drawable size 查询。
 - `RenderContext` 负责 WebGPU device、queue、surface 以及 surface acquire / submit / present。
-- `Renderer` 负责新 3D 渲染路径的整帧编排，内部调度 `ForwardPass`、`GuiPass`。
+- `Renderer` 负责新 3D 渲染路径的整帧编排，内部调度 `DepthPrepass`、`SSAOPass`、`ForwardOpaquePass`、`GuiPass`。
 - `LegacyGuiRenderer`、`LegacyFrameContext`、`LegacyPipeline2D`、`LegacyRenderer3D` 都是兼容层，不扩散到新 3D 渲染架构内部。
 
 ## 源代码层级
@@ -76,13 +76,15 @@ src
     ├── Renderer                 # 新 3D 渲染器总入口
     ├── frame
     │   ├── SurfaceFrame         # 一次 surface acquire 的结果：texture、view、surface size 快照
-    │   └── RenderFrame          # 新渲染路径单帧对象：SurfaceFrame + encoder + depthView + clearColor
+    │   └── RenderFrame          # 新渲染路径单帧对象：SurfaceFrame + encoder + sceneDepthView + sceneAoView + clearColor
     ├── gpu
     │   ├── GpuMesh              # GPU 侧网格资源
     │   └── GpuResourceCache     # CPU 网格到 GPU 资源的缓存和上传
     ├── passes
     │   ├── IRenderPass          # Pass 接口
-    │   ├── ForwardPass          # 主 3D 绘制 pass
+    │   ├── DepthPrepass         # 场景深度预通道
+    │   ├── SSAOPass             # SSAO 占位通道
+    │   ├── ForwardOpaquePass    # 主 3D 绘制 pass
     │   ├── GuiPass              # 包装 LegacyGuiRenderer 的 pass
     │   ├── PreparedDrawItem     # 供 pass 使用的预处理绘制项
     ├── pipelines
@@ -111,8 +113,8 @@ src
 
 1. `LogicScene` 或 `LegacyRenderer3D` 先整理出 `RenderScene`。
 2. `Renderer` 调用 `RenderContext::AcquireSurfaceFrame()`。
-3. `Renderer` 创建 `RenderFrame`，附带 encoder、depthView 和 clearColor。
-4. `ForwardPass`、`GuiPass` 顺序写入同一个 encoder。
+3. `Renderer` 创建 `RenderFrame`，附带 encoder、sceneDepthView、sceneAoView 和 clearColor。
+4. `DepthPrepass`、`SSAOPass`、`ForwardOpaquePass`、`GuiPass` 顺序写入同一个 encoder。
 5. `Renderer` 调用 `RenderContext::Submit(...)` 和 `RenderContext::Present(...)`。
 
 ### legacy 兼容路径

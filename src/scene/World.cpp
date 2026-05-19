@@ -155,12 +155,10 @@ Entity World::PrimaryCamera() const {
 }
 
 void World::SetDirectionalLight(const Entity entity) {
-    // TODO: 后续在这里补唯一方向光的注册与校验逻辑
     m_directionalLight = entity.IsValid() ? entity.Handle() : entt::null;
 }
 
 Entity World::DirectionalLight() const {
-    // TODO: 后续在这里补唯一方向光缺省发现逻辑
     if (m_directionalLight == entt::null || !m_registry.valid(m_directionalLight)) {
         return {};
     }

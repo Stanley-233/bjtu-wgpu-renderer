@@ -1,0 +1,21 @@
+#ifndef BJTU_WGPU_RENDERER_COMPOSITEPASS_H
+#define BJTU_WGPU_RENDERER_COMPOSITEPASS_H
+
+#include "IRenderPass.h"
+
+class RenderContext;
+
+class CompositePass final : public IRenderPass {
+public:
+    void Initialize(RenderContext& ctx);
+
+    void Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) override;
+
+private:
+    wgpu::raii::PipelineLayout  m_layout;
+    wgpu::raii::BindGroupLayout m_sceneColorBindGroupLayout;
+    wgpu::raii::Sampler         m_sceneColorSampler;
+    wgpu::raii::RenderPipeline  m_pipeline;
+};
+
+#endif // BJTU_WGPU_RENDERER_COMPOSITEPASS_H

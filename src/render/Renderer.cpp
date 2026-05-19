@@ -15,15 +15,24 @@ static ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_shadowPass.Initialize(ctx);
-    m_forwardPass.Initialize(ctx);
+    m_depthPrepass.Initialize(ctx);
+    m_sceneNormalPass.Initialize(ctx);
+    m_ssaoPass.Initialize(ctx);
+    m_forwardOpaquePass.Initialize(ctx);
+    m_compositePass.Initialize(ctx);
     EnsureFallbackShadowResources(ctx);
 }
 
-void Renderer::EnsureDepthResources(RenderContext& ctx, const int width, const int height) {
+void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
     }
-    if (m_depthTexture && m_depthWidth == width && m_depthHeight == height) {
+    if (m_sceneDepthTexture
+        && m_sceneAoTexture
+        && m_sceneColorTexture
+        && m_sceneNormalTexture
+        && m_frameResourceWidth == width
+        && m_frameResourceHeight == height) {
         return;
     }
 
@@ -35,11 +44,48 @@ void Renderer::EnsureDepthResources(RenderContext& ctx, const int width, const i
     depthDesc.sampleCount = 1;
     depthDesc.mipLevelCount = 1;
     depthDesc.format = wgpu::TextureFormat::Depth24Plus;
-    depthDesc.usage = wgpu::TextureUsage::RenderAttachment;
-    m_depthTexture = ctx.GetDevice()->createTexture(depthDesc);
-    m_depthView = m_depthTexture->createView();
-    m_depthWidth = width;
-    m_depthHeight = height;
+    depthDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneDepthTexture = ctx.GetDevice()->createTexture(depthDesc);
+    m_sceneDepthView = m_sceneDepthTexture->createView();
+
+    wgpu::TextureDescriptor aoDesc{};
+    aoDesc.dimension = wgpu::TextureDimension::_2D;
+    aoDesc.size.width = static_cast<uint32_t>(width);
+    aoDesc.size.height = static_cast<uint32_t>(height);
+    aoDesc.size.depthOrArrayLayers = 1;
+    aoDesc.sampleCount = 1;
+    aoDesc.mipLevelCount = 1;
+    aoDesc.format = wgpu::TextureFormat::R8Unorm;
+    aoDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneAoTexture = ctx.GetDevice()->createTexture(aoDesc);
+    m_sceneAoView = m_sceneAoTexture->createView();
+
+    wgpu::TextureDescriptor sceneColorDesc{};
+    sceneColorDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneColorDesc.size.width = static_cast<uint32_t>(width);
+    sceneColorDesc.size.height = static_cast<uint32_t>(height);
+    sceneColorDesc.size.depthOrArrayLayers = 1;
+    sceneColorDesc.sampleCount = 1;
+    sceneColorDesc.mipLevelCount = 1;
+    sceneColorDesc.format = ctx.GetSurfaceFormat();
+    sceneColorDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneColorTexture = ctx.GetDevice()->createTexture(sceneColorDesc);
+    m_sceneColorView = m_sceneColorTexture->createView();
+
+    wgpu::TextureDescriptor sceneNormalDesc{};
+    sceneNormalDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneNormalDesc.size.width = static_cast<uint32_t>(width);
+    sceneNormalDesc.size.height = static_cast<uint32_t>(height);
+    sceneNormalDesc.size.depthOrArrayLayers = 1;
+    sceneNormalDesc.sampleCount = 1;
+    sceneNormalDesc.mipLevelCount = 1;
+    sceneNormalDesc.format = wgpu::TextureFormat::RGBA16Float;
+    sceneNormalDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneNormalTexture = ctx.GetDevice()->createTexture(sceneNormalDesc);
+    m_sceneNormalView = m_sceneNormalTexture->createView();
+
+    m_frameResourceWidth = width;
+    m_frameResourceHeight = height;
 }
 
 void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32_t width, const uint32_t height) {
@@ -62,7 +108,6 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32
     shadowDesc.sampleCount = 1;
     shadowDesc.mipLevelCount = 1;
     shadowDesc.format = wgpu::TextureFormat::Depth24Plus;
-    // 既可以作为 RenderAttachment 目标，也可以作为 Texture 被采样
     shadowDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
     m_directionalShadowTexture = ctx.GetDevice()->createTexture(shadowDesc);
     m_directionalShadowView = m_directionalShadowTexture->createView();
@@ -77,7 +122,7 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32
     samplerDesc.compare = wgpu::CompareFunction::LessEqual;
     samplerDesc.lodMinClamp = 0.0f;
     samplerDesc.lodMaxClamp = 1.0f;
-    samplerDesc.maxAnisotropy = 1; // 关闭各向异性过滤
+    samplerDesc.maxAnisotropy = 1;
     m_directionalShadowSampler = ctx.GetDevice()->createSampler(samplerDesc);
 
     m_directionalShadowWidth = width;
@@ -89,7 +134,7 @@ void Renderer::EnsureFallbackShadowResources(RenderContext& ctx) {
         return;
     }
 
-    //TODO: [Shadow] 接入真实的可选 shadow 资源绑定路径后，删除这套 fallback shadow texture/sampler 逻辑。
+    // TODO: [Shadow] 接入真实的可选 shadow 资源绑定路径后，删除这套 fallback shadow texture/sampler 逻辑。
     wgpu::TextureDescriptor shadowDesc{};
     shadowDesc.dimension = wgpu::TextureDimension::_2D;
     shadowDesc.size.width = 1;
@@ -124,14 +169,23 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
         return frame;
     }
 
-    EnsureDepthResources(
+    EnsureFrameResources(
         ctx,
         std::max(1, frame.surfaceFrame.surfaceWidth),
         std::max(1, frame.surfaceFrame.surfaceHeight));
 
     frame.encoder = ctx.CreateCommandEncoder();
-    if (m_depthView) {
-        frame.depthView = *m_depthView;
+    if (m_sceneDepthView) {
+        frame.sceneDepthView = *m_sceneDepthView;
+    }
+    if (m_sceneAoView) {
+        frame.sceneAoView = *m_sceneAoView;
+    }
+    if (m_sceneColorView) {
+        frame.sceneColorView = *m_sceneColorView;
+    }
+    if (m_sceneNormalView) {
+        frame.sceneNormalView = *m_sceneNormalView;
     }
     return frame;
 }
@@ -150,7 +204,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
             continue;
         }
 
-        if (!m_forwardPass.GetMaterialBindGroupLayout()) {
+        if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()) {
             continue;
         }
 
@@ -165,7 +219,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
         materialBindings[2].sampler = materialResources->sampler;
 
         wgpu::BindGroupDescriptor materialBindGroupDesc{};
-        materialBindGroupDesc.layout = *m_forwardPass.GetMaterialBindGroupLayout();
+        materialBindGroupDesc.layout = *m_forwardOpaquePass.GetMaterialBindGroupLayout();
         materialBindGroupDesc.entryCount = 3;
         materialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
@@ -193,7 +247,6 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         return;
     }
 
-    // TODO: [Shadow] 实现后移除 Fallback 逻辑
     EnsureFallbackShadowResources(ctx);
     if (scene.directionalShadow.has_value()) {
         EnsureDirectionalShadowResources(
@@ -222,9 +275,19 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         .queue = &*ctx.GetQueue(),
         .fallbackShadowMapView = m_fallbackShadowView ? *m_fallbackShadowView : nullptr,
         .fallbackShadowSampler = m_fallbackShadowSampler ? *m_fallbackShadowSampler : nullptr,
+        .sceneDepthView = frame.sceneDepthView,
+        .sceneAoView = frame.sceneAoView,
+        .sceneColorView = frame.sceneColorView,
+        .sceneNormalView = frame.sceneNormalView,
+        .viewportWidth = frame.surfaceFrame.surfaceWidth,
+        .viewportHeight = frame.surfaceFrame.surfaceHeight,
     };
     m_shadowPass.Render(ctx, frame, passContext);
-    m_forwardPass.Render(ctx, frame, passContext);
+    m_depthPrepass.Render(ctx, frame, passContext);
+    m_sceneNormalPass.Render(ctx, frame, passContext);
+    m_ssaoPass.Render(ctx, frame, passContext);
+    m_forwardOpaquePass.Render(ctx, frame, passContext);
+    m_compositePass.Render(ctx, frame, passContext);
     m_guiPass.Render(ctx, frame, passContext);
     ctx.Submit(frame.encoder);
     ctx.Present(frame.surfaceFrame);
