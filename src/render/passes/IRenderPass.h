@@ -13,12 +13,21 @@ class LegacyGuiRenderer;
 class RenderContext;
 struct RenderFrame;
 
+struct DirectionalShadowPassData {
+    DirectionalShadowUniformData uniformData{};
+    wgpu::TextureView            shadowMapView = nullptr;
+    wgpu::Sampler                shadowSampler = nullptr;
+};
+
 struct PassContext {
-    std::optional<RenderCamera>       camera{};
-    RenderLightSet                    lights{};
-    std::span<const PreparedDrawItem> drawItems{};
-    LegacyGuiRenderer*               guiRenderer = nullptr;
-    wgpu::Queue*                     queue = nullptr;
+    std::optional<RenderCamera>               camera{};
+    std::optional<DirectionalShadowPassData> directionalShadow{};
+    RenderLightSet                            lights{};
+    std::span<const PreparedDrawItem>         drawItems{};
+    LegacyGuiRenderer*                        guiRenderer = nullptr;
+    wgpu::Queue*                              queue = nullptr;
+    wgpu::TextureView                         fallbackShadowMapView = nullptr;
+    wgpu::Sampler                             fallbackShadowSampler = nullptr;
 };
 
 class IRenderPass {

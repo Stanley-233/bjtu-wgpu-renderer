@@ -38,6 +38,11 @@ struct ObjectUniform {
     normalMatrix: mat4x4f,
 };
 
+struct DirectionalShadowUniform {
+    lightViewProjection: mat4x4f,
+    shadowParams: vec4f,
+};
+
 struct MaterialUniform {
     baseColorFactor: vec4f,
     surfaceOptions: vec4u,
@@ -50,6 +55,9 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
+@group(0) @binding(1) var<uniform> uDirectionalShadow: DirectionalShadowUniform;
+@group(0) @binding(2) var uDirectionalShadowMap: texture_depth_2d;
+@group(0) @binding(3) var uDirectionalShadowSampler: sampler_comparison;
 @group(1) @binding(0) var<uniform> uObject: ObjectUniform;
 @group(2) @binding(0) var<uniform> uMaterial: MaterialUniform;
 @group(2) @binding(1) var uBaseColorTexture: texture_2d<f32>;
@@ -70,5 +78,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         surfaceColor *= in.color;
     }
+    // TODO: [Shadow] Unlit 材质通常不参与阴影，后续按材质策略决定是否忽略 directional shadow。
+    let _unusedShadowEnabled = uDirectionalShadow.shadowParams.x;
     return surfaceColor;
 }

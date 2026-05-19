@@ -19,9 +19,18 @@ struct alignas(16) SceneUniformData {
     std::array<SpotLightData, RenderLightSet::kMaxSpotLights> spotLights{};
 };
 
+struct alignas(16) DirectionalShadowUniformData {
+    glm::mat4 lightViewProjection{1.0f};
+    glm::vec4 shadowParams{0.0f, 0.0f, 0.0f, 0.0f};
+};
+
 struct alignas(16) ObjectUniformData {
     glm::mat4 model{1.0f};
     glm::mat4 normalMatrix{1.0f};
+};
+
+struct alignas(16) ShadowObjectUniformData {
+    glm::mat4 model{1.0f};
 };
 
 struct alignas(16) MaterialUniformData {

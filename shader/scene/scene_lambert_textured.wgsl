@@ -86,6 +86,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         diffuseLighting = uScene.directionalLight.color.rgb * ambientFactor;
         diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
     }
-
+    // TODO: [Shadow] 将 worldPos 变换到 light space，并结合 uDirectionalShadowMap / uDirectionalShadowSampler 计算 shadow factor。
     return vec4f(baseColor.rgb * diffuseLighting, baseColor.a);
 }

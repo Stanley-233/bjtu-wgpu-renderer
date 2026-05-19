@@ -8,12 +8,18 @@
 #include "RenderCamera.h"
 #include "RenderLightSet.h"
 #include "RenderObject.h"
+#include "RenderUniformData.h"
+
+struct DirectionalShadowSceneData {
+    DirectionalShadowUniformData uniformData{};
+};
 
 struct RenderScene {
-    std::optional<RenderCamera> camera{};
-    RenderLightSet              lights{};
-    const AssetServer*          assetServer = nullptr;
-    std::vector<RenderObject>   objects{};
+    std::optional<RenderCamera>              camera{};
+    std::optional<DirectionalShadowSceneData> directionalShadow{};
+    RenderLightSet                           lights{};
+    const AssetServer*                       assetServer = nullptr;
+    std::vector<RenderObject>                objects{};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERSCENE_H

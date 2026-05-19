@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 
 #include "asset/AssetPaths.h"
@@ -82,6 +84,16 @@ glm::vec3 NormalizeDirectionOrDefault(const glm::vec3& direction) {
         return {0.0f, -1.0f, 0.0f};
     }
     return glm::normalize(direction);
+}
+
+DirectionalShadowSceneData BuildDirectionalShadowSceneData(const glm::vec3& lightDirection) {
+    DirectionalShadowSceneData shadowData{};
+    (void)lightDirection;
+    //TODO: [Shadow] 先根据 Directional Light 的方向构造 light view matrix
+    //TODO: [Shadow] 再根据主相机可见范围或场景包围盒构造正交投影矩阵
+    //TODO: [Shadow] 最后把 lightProjection * lightView 写入 shadowData.uniformData.lightViewProjection
+    //TODO: [Shadow] 当 lightViewProjection 准备好后，再把 shadowData.uniformData.shadowParams.x 设为 1，表示启用阴影
+    return shadowData;
 }
 
 Entity FindPrimaryCamera(World& world) {
@@ -279,6 +291,9 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
     RenderScene renderScene{};
     renderScene.assetServer = &m_assetServer;
     renderScene.lights = BuildRenderLightSet();
+    if (renderScene.lights.directionalLightCount > 0) {
+        renderScene.directionalShadow = BuildDirectionalShadowSceneData(glm::vec3{renderScene.lights.directionalLight.direction});
+    }
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;

@@ -4,8 +4,7 @@
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
-namespace {
-SceneUniformData BuildSceneUniformData(const PassContext& context) {
+static SceneUniformData BuildSceneUniformData(const PassContext& context) {
     SceneUniformData uniformData{};
     if (context.camera.has_value()) {
         uniformData.view = context.camera->view;
@@ -23,7 +22,13 @@ SceneUniformData BuildSceneUniformData(const PassContext& context) {
     uniformData.spotLights = context.lights.spotLights;
     return uniformData;
 }
-} // namespace
+
+static DirectionalShadowUniformData BuildDirectionalShadowUniformData(const PassContext& context) {
+    if (context.directionalShadow.has_value()) {
+        return context.directionalShadow->uniformData;
+    }
+    return DirectionalShadowUniformData{};
+}
 
 void ForwardPass::Initialize(RenderContext& ctx) {
     auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx);
@@ -45,6 +50,13 @@ void ForwardPass::EnsureSceneResources(RenderContext& ctx) {
         uniformBufferDesc.mappedAtCreation = false;
         m_sceneResources.sceneUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
     }
+    if (!m_sceneResources.directionalShadowUniformBuffer) {
+        wgpu::BufferDescriptor uniformBufferDesc{};
+        uniformBufferDesc.size = sizeof(DirectionalShadowUniformData);
+        uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        uniformBufferDesc.mappedAtCreation = false;
+        m_sceneResources.directionalShadowUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+    }
 }
 
 void ForwardPass::EnsureObjectResources(RenderContext& ctx, const std::size_t objectCount) {
@@ -65,27 +77,53 @@ void ForwardPass::EnsureObjectResources(RenderContext& ctx, const std::size_t ob
 }
 
 void ForwardPass::UpdateSceneResources(RenderContext& ctx, const PassContext& context) {
-    if (!m_sceneResources.sceneUniformBuffer || !m_sceneBindGroupLayout || context.queue == nullptr) {
+    const wgpu::TextureView shadowMapView = context.directionalShadow.has_value() ?
+                                                context.directionalShadow->shadowMapView :
+                                                context.fallbackShadowMapView;
+    const wgpu::Sampler shadowSampler = context.directionalShadow.has_value() ?
+                                            context.directionalShadow->shadowSampler :
+                                            context.fallbackShadowSampler;
+    if (!m_sceneResources.sceneUniformBuffer
+        || !m_sceneResources.directionalShadowUniformBuffer
+        || !m_sceneBindGroupLayout
+        || context.queue == nullptr
+        || shadowMapView == nullptr
+        || shadowSampler == nullptr) {
         return;
     }
 
-    const SceneUniformData uniformData = BuildSceneUniformData(context);
+    const SceneUniformData             uniformData                  = BuildSceneUniformData(context);
+    const DirectionalShadowUniformData directionalShadowUniformData =
+        BuildDirectionalShadowUniformData(context);
     context.queue->writeBuffer(
         *m_sceneResources.sceneUniformBuffer,
         0,
         &uniformData,
         sizeof(SceneUniformData));
+    context.queue->writeBuffer(
+        *m_sceneResources.directionalShadowUniformBuffer,
+        0,
+        &directionalShadowUniformData,
+        sizeof(DirectionalShadowUniformData));
 
-    wgpu::BindGroupEntry binding{};
-    binding.binding = 0;
-    binding.buffer = *m_sceneResources.sceneUniformBuffer;
-    binding.offset = 0;
-    binding.size = sizeof(SceneUniformData);
+    wgpu::BindGroupEntry bindings[4]{};
+    bindings[0].binding     = 0;
+    bindings[0].buffer      = *m_sceneResources.sceneUniformBuffer;
+    bindings[0].offset      = 0;
+    bindings[0].size        = sizeof(SceneUniformData);
+    bindings[1].binding     = 1;
+    bindings[1].buffer      = *m_sceneResources.directionalShadowUniformBuffer;
+    bindings[1].offset      = 0;
+    bindings[1].size        = sizeof(DirectionalShadowUniformData);
+    bindings[2].binding     = 2;
+    bindings[2].textureView = shadowMapView;
+    bindings[3].binding     = 3;
+    bindings[3].sampler     = shadowSampler;
 
     wgpu::BindGroupDescriptor bindGroupDesc{};
-    bindGroupDesc.layout = *m_sceneBindGroupLayout;
-    bindGroupDesc.entryCount = 1;
-    bindGroupDesc.entries = &binding;
+    bindGroupDesc.layout            = *m_sceneBindGroupLayout;
+    bindGroupDesc.entryCount        = 4;
+    bindGroupDesc.entries           = bindings;
     m_sceneResources.sceneBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
