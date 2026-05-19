@@ -191,27 +191,33 @@ static bool ReadAccessorColor(const tinygltf::Model& model, const int accessorIn
 }
 
 static bool ReadIndices(const tinygltf::Model& model, const int accessorIndex, std::vector<uint16_t>& outIndices) {
-    if (accessorIndex < 0) {
+    const auto fail = [&](const std::string& message) -> bool {
+        std::cerr << "[GltfImporter] Warning: failed to read indices for accessor " << accessorIndex
+                  << ": " << message << std::endl;
         return false;
+    };
+
+    if (accessorIndex < 0) {
+        return fail("accessor index is negative");
     }
 
     const tinygltf::Accessor& accessor = model.accessors[static_cast<std::size_t>(accessorIndex)];
     if (accessor.bufferView < 0 || accessor.type != TINYGLTF_TYPE_SCALAR) {
-        return false;
+        return fail("accessor is missing a buffer view or is not a scalar index buffer");
     }
 
     const tinygltf::BufferView& bufferView = model.bufferViews[static_cast<std::size_t>(accessor.bufferView)];
     const tinygltf::Buffer& buffer = model.buffers[static_cast<std::size_t>(bufferView.buffer)];
     const int stride = accessor.ByteStride(bufferView);
     if (stride <= 0) {
-        return false;
+        return fail("accessor stride is invalid");
     }
 
     outIndices.resize(accessor.count);
     for (std::size_t i = 0; i < accessor.count; ++i) {
         const std::size_t byteOffset = static_cast<std::size_t>(bufferView.byteOffset + accessor.byteOffset) + i * static_cast<std::size_t>(stride);
         if (byteOffset >= buffer.data.size()) {
-            return false;
+            return fail("computed byte offset exceeded buffer size");
         }
 
         switch (accessor.componentType) {
@@ -220,7 +226,7 @@ static bool ReadIndices(const tinygltf::Model& model, const int accessorIndex, s
             break;
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
             if (byteOffset + sizeof(uint16_t) > buffer.data.size()) {
-                return false;
+                return fail("uint16 index read exceeded buffer size");
             }
             const auto* values = reinterpret_cast<const uint16_t*>(buffer.data.data() + byteOffset);
             outIndices[i] = *values;
@@ -228,17 +234,17 @@ static bool ReadIndices(const tinygltf::Model& model, const int accessorIndex, s
         }
         case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT: {
             if (byteOffset + sizeof(uint32_t) > buffer.data.size()) {
-                return false;
+                return fail("uint32 index read exceeded buffer size");
             }
             const auto* values = reinterpret_cast<const uint32_t*>(buffer.data.data() + byteOffset);
             if (*values > std::numeric_limits<uint16_t>::max()) {
-                return false;
+                return fail("uint32 index value exceeds uint16 range; the renderer currently only supports uint16 index buffers");
             }
             outIndices[i] = static_cast<uint16_t>(*values);
             break;
         }
         default:
-            return false;
+            return fail("unsupported index component type " + std::to_string(accessor.componentType));
         }
     }
     return true;

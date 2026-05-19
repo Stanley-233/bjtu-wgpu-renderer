@@ -19,3 +19,7 @@ Makefile
 
 # Ignore stray project artifacts
 data/
+
+# assets
+assets/NewSponzaWithCurtains_GLTF
+assets/DiningRoom_GLTF

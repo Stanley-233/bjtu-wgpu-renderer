@@ -189,7 +189,7 @@ bool LogicScene::Initialize(RenderContext& ctx) {
         std::cerr << "[LogicScene] Failed to load " << arkZfyPath.string() << std::endl;
     }
 
-    const auto& cornelBoxPath = AssetPaths::Resolve("cornel-box-original/scene.gltf");
+    const auto& cornelBoxPath = AssetPaths::Resolve("DiningRoom_GLTF/DiningRoom.gltf");
     const AssetId<ModelAsset> cornelBox = m_assetServer.LoadModel(cornelBoxPath);
     if (cornelBox.IsValid()) {
         const ModelAsset* model = m_assetServer.Get(cornelBox);
