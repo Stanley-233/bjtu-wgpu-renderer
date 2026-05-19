@@ -24,14 +24,14 @@ static SceneUniformData BuildSceneUniformData(const PassContext& context) {
 }
 
 void ForwardOpaquePass::Initialize(RenderContext& ctx) {
-    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx);
+    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(ctx, ctx.GetSurfaceFormat());
     m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
     m_layout = std::move(unlitPipeline.layout);
     m_unlitPipeline = std::move(unlitPipeline.pipeline);
 
-    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(ctx);
+    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(ctx, ctx.GetSurfaceFormat());
     m_lambertPipeline = std::move(lambertPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
@@ -138,7 +138,7 @@ void ForwardOpaquePass::UpdateObjectResources(RenderContext& ctx, const std::spa
 }
 
 void ForwardOpaquePass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) {
-    if (!frame.surfaceFrame.view || !frame.encoder) {
+    if (!frame.encoder || frame.sceneColorView == nullptr) {
         return;
     }
 
@@ -148,7 +148,7 @@ void ForwardOpaquePass::Render(RenderContext& ctx, RenderFrame& frame, const Pas
     UpdateObjectResources(ctx, context.drawItems);
 
     wgpu::RenderPassColorAttachment colorAttachment{};
-    colorAttachment.view = *frame.surfaceFrame.view;
+    colorAttachment.view = frame.sceneColorView;
     colorAttachment.resolveTarget = nullptr;
     colorAttachment.loadOp = wgpu::LoadOp::Clear;
     colorAttachment.storeOp = wgpu::StoreOp::Store;

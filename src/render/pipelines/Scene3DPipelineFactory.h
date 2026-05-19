@@ -22,19 +22,36 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
+    struct SceneNormalPipeline {
+        wgpu::raii::BindGroupLayout sceneBindGroupLayout;
+        wgpu::raii::BindGroupLayout objectBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
     struct SsaoPipeline {
         wgpu::raii::BindGroupLayout depthBindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
 
-    static ForwardPipeline CreateUnlitForwardPipeline(RenderContext& ctx);
+    struct CompositePipeline {
+        wgpu::raii::BindGroupLayout sceneColorBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
 
-    static ForwardPipeline CreateLambertForwardPipeline(RenderContext& ctx);
+    static ForwardPipeline CreateUnlitForwardPipeline(RenderContext& ctx, wgpu::TextureFormat colorTargetFormat);
+
+    static ForwardPipeline CreateLambertForwardPipeline(RenderContext& ctx, wgpu::TextureFormat colorTargetFormat);
 
     static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& ctx);
 
+    static SceneNormalPipeline CreateSceneNormalPipeline(RenderContext& ctx, wgpu::TextureFormat colorTargetFormat);
+
     static SsaoPipeline CreateSsaoPipeline(RenderContext& ctx);
+
+    static CompositePipeline CreateCompositePipeline(RenderContext& ctx, wgpu::TextureFormat colorTargetFormat);
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE3DPIPELINEFACTORY_H

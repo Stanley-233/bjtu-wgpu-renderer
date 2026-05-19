@@ -15,15 +15,22 @@ static ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
 
 void Renderer::Initialize(RenderContext& ctx) {
     m_depthPrepass.Initialize(ctx);
+    m_sceneNormalPass.Initialize(ctx);
     m_ssaoPass.Initialize(ctx);
     m_forwardOpaquePass.Initialize(ctx);
+    m_compositePass.Initialize(ctx);
 }
 
 void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
     }
-    if (m_sceneDepthTexture && m_sceneAoTexture && m_frameResourceWidth == width && m_frameResourceHeight == height) {
+    if (m_sceneDepthTexture
+        && m_sceneAoTexture
+        && m_sceneColorTexture
+        && m_sceneNormalTexture
+        && m_frameResourceWidth == width
+        && m_frameResourceHeight == height) {
         return;
     }
 
@@ -51,6 +58,30 @@ void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const i
     m_sceneAoTexture = ctx.GetDevice()->createTexture(aoDesc);
     m_sceneAoView = m_sceneAoTexture->createView();
 
+    wgpu::TextureDescriptor sceneColorDesc{};
+    sceneColorDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneColorDesc.size.width = static_cast<uint32_t>(width);
+    sceneColorDesc.size.height = static_cast<uint32_t>(height);
+    sceneColorDesc.size.depthOrArrayLayers = 1;
+    sceneColorDesc.sampleCount = 1;
+    sceneColorDesc.mipLevelCount = 1;
+    sceneColorDesc.format = ctx.GetSurfaceFormat();
+    sceneColorDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneColorTexture = ctx.GetDevice()->createTexture(sceneColorDesc);
+    m_sceneColorView = m_sceneColorTexture->createView();
+
+    wgpu::TextureDescriptor sceneNormalDesc{};
+    sceneNormalDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneNormalDesc.size.width = static_cast<uint32_t>(width);
+    sceneNormalDesc.size.height = static_cast<uint32_t>(height);
+    sceneNormalDesc.size.depthOrArrayLayers = 1;
+    sceneNormalDesc.sampleCount = 1;
+    sceneNormalDesc.mipLevelCount = 1;
+    sceneNormalDesc.format = wgpu::TextureFormat::RGBA16Float;
+    sceneNormalDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneNormalTexture = ctx.GetDevice()->createTexture(sceneNormalDesc);
+    m_sceneNormalView = m_sceneNormalTexture->createView();
+
     m_frameResourceWidth = width;
     m_frameResourceHeight = height;
 }
@@ -74,6 +105,12 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
     }
     if (m_sceneAoView) {
         frame.sceneAoView = *m_sceneAoView;
+    }
+    if (m_sceneColorView) {
+        frame.sceneColorView = *m_sceneColorView;
+    }
+    if (m_sceneNormalView) {
+        frame.sceneNormalView = *m_sceneNormalView;
     }
     return frame;
 }
@@ -145,12 +182,16 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         .queue = &*ctx.GetQueue(),
         .sceneDepthView = frame.sceneDepthView,
         .sceneAoView = frame.sceneAoView,
+        .sceneColorView = frame.sceneColorView,
+        .sceneNormalView = frame.sceneNormalView,
         .viewportWidth = frame.surfaceFrame.surfaceWidth,
         .viewportHeight = frame.surfaceFrame.surfaceHeight,
     };
     m_depthPrepass.Render(ctx, frame, passContext);
+    m_sceneNormalPass.Render(ctx, frame, passContext);
     m_ssaoPass.Render(ctx, frame, passContext);
     m_forwardOpaquePass.Render(ctx, frame, passContext);
+    m_compositePass.Render(ctx, frame, passContext);
     m_guiPass.Render(ctx, frame, passContext);
     ctx.Submit(frame.encoder);
     ctx.Present(frame.surfaceFrame);

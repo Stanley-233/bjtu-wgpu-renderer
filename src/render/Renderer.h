@@ -6,9 +6,11 @@
 #include "frame/RenderFrame.h"
 #include "gpu/GpuResourceCache.h"
 #include "passes/DepthPrepass.h"
+#include "passes/CompositePass.h"
 #include "passes/ForwardOpaquePass.h"
 #include "passes/GuiPass.h"
 #include "passes/PreparedDrawItem.h"
+#include "passes/SceneNormalPass.h"
 #include "passes/SSAOPass.h"
 #include "render/scene/RenderScene.h"
 #include "webgpu-raii.hpp"
@@ -37,13 +39,19 @@ private:
 
     GpuResourceCache               m_resourceCache;
     DepthPrepass                   m_depthPrepass;
+    SceneNormalPass                m_sceneNormalPass;
     SSAOPass                       m_ssaoPass;
     ForwardOpaquePass              m_forwardOpaquePass;
+    CompositePass                  m_compositePass;
     GuiPass                        m_guiPass;
     wgpu::raii::Texture            m_sceneDepthTexture;
     wgpu::raii::TextureView        m_sceneDepthView;
     wgpu::raii::Texture            m_sceneAoTexture;
     wgpu::raii::TextureView        m_sceneAoView;
+    wgpu::raii::Texture            m_sceneColorTexture;
+    wgpu::raii::TextureView        m_sceneColorView;
+    wgpu::raii::Texture            m_sceneNormalTexture;
+    wgpu::raii::TextureView        m_sceneNormalView;
     int                            m_frameResourceWidth  = 0;
     int                            m_frameResourceHeight = 0;
     std::vector<DrawItemResources> m_drawItemResources;
