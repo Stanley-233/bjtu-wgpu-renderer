@@ -29,8 +29,15 @@ void GuiInputController::BuildUi(const char* activeSceneName) {
             m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::Scene2D});
         }
         ImGui::SameLine();
-        if (ImGui::Button("Switch LogicScene")) {
-            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::LogicScene});
+        if (ImGui::Button("Switch Playground")) {
+            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::ScenePlayground});
+        }
+        if (ImGui::Button("Switch Sponza")) {
+            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneSponza});
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Switch Room")) {
+            m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneRoom});
         }
         if (ImGui::Button("Toggle Camera Mode")) {
             m_eventBus->Dispatcher().trigger<ToggleCameraModeRequest>(ToggleCameraModeRequest{});

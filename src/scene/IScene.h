@@ -8,7 +8,9 @@ class LegacyGuiRenderer;
 enum class ESceneType {
     Scene2D,
     LegacyScene3D,
-    LogicScene,
+    ScenePlayground,
+    SceneSponza,
+    SceneRoom,
 };
 
 enum class ETransformAction {

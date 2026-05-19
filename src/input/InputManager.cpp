@@ -7,6 +7,7 @@ bool InputManager::ShouldSuppressNoBindingLog(const int key) {
         case GLFW_KEY_1:
         case GLFW_KEY_2:
         case GLFW_KEY_3:
+        case GLFW_KEY_4:
         case GLFW_KEY_C:
         case GLFW_KEY_LEFT_SHIFT:
         case GLFW_KEY_RIGHT_SHIFT:

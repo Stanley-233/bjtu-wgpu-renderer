@@ -5,11 +5,11 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <glm/geometric.hpp>
 
 #include "asset/AssetPaths.h"
-#include "asset/AssetId.h"
 #include "asset/types/MaterialAsset.h"
 #include "asset/types/MeshAsset.h"
 #include "asset/types/ModelAsset.h"
@@ -100,33 +100,6 @@ Entity FindPrimaryCamera(World& world) {
     return {};
 }
 
-static Entity SpawnModelEntities(World&             world,
-                                 const AssetServer& assetServer,
-                                 const ModelAsset&  model,
-                                 const std::string& namePrefix) {
-    Entity root = world.CreateEntity(namePrefix);
-    (void)root.AddComponent<TransformComponent>();
-
-    std::size_t nodeCounter = 0;
-    for (const ModelNodeAsset& node : model.nodes) {
-        for (const ModelPrimitiveAsset& primitive : node.primitives) {
-            const MeshAsset* meshAsset = assetServer.Get(primitive.mesh);
-            const MaterialAsset* materialAsset = assetServer.Get(primitive.material);
-            if (meshAsset == nullptr || materialAsset == nullptr) {
-                continue;
-            }
-            Entity mesh = world.CreateEntity(namePrefix + " " + std::to_string(nodeCounter++));
-            mesh.SetParent(root);
-            auto& transform = mesh.AddComponent<TransformComponent>();
-            transform.transform.SetMatrix(node.modelMatrix);
-            auto& meshComponent = mesh.AddComponent<StaticMeshComponent>();
-            meshComponent.mesh = primitive.mesh;
-            meshComponent.material = primitive.material;
-        }
-    }
-    return root;
-}
-
 LogicScene::LogicScene()
     : m_cameraController(std::make_unique<FreeCameraController>()) {
 }
@@ -141,70 +114,16 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     if (auto* perspectiveCamera = dynamic_cast<PerspectiveCamera*>(cameraComponent.camera.get())) {
         perspectiveCamera->SetPerspective(1.0471976f, 0.1f, 100.0f);
     }
-    cameraComponent.camera->SetPose(
-        glm::vec3{0.0f, 0.0f, 3.0f},
-        glm::vec3{0.0f, 0.0f, 0.0f},
-        glm::vec3{0.0f, 1.0f, 0.0f});
+    ConfigureInitialCamera(cameraComponent);
     m_world.SetPrimaryCamera(cameraEntity);
 
-    // 注册平行光
     Entity directionalLightEntity = m_world.CreateEntity("Main Directional Light");
     auto&  directionalLight       = directionalLightEntity.AddComponent<DirectionalLightComponent>();
-    directionalLight.direction    = NormalizeDirectionOrDefault(glm::vec3{-0.35f, -1.0f, -0.25f});
-    directionalLight.intensity    = 1.8f;
-    directionalLight.color        = glm::vec3{1.0f, 1.0f, 1.0f};
+    ConfigureInitialDirectionalLight(directionalLight);
+    directionalLight.direction = NormalizeDirectionOrDefault(directionalLight.direction);
     m_world.SetDirectionalLight(directionalLightEntity);
 
-    /*
-    const auto& simpleMeshesPath = AssetPaths::Resolve("gltf-test/SimpleMeshes.gltf");
-    const AssetId<ModelAsset> simpleMeshes = m_assetServer.LoadModel(simpleMeshesPath);
-    if (simpleMeshes.IsValid()) {
-        const ModelAsset* model = m_assetServer.Get(simpleMeshes);
-        if (model == nullptr) {
-            std::cerr << "[LogicScene] Loaded model id was invalid for " << simpleMeshesPath.string() << std::endl;
-            return false;
-        }
-        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *model, "SimpleMeshes");
-        auto& [rootTransform] = simpleMeshesRoot.GetComponent<TransformComponent>();
-        rootTransform.SetTranslation(-1.5f, 0.0f, 0.0f);
-    } else {
-        std::cerr << "[LogicScene] Failed to load " << simpleMeshesPath.string() << std::endl;
-    }
-    */
-
-    // 小庄模型（二次元渲染最好用Unlit）
-    const auto& arkZfyPath= AssetPaths::Resolve("arknights/zhuang_fangyi__arknights_endfield.glb");
-    const AssetId<ModelAsset> arkZfy = m_assetServer.LoadModel(arkZfyPath);
-    if (arkZfy.IsValid()) {
-        const ModelAsset* model = m_assetServer.Get(arkZfy);
-        if (model == nullptr) {
-            std::cerr << "[LogicScene] Loaded model id was invalid for " << arkZfyPath.string() << std::endl;
-            return false;
-        }
-        Entity simpleTextureRoot = SpawnModelEntities(m_world, m_assetServer, *model, "SimpleTexture");
-        auto& [transform] = simpleTextureRoot.GetComponent<TransformComponent>();
-        transform.SetTranslation(1.5f, 0.0f, 0.0f);
-        transform = transform.RotationX(-3.14f / 2.0);
-    } else {
-        std::cerr << "[LogicScene] Failed to load " << arkZfyPath.string() << std::endl;
-    }
-
-    const auto& cornelBoxPath = AssetPaths::Resolve("DiningRoom_GLTF/DiningRoom.gltf");
-    const AssetId<ModelAsset> cornelBox = m_assetServer.LoadModel(cornelBoxPath);
-    if (cornelBox.IsValid()) {
-        const ModelAsset* model = m_assetServer.Get(cornelBox);
-        if (model == nullptr) {
-            std::cerr << "[LogicScene] Loaded model id was invalid for " << cornelBoxPath.string() << std::endl;
-            return false;
-        }
-        Entity simpleMeshesRoot = SpawnModelEntities(m_world, m_assetServer, *model, "cornelBox");
-        auto& [rootTransform] = simpleMeshesRoot.GetComponent<TransformComponent>();
-        rootTransform.SetTranslation(-1.5f, 0.0f, -3.0f);
-    } else {
-        std::cerr << "[LogicScene] Failed to load " << cornelBoxPath.string() << std::endl;
-    }
-
-    return true;
+    return BuildSceneContent();
 }
 
 void LogicScene::Update(const float dt) {
@@ -222,10 +141,6 @@ void LogicScene::Update(const float dt) {
 void LogicScene::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
     RenderScene renderScene = BuildRenderScene(ctx);
     m_renderer.Render(ctx, renderScene, guiRenderer);
-}
-
-const char* LogicScene::Name() const {
-    return "LogicScene";
 }
 
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
@@ -248,6 +163,65 @@ void LogicScene::OnCameraLookInputEvent(const CameraLookInputEvent& event) {
     if (m_cameraController != nullptr) {
         m_cameraController->OnLookInput(event);
     }
+}
+
+World& LogicScene::GetWorld() {
+    return m_world;
+}
+
+const World& LogicScene::GetWorld() const {
+    return m_world;
+}
+
+AssetServer& LogicScene::GetAssetServer() {
+    return m_assetServer;
+}
+
+const AssetServer& LogicScene::GetAssetServer() const {
+    return m_assetServer;
+}
+
+Entity LogicScene::LoadModelRoot(const std::filesystem::path& path, const std::string_view namePrefix) {
+    const std::filesystem::path resolvedPath = path.is_absolute() ? path : AssetPaths::Resolve(path);
+    const AssetId<ModelAsset> modelId = m_assetServer.LoadModel(resolvedPath);
+    if (!modelId.IsValid()) {
+        std::cerr << '[' << Name() << "] Failed to load " << resolvedPath.string() << std::endl;
+        return {};
+    }
+
+    const ModelAsset* model = m_assetServer.Get(modelId);
+    if (model == nullptr) {
+        std::cerr << '[' << Name() << "] Loaded model id was invalid for " << resolvedPath.string() << std::endl;
+        return {};
+    }
+
+    return SpawnModelEntities(*model, namePrefix);
+}
+
+Entity LogicScene::SpawnModelEntities(const ModelAsset& model, const std::string_view namePrefix) {
+    const std::string rootName{namePrefix};
+    Entity root = m_world.CreateEntity(rootName);
+    (void)root.AddComponent<TransformComponent>();
+
+    std::size_t nodeCounter = 0;
+    for (const ModelNodeAsset& node : model.nodes) {
+        for (const ModelPrimitiveAsset& primitive : node.primitives) {
+            const MeshAsset* meshAsset = m_assetServer.Get(primitive.mesh);
+            const MaterialAsset* materialAsset = m_assetServer.Get(primitive.material);
+            if (meshAsset == nullptr || materialAsset == nullptr) {
+                continue;
+            }
+
+            Entity mesh = m_world.CreateEntity(rootName + " " + std::to_string(nodeCounter++));
+            mesh.SetParent(root);
+            auto& transform = mesh.AddComponent<TransformComponent>();
+            transform.transform.SetMatrix(node.modelMatrix);
+            auto& meshComponent = mesh.AddComponent<StaticMeshComponent>();
+            meshComponent.mesh = primitive.mesh;
+            meshComponent.material = primitive.material;
+        }
+    }
+    return root;
 }
 
 RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {

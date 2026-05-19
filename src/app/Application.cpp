@@ -3,7 +3,9 @@
 #include <iostream>
 #include <memory>
 
-#include "scene/LogicScene.h"
+#include "scene/ScenePlayground.h"
+#include "scene/SceneRoom.h"
+#include "scene/SceneSponza.h"
 #include "scene/legacy/Scene2D.h"
 
 Application& Application::SetWindowSize(const int width, const int height) {
@@ -67,11 +69,17 @@ bool Application::Initialize() {
     m_sceneManager.RegisterScene(ESceneType::Scene2D, [] {
         return std::make_unique<Scene2D>();
     });
-    m_sceneManager.RegisterScene(ESceneType::LogicScene, [] {
-        return std::make_unique<LogicScene>();
+    m_sceneManager.RegisterScene(ESceneType::ScenePlayground, [] {
+        return std::make_unique<ScenePlayground>();
+    });
+    m_sceneManager.RegisterScene(ESceneType::SceneSponza, [] {
+        return std::make_unique<SceneSponza>();
+    });
+    m_sceneManager.RegisterScene(ESceneType::SceneRoom, [] {
+        return std::make_unique<SceneRoom>();
     });
     m_sceneManager.SetInputEventBus(m_inputEventBus);
-    if (!m_sceneManager.SetActiveScene(ESceneType::LogicScene, m_renderContext)) {
+    if (!m_sceneManager.SetActiveScene(ESceneType::ScenePlayground, m_renderContext)) {
         Terminate();
         return false;
     }
