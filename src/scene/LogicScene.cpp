@@ -151,7 +151,7 @@ bool LogicScene::Initialize(RenderContext& ctx) {
     Entity directionalLightEntity = m_world.CreateEntity("Main Directional Light");
     auto&  directionalLight       = directionalLightEntity.AddComponent<DirectionalLightComponent>();
     directionalLight.direction    = NormalizeDirectionOrDefault(glm::vec3{-0.35f, -1.0f, -0.25f});
-    directionalLight.intensity    = 1.0f;
+    directionalLight.intensity    = 1.8f;
     directionalLight.color        = glm::vec3{1.0f, 1.0f, 1.0f};
     m_world.SetDirectionalLight(directionalLightEntity);
 

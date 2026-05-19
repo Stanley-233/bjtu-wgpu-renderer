@@ -427,8 +427,13 @@ static void LoadNodeRecursive(
 
             const AssetId<MeshAsset> meshId = assetServer.CreateMesh(std::move(meshAsset));
             MaterialAsset materialAsset{};
-            // TODO: glTF 材质默认应映射到 Lambert 或更完整的光照模型，仅 KHR_materials_unlit 应走 Unlit
-            materialAsset.shadingModel = EMaterialShadingModel::Unlit;
+            materialAsset.shadingModel = EMaterialShadingModel::Lambert;
+            if (primitive.material >= 0) {
+                const tinygltf::Material& material = model.materials[static_cast<std::size_t>(primitive.material)];
+                if (material.extensions.contains("KHR_materials_unlit")) {
+                    materialAsset.shadingModel = EMaterialShadingModel::Unlit;
+                }
+            }
             materialAsset.baseColorFactor = baseColorFactor;
             materialAsset.baseColorTexture = baseColorTexture;
             materialAsset.useVertexColor = true;

@@ -218,7 +218,14 @@ Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateUnlitForwardPipel
 }
 
 Scene3DPipelineFactory::Pipeline Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& ctx) {
-    (void)ctx;
-    // TODO: 接入 Lambert 前向渲染管线创建
-    return {};
+    return CreatePipeline(
+        ctx,
+        ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
+        "Scene3DPipelineFactory/ForwardLambert",
+        true,
+        PrimitiveTopology::TriangleList,
+        CullMode::None,
+        true,
+        CompareFunction::Less,
+        ColorWriteMask::All);
 }
