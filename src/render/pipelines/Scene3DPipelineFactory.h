@@ -7,7 +7,7 @@ class RenderContext;
 
 class Scene3DPipelineFactory {
 public:
-    struct Pipeline {
+    struct ForwardPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
         wgpu::raii::BindGroupLayout materialBindGroupLayout;
@@ -15,9 +15,26 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
-    static Pipeline CreateUnlitForwardPipeline(RenderContext& ctx);
+    struct DepthPrepassPipeline {
+        wgpu::raii::BindGroupLayout sceneBindGroupLayout;
+        wgpu::raii::BindGroupLayout objectBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
 
-    static Pipeline CreateLambertForwardPipeline(RenderContext& ctx);
+    struct SsaoPipeline {
+        wgpu::raii::BindGroupLayout depthBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    static ForwardPipeline CreateUnlitForwardPipeline(RenderContext& ctx);
+
+    static ForwardPipeline CreateLambertForwardPipeline(RenderContext& ctx);
+
+    static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& ctx);
+
+    static SsaoPipeline CreateSsaoPipeline(RenderContext& ctx);
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENE3DPIPELINEFACTORY_H

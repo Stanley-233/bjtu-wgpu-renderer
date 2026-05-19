@@ -5,10 +5,11 @@
 #include "webgpu-raii.hpp"
 
 struct RenderFrame {
-    SurfaceFrame              surfaceFrame{};
-    wgpu::raii::CommandEncoder encoder{};
-    wgpu::TextureView          depthView = nullptr;
-    wgpu::Color                clearColor{0.08, 0.09, 0.12, 1.0};
+    SurfaceFrame                surfaceFrame{};
+    wgpu::raii::CommandEncoder  encoder{};
+    wgpu::TextureView           sceneDepthView = nullptr;
+    wgpu::TextureView           sceneAoView    = nullptr;
+    wgpu::Color                 clearColor{0.08, 0.09, 0.12, 1.0};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERFRAME_H

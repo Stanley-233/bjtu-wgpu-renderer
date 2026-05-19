@@ -50,6 +50,8 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
+@group(0) @binding(1) var uAmbientOcclusionTexture: texture_2d<f32>;
+@group(0) @binding(2) var uAmbientOcclusionSampler: sampler;
 @group(1) @binding(0) var<uniform> uObject: ObjectUniform;
 @group(2) @binding(0) var<uniform> uMaterial: MaterialUniform;
 @group(2) @binding(1) var uBaseColorTexture: texture_2d<f32>;
@@ -58,7 +60,8 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = uScene.projection * uScene.view * uObject.model * vec4f(in.position, 1.0);
+    let worldPosition = uObject.model * vec4f(in.position, 1.0);
+    out.position = uScene.projection * uScene.view * worldPosition;
     out.uv0 = in.uv0;
     out.color = in.color;
     return out;
@@ -70,5 +73,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         surfaceColor *= in.color;
     }
-    return surfaceColor;
+
+    let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
+    let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
+    let ambientOcclusion = textureSample(uAmbientOcclusionTexture, uAmbientOcclusionSampler, aoUv).r;
+    return vec4f(surfaceColor.rgb * ambientOcclusion, surfaceColor.a);
 }

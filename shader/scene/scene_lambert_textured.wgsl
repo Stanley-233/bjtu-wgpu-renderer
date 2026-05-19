@@ -52,6 +52,8 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
+@group(0) @binding(1) var uAmbientOcclusionTexture: texture_2d<f32>;
+@group(0) @binding(2) var uAmbientOcclusionSampler: sampler;
 @group(1) @binding(0) var<uniform> uObject: ObjectUniform;
 @group(2) @binding(0) var<uniform> uMaterial: MaterialUniform;
 @group(2) @binding(1) var uBaseColorTexture: texture_2d<f32>;
@@ -87,5 +89,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
     }
 
-    return vec4f(baseColor.rgb * diffuseLighting, baseColor.a);
+    let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
+    let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
+    let ambientOcclusion = textureSample(uAmbientOcclusionTexture, uAmbientOcclusionSampler, aoUv).r;
+    return vec4f(baseColor.rgb * diffuseLighting * ambientOcclusion, baseColor.a);
 }
