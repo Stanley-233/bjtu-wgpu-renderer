@@ -26,6 +26,7 @@ struct PassContext {
     std::optional<RenderCamera>               camera{};
     std::optional<DirectionalShadowPassData>  directionalShadow{};
     RenderLightSet                            lights{};
+    EPbrDebugView                             pbrDebugView = EPbrDebugView::Off;
     std::span<const PreparedDrawItem>         drawItems{};
     LegacyGuiRenderer*                        guiRenderer = nullptr;
     wgpu::Queue*                              queue = nullptr;

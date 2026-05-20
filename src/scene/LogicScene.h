@@ -35,6 +35,8 @@ public:
 
     void SetLitShadingModelOverride(EMaterialShadingModel shadingModel);
 
+    void SetPbrDebugView(EPbrDebugView debugView);
+
     [[nodiscard]] virtual const char* Name() const override = 0;
 
     void RegisterInputHandlers(InputEventBus& eventBus) override;
@@ -87,6 +89,7 @@ private:
     AssetServer                       m_assetServer{};
     Renderer                          m_renderer{};
     std::unique_ptr<CameraController> m_cameraController{};
+    EPbrDebugView                     m_pbrDebugView = EPbrDebugView::Off;
 };
 
 #endif // BJTU_WGPU_RENDERER_LOGICSCENE_H

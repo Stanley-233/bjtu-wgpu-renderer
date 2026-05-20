@@ -18,6 +18,7 @@ struct RenderScene {
     std::optional<RenderCamera>              camera{};
     std::optional<DirectionalShadowSceneData> directionalShadow{};
     RenderLightSet                           lights{};
+    EPbrDebugView                            pbrDebugView = EPbrDebugView::Off;
     const AssetServer*                       assetServer = nullptr;
     std::vector<RenderObject>                objects{};
 };

@@ -15,6 +15,15 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
+    struct PbrPipeline {
+        wgpu::raii::BindGroupLayout sceneBindGroupLayout;
+        wgpu::raii::BindGroupLayout objectBindGroupLayout;
+        wgpu::raii::BindGroupLayout materialBindGroupLayout;
+        wgpu::raii::BindGroupLayout debugBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
     struct DepthPrepassPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
@@ -52,7 +61,7 @@ public:
 
     static ForwardPipeline CreateLambertForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
-    static ForwardPipeline CreatePbrForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+    static PbrPipeline CreatePbrForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& renderCtx);
 

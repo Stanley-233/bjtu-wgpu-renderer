@@ -91,6 +91,35 @@ static bool ReadAccessorVec3(const tinygltf::Model& model, const int accessorInd
     return true;
 }
 
+static bool ReadAccessorVec4(const tinygltf::Model& model, const int accessorIndex, std::vector<glm::vec4>& outValues) {
+    if (accessorIndex < 0) {
+        return false;
+    }
+
+    const tinygltf::Accessor& accessor = model.accessors[static_cast<std::size_t>(accessorIndex)];
+    if (accessor.bufferView < 0 || accessor.type != TINYGLTF_TYPE_VEC4 || accessor.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        return false;
+    }
+
+    const tinygltf::BufferView& bufferView = model.bufferViews[static_cast<std::size_t>(accessor.bufferView)];
+    const tinygltf::Buffer& buffer = model.buffers[static_cast<std::size_t>(bufferView.buffer)];
+    const int stride = accessor.ByteStride(bufferView);
+    if (stride <= 0) {
+        return false;
+    }
+
+    outValues.resize(accessor.count);
+    for (std::size_t i = 0; i < accessor.count; ++i) {
+        const std::size_t byteOffset = static_cast<std::size_t>(bufferView.byteOffset + accessor.byteOffset) + i * static_cast<std::size_t>(stride);
+        if (byteOffset + sizeof(float) * 4U > buffer.data.size()) {
+            return false;
+        }
+        const auto* values = reinterpret_cast<const float*>(buffer.data.data() + byteOffset);
+        outValues[i] = glm::vec4{values[0], values[1], values[2], values[3]};
+    }
+    return true;
+}
+
 static bool ReadAccessorVec2(const tinygltf::Model& model, const int accessorIndex, std::vector<glm::vec2>& outValues) {
     if (accessorIndex < 0) {
         return false;
@@ -493,12 +522,17 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
     }
 
     std::vector<glm::vec3> normals{};
+    std::vector<glm::vec4> tangents{};
     std::vector<glm::vec2> texcoords0{};
     std::vector<glm::vec2> texcoords1{};
     std::vector<glm::vec4> colors{};
     const auto normalIt = primitive.attributes.find("NORMAL");
     if (normalIt != primitive.attributes.end()) {
         (void)ReadAccessorVec3(model, normalIt->second, normals);
+    }
+    const auto tangentIt = primitive.attributes.find("TANGENT");
+    if (tangentIt != primitive.attributes.end()) {
+        (void)ReadAccessorVec4(model, tangentIt->second, tangents);
     }
     const auto texcoordIt = primitive.attributes.find("TEXCOORD_0");
     if (texcoordIt != primitive.attributes.end()) {
@@ -537,6 +571,9 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
         mesh.vertices[vertexIndex].position = glm::vec3{values[0], values[1], values[2]};
         if (vertexIndex < normals.size()) {
             mesh.vertices[vertexIndex].normal = normals[vertexIndex];
+        }
+        if (vertexIndex < tangents.size()) {
+            mesh.vertices[vertexIndex].tangent = tangents[vertexIndex];
         }
         if (vertexIndex < texcoords0.size()) {
             mesh.vertices[vertexIndex].uv0 = texcoords0[vertexIndex];

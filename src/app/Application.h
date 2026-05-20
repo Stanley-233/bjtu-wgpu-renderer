@@ -71,6 +71,7 @@ private:
     bool                m_inputDebugEnabled       = false;
     bool                m_ssaoEnabled             = true;
     EMaterialShadingModel m_litShadingModel       = EMaterialShadingModel::Lambert;
+    EPbrDebugView       m_pbrDebugView            = EPbrDebugView::Off;
     bool                m_commandHandlersConnected = false;
 };
 

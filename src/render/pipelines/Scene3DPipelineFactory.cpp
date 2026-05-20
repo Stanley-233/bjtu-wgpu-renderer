@@ -62,7 +62,7 @@ static ShaderModule LoadShaderModule(
 }
 
 static void BuildMeshVertexState(
-    std::array<VertexAttribute, 5>& attributes,
+    std::array<VertexAttribute, 6>& attributes,
     VertexBufferLayout&             layout) {
     attributes[0].shaderLocation = 0;
     attributes[0].format = VertexFormat::Float32x3;
@@ -79,6 +79,9 @@ static void BuildMeshVertexState(
     attributes[4].shaderLocation = 4;
     attributes[4].format = VertexFormat::Float32x4;
     attributes[4].offset = offsetof(AssetVertex3D, color);
+    attributes[5].shaderLocation = 5;
+    attributes[5].format = VertexFormat::Float32x4;
+    attributes[5].offset = offsetof(AssetVertex3D, tangent);
 
     layout.attributeCount = static_cast<uint32_t>(attributes.size());
     layout.attributes = attributes.data();
@@ -189,6 +192,20 @@ static raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& render
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
+static raii::BindGroupLayout CreatePbrDebugBindGroupLayout(RenderContext& renderCtx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Fragment;
+    binding.buffer.type = BufferBindingType::Uniform;
+    binding.buffer.minBindingSize = sizeof(PbrDebugUniformData);
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/PbrDebugBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
 static raii::BindGroupLayout CreateSsaoBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 3> bindings{};
 
@@ -279,7 +296,7 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 5> vertexAttributes{};
+    std::array<VertexAttribute, 6> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -361,13 +378,77 @@ Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& renderCtx, c
         colorTargetFormat);
 }
 
-Scene3DPipelineFactory::ForwardPipeline
+Scene3DPipelineFactory::PbrPipeline
 Scene3DPipelineFactory::CreatePbrForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
-    return CreateForwardPipeline(
-        renderCtx,
-        ShaderPaths::Resolve("scene/scene_pbr_textured.wgsl"),
-        "Scene3DPipelineFactory/ForwardPbr",
-        colorTargetFormat);
+    constexpr const char* label = "Scene3DPipelineFactory/ForwardPbr";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_pbr_textured.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    std::array<VertexAttribute, 6> vertexAttributes{};
+    VertexBufferLayout             vertexBufferLayout{};
+    BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 1;
+    pipelineDesc.vertex.buffers = &vertexBufferLayout;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+
+    DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
+    pipelineDesc.depthStencil = &depthStencil;
+
+    BlendState blendState{};
+    blendState.color.srcFactor = BlendFactor::SrcAlpha;
+    blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
+    blendState.color.operation = BlendOperation::Add;
+    blendState.alpha.srcFactor = BlendFactor::Zero;
+    blendState.alpha.dstFactor = BlendFactor::One;
+    blendState.alpha.operation = BlendOperation::Add;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = &blendState;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    PbrPipeline result;
+    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(renderCtx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
+    result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
+    result.debugBindGroupLayout = CreatePbrDebugBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 4> bindGroupLayouts{
+        *result.sceneBindGroupLayout,
+        *result.objectBindGroupLayout,
+        *result.materialBindGroupLayout,
+        *result.debugBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/ForwardPbrPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
 }
 
 Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepthPrepassPipeline(RenderContext& renderCtx) {
@@ -376,7 +457,7 @@ Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepth
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 5> vertexAttributes{};
+    std::array<VertexAttribute, 6> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -424,7 +505,7 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, cons
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 5> vertexAttributes{};
+    std::array<VertexAttribute, 6> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -589,7 +670,7 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 5> vertexAttributes{};
+    std::array<VertexAttribute, 6> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 

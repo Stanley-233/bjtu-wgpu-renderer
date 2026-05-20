@@ -287,6 +287,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         .camera = scene.camera,
         .directionalShadow = directionalShadow,
         .lights = scene.lights,
+        .pbrDebugView = scene.pbrDebugView,
         .drawItems = m_preparedDrawItems,
         .guiRenderer = &guiRenderer,
         .queue = &*renderCtx.GetQueue(),

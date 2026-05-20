@@ -4,6 +4,7 @@ struct VertexInput {
     @location(2) uv0: vec2f,
     @location(3) uv1: vec2f,
     @location(4) color: vec4f,
+    @location(5) tangent: vec4f,
 };
 
 struct DirectionalLightData {
@@ -34,6 +35,10 @@ struct SceneUniform {
     spotLights: array<SpotLightData, 8>,
 };
 
+struct PbrDebugUniform {
+    options: vec4u,
+};
+
 struct ObjectUniform {
     model: mat4x4f,
     normalMatrix: mat4x4f,
@@ -58,6 +63,7 @@ struct VertexOutput {
     @location(2) color: vec4f,
     @location(3) worldPos: vec3f,
     @location(4) normalWS: vec3f,
+    @location(5) tangentWS: vec4f,
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
@@ -72,6 +78,7 @@ struct VertexOutput {
 @group(2) @binding(2) var uNormalTexture: texture_2d<f32>;
 @group(2) @binding(3) var uMetallicRoughnessTexture: texture_2d<f32>;
 @group(2) @binding(4) var uMaterialSampler: sampler;
+@group(3) @binding(0) var<uniform> uPbrDebug: PbrDebugUniform;
 
 fn SelectUv(texCoordSet: u32, uv0: vec2f, uv1: vec2f) -> vec2f {
     return select(uv0, uv1, texCoordSet == 1u);
@@ -87,6 +94,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     out.color = in.color;
     out.worldPos = worldPosition.xyz;
     out.normalWS = normalize((uObject.normalMatrix * vec4f(in.normal, 0.0)).xyz);
+    let tangentWS = (uObject.normalMatrix * vec4f(in.tangent.xyz, 0.0)).xyz;
+    out.tangentWS = vec4f(normalize(tangentWS), in.tangent.w);
     return out;
 }
 
@@ -116,7 +125,13 @@ fn SampleNormalWS(in: VertexOutput) -> vec3f {
         scaledXY.y,
         max(sampledNormal.z, 1.0e-4),
     ));
-    let tbn = BuildCotangentFrame(normalize(in.normalWS), in.worldPos, normalUv);
+    let geometricNormal = normalize(in.normalWS);
+    var tbn = BuildCotangentFrame(geometricNormal, in.worldPos, normalUv);
+    if (length(in.tangentWS.xyz) > 1.0e-5) {
+        let tangentWS = normalize(in.tangentWS.xyz);
+        let bitangentWS = normalize(cross(geometricNormal, tangentWS) * in.tangentWS.w);
+        tbn = mat3x3f(tangentWS, bitangentWS, geometricNormal);
+    }
     return normalize(tbn * normalTS);
 }
 
@@ -128,7 +143,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         baseColor *= in.color;
     }
+    let geometricNormal = normalize(in.normalWS);
     let normal = SampleNormalWS(in);
+    let pbrDebugView = uPbrDebug.options.x;
+    if (pbrDebugView == 1u) {
+        return vec4f(geometricNormal * 0.5 + vec3f(0.5, 0.5, 0.5), 1.0);
+    }
+    if (pbrDebugView == 2u) {
+        return vec4f(normal * 0.5 + vec3f(0.5, 0.5, 0.5), 1.0);
+    }
+    if (pbrDebugView == 3u) {
+        return vec4f(abs(normal - geometricNormal), 1.0);
+    }
 
     let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
     let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));

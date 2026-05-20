@@ -4,6 +4,7 @@
 #include <string>
 
 #include "asset/types/MaterialAsset.h"
+#include "render/scene/RenderUniformData.h"
 
 class InputEventBus;
 
@@ -11,7 +12,11 @@ class GuiInputController {
 public:
     void SetEventBus(InputEventBus* eventBus);
 
-    void BuildUi(const char* activeSceneName, bool* ssaoEnabled, EMaterialShadingModel* litShadingModel);
+    void BuildUi(
+        const char* activeSceneName,
+        bool* ssaoEnabled,
+        EMaterialShadingModel* litShadingModel,
+        EPbrDebugView* pbrDebugView);
 
 private:
     InputEventBus* m_eventBus = nullptr;

@@ -196,6 +196,10 @@ void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingM
     }
 }
 
+void LogicScene::SetPbrDebugView(const EPbrDebugView debugView) {
+    m_pbrDebugView = debugView;
+}
+
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().connect<&LogicScene::OnCameraLookInputEvent>(*this);
@@ -317,6 +321,7 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
     RenderScene renderScene{};
     renderScene.assetServer = &m_assetServer;
     renderScene.lights = BuildRenderLightSet();
+    renderScene.pbrDebugView = m_pbrDebugView;
     if (renderScene.lights.directionalLightCount > 0) {
         renderScene.directionalShadow = BuildDirectionalShadowSceneData(glm::vec3{renderScene.lights.directionalLight.direction});
     }

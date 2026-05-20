@@ -2,6 +2,7 @@
 #define BJTU_WGPU_RENDERER_RENDERUNIFORMDATA_H
 
 #include <array>
+#include <cstdint>
 
 #include <glm/mat4x4.hpp>
 #include <glm/vec2.hpp>
@@ -9,6 +10,13 @@
 
 #include "asset/types/MaterialAsset.h"
 #include "RenderLightSet.h"
+
+enum class EPbrDebugView : uint32_t {
+    Off = 0,
+    GeometricNormal = 1,
+    NormalMapWorld = 2,
+    NormalDelta = 3,
+};
 
 struct alignas(16) SceneUniformData {
     glm::mat4 view{1.0f};
@@ -18,6 +26,10 @@ struct alignas(16) SceneUniformData {
     DirectionalLightData directionalLight{};
     std::array<PointLightData, RenderLightSet::kMaxPointLights> pointLights{};
     std::array<SpotLightData, RenderLightSet::kMaxSpotLights> spotLights{};
+};
+
+struct alignas(16) PbrDebugUniformData {
+    glm::uvec4 options{0U, 0U, 0U, 0U};
 };
 
 struct alignas(16) DirectionalShadowUniformData {

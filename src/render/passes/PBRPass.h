@@ -21,7 +21,9 @@ private:
     struct SceneResources {
         wgpu::raii::Buffer    sceneUniformBuffer;
         wgpu::raii::Buffer    directionalShadowUniformBuffer;
+        wgpu::raii::Buffer    debugUniformBuffer;
         wgpu::raii::BindGroup sceneBindGroup;
+        wgpu::raii::BindGroup debugBindGroup;
     };
 
     struct ObjectResources {
@@ -43,6 +45,7 @@ private:
     wgpu::raii::BindGroupLayout  m_sceneBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_objectBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_materialBindGroupLayout;
+    wgpu::raii::BindGroupLayout  m_debugBindGroupLayout;
     wgpu::raii::Sampler          m_sceneAoSampler;
     wgpu::raii::RenderPipeline   m_pipeline;
     SceneResources               m_sceneResources;

@@ -30,6 +30,17 @@ DirectionalShadowUniformData BuildDirectionalShadowUniformData(const PassContext
     }
     return DirectionalShadowUniformData{};
 }
+
+PbrDebugUniformData BuildPbrDebugUniformData(const PassContext& passCtx) {
+    return PbrDebugUniformData{
+        .options = glm::uvec4{
+            static_cast<uint32_t>(passCtx.pbrDebugView),
+            0U,
+            0U,
+            0U,
+        },
+    };
+}
 } // namespace
 
 void PBRPass::Initialize(RenderContext& renderCtx) {
@@ -37,6 +48,7 @@ void PBRPass::Initialize(RenderContext& renderCtx) {
     m_sceneBindGroupLayout = std::move(pbrPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pbrPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(pbrPipeline.materialBindGroupLayout);
+    m_debugBindGroupLayout = std::move(pbrPipeline.debugBindGroupLayout);
     m_layout = std::move(pbrPipeline.layout);
     m_pipeline = std::move(pbrPipeline.pipeline);
 
@@ -66,6 +78,13 @@ void PBRPass::EnsureSceneResources(RenderContext& renderCtx) {
         uniformBufferDesc.mappedAtCreation = false;
         m_sceneResources.directionalShadowUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
     }
+    if (!m_sceneResources.debugUniformBuffer) {
+        wgpu::BufferDescriptor uniformBufferDesc{};
+        uniformBufferDesc.size = sizeof(PbrDebugUniformData);
+        uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
+        uniformBufferDesc.mappedAtCreation = false;
+        m_sceneResources.debugUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
+    }
 }
 
 void PBRPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
@@ -94,7 +113,9 @@ void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& 
                                             : passCtx.fallbackShadowSampler;
     if (!m_sceneResources.sceneUniformBuffer
         || !m_sceneResources.directionalShadowUniformBuffer
+        || !m_sceneResources.debugUniformBuffer
         || !m_sceneBindGroupLayout
+        || !m_debugBindGroupLayout
         || passCtx.queue == nullptr
         || !m_sceneAoSampler
         || passCtx.sceneAoView == nullptr
@@ -105,12 +126,18 @@ void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& 
 
     const SceneUniformData uniformData = BuildSceneUniformData(passCtx);
     const DirectionalShadowUniformData directionalShadowUniformData = BuildDirectionalShadowUniformData(passCtx);
+    const PbrDebugUniformData debugUniformData = BuildPbrDebugUniformData(passCtx);
     passCtx.queue->writeBuffer(*m_sceneResources.sceneUniformBuffer, 0, &uniformData, sizeof(SceneUniformData));
     passCtx.queue->writeBuffer(
         *m_sceneResources.directionalShadowUniformBuffer,
         0,
         &directionalShadowUniformData,
         sizeof(DirectionalShadowUniformData));
+    passCtx.queue->writeBuffer(
+        *m_sceneResources.debugUniformBuffer,
+        0,
+        &debugUniformData,
+        sizeof(PbrDebugUniformData));
 
     wgpu::BindGroupEntry bindings[6]{};
     bindings[0].binding = 0;
@@ -135,6 +162,18 @@ void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& 
     bindGroupDesc.entryCount = 6;
     bindGroupDesc.entries = bindings;
     m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
+
+    wgpu::BindGroupEntry debugBinding{};
+    debugBinding.binding = 0;
+    debugBinding.buffer = *m_sceneResources.debugUniformBuffer;
+    debugBinding.offset = 0;
+    debugBinding.size = sizeof(PbrDebugUniformData);
+
+    wgpu::BindGroupDescriptor debugBindGroupDesc{};
+    debugBindGroupDesc.layout = *m_debugBindGroupLayout;
+    debugBindGroupDesc.entryCount = 1;
+    debugBindGroupDesc.entries = &debugBinding;
+    m_sceneResources.debugBindGroup = renderCtx.GetDevice()->createBindGroup(debugBindGroupDesc);
 }
 
 void PBRPass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
@@ -216,9 +255,10 @@ void PBRPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
     }
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    if (m_sceneResources.sceneBindGroup && m_pipeline) {
+    if (m_sceneResources.sceneBindGroup && m_sceneResources.debugBindGroup && m_pipeline) {
         renderPass->setPipeline(*m_pipeline);
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
+        renderPass->setBindGroup(3, *m_sceneResources.debugBindGroup, 0, nullptr);
         for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
             const PreparedDrawItem& drawItem = passCtx.drawItems[i];
             const wgpu::BindGroup objectBindGroup =

@@ -207,6 +207,7 @@ GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& renderCtx, const MeshAs
                 .uv0 = glm::vec2{0.0f, 0.0f},
                 .uv1 = glm::vec2{0.0f, 0.0f},
                 .color = glm::vec4{legacyVertex.color, 1.0f},
+                .tangent = glm::vec4{0.0f, 0.0f, 0.0f, 1.0f},
             });
         }
         sourceIndices = &legacyMesh->indices;
