@@ -3,6 +3,7 @@
 #include <iostream>
 #include <memory>
 
+#include "scene/LogicScene.h"
 #include "scene/ScenePlayground.h"
 #include "scene/SceneRoom.h"
 #include "scene/SceneSponza.h"
@@ -83,6 +84,7 @@ bool Application::Initialize() {
         Terminate();
         return false;
     }
+    ApplyActiveSceneRenderSettings();
 
     m_inputEventBus.Dispatcher().sink<SceneSwitchRequest>().connect<&Application::OnSceneSwitchRequest>(*this);
     m_inputEventBus.Dispatcher().sink<ToggleCameraModeRequest>().connect<&Application::OnToggleCameraModeRequest>(*this);
@@ -152,8 +154,11 @@ void Application::Tick(float deltaTime) {
     int drawableHeight = 0;
     m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
-    m_guiInputController.BuildUi(m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr);
+    m_guiInputController.BuildUi(
+        m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
+        &m_ssaoEnabled);
     m_guiRenderer.EndFrame();
+    ApplyActiveSceneRenderSettings();
 
     m_sceneManager.RenderActive(m_renderContext, m_guiRenderer);
 }
@@ -177,6 +182,18 @@ void Application::HandleCursorPos(const double xpos, const double ypos) {
 void Application::SwitchScene(ESceneType type) {
     if (!m_sceneManager.SetActiveScene(type, m_renderContext) && m_applicationDebugEnabled) {
         std::cout << "[Application] Scene switch failed; keeping current scene." << std::endl;
+        return;
+    }
+    ApplyActiveSceneRenderSettings();
+}
+
+void Application::ApplyActiveSceneRenderSettings() const {
+    if (!m_sceneManager.HasActiveScene()) {
+        return;
+    }
+
+    if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
+        logicScene->SetSsaoEnabled(m_ssaoEnabled);
     }
 }
 

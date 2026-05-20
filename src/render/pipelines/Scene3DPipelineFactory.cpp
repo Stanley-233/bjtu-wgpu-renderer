@@ -196,7 +196,7 @@ static raii::BindGroupLayout CreateSsaoBindGroupLayout(RenderContext& renderCtx)
 
     BindGroupLayoutDescriptor desc{};
     desc.label = "Scene3D/SsaoBindGroupLayout";
-    desc.entryCount = 2;
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
     desc.entries = bindings.data();
 
     return renderCtx.GetDevice()->createBindGroupLayout(desc);

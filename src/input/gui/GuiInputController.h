@@ -9,12 +9,10 @@ class GuiInputController {
 public:
     void SetEventBus(InputEventBus* eventBus);
 
-    void BuildUi(const char* activeSceneName);
+    void BuildUi(const char* activeSceneName, bool* ssaoEnabled);
 
 private:
     InputEventBus* m_eventBus = nullptr;
-    int            m_buttonClickCount = 0;
-    bool           m_checkboxEnabled = true;
     std::string    m_sceneNameCache{};
 };
 

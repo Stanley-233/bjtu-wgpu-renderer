@@ -31,6 +31,8 @@ public:
 
     void Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) override;
 
+    void SetSsaoEnabled(bool enabled);
+
     [[nodiscard]] virtual const char* Name() const override = 0;
 
     void RegisterInputHandlers(InputEventBus& eventBus) override;

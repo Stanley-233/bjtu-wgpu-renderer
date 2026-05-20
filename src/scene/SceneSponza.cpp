@@ -23,7 +23,7 @@ void SceneSponza::ConfigureInitialCamera(CameraComponent& camera) {
 }
 
 void SceneSponza::ConfigureInitialDirectionalLight(DirectionalLightComponent& light) {
-    light.direction = glm::vec3{-0.25f, -1.0f, -0.35f};
-    light.intensity = 2.2f;
-    light.color = glm::vec3{1.0f, 0.98f, 0.95f};
+    light.direction = glm::normalize(glm::vec3{-0.45f, -0.75f, 0.45f});
+    light.intensity = 2.5f;
+    light.color = glm::vec3{1.0f, 0.96f, 0.90f};
 }

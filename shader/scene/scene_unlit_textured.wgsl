@@ -81,13 +81,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         surfaceColor *= in.color;
     }
-
-    let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
-    let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
-    let ambientOcclusion = textureSample(uAmbientOcclusionTexture, uAmbientOcclusionSampler, aoUv).r;
-
     // TODO: [Shadow] Unlit 材质通常不参与阴影，后续按材质策略决定是否忽略 directional shadow。
     let _shadowEnabled = uDirectionalShadow.shadowParams.x;
     let shadowFactor = 1.0 + 0.0 * _shadowEnabled;
-    return vec4f(surfaceColor.rgb * ambientOcclusion * shadowFactor, surfaceColor.a);
+    return vec4f(surfaceColor.rgb * shadowFactor, surfaceColor.a);
 }

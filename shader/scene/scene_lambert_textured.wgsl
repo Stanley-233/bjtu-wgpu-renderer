@@ -86,16 +86,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         baseColor *= in.color;
     }
-
-    var diffuseLighting = vec3f(0.3, 0.3, 0.3);
-    if (uScene.lightCounts.x > 0u) {
-        let normal = normalize(in.normalWS);
-        let lightDir = normalize(-uScene.directionalLight.direction.xyz);
-        let ndotl = max(dot(normal, lightDir), 0.0);
-        let ambientFactor = 0.15;
-        diffuseLighting = uScene.directionalLight.color.rgb * ambientFactor;
-        diffuseLighting += uScene.directionalLight.color.rgb * ndotl;
-    }
+    let normal = normalize(in.normalWS);
 
     let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
     let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
@@ -107,6 +98,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let shadowCoord = uDirectionalShadow.lightViewProjection * vec4f(in.worldPos, 1.0);
         shadowFactor *= 1.0 + 0.0 * shadowCoord.x;
     }
+    var lighting = vec3f(0.25) * ambientOcclusion;
+    if (uScene.lightCounts.x > 0u) {
+        let lightDir = normalize(-uScene.directionalLight.direction.xyz);
+        let ndotl = max(dot(normal, lightDir), 0.0);
 
-    return vec4f(baseColor.rgb * diffuseLighting * ambientOcclusion * shadowFactor, baseColor.a);
+        let ambientFactor = 0.28;
+        let ambient = uScene.directionalLight.color.rgb * ambientFactor;
+        let direct = uScene.directionalLight.color.rgb * ndotl;
+
+        lighting = ambient * ambientOcclusion + direct * shadowFactor;
+    }
+    return vec4f(baseColor.rgb * lighting, baseColor.a);
 }

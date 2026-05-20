@@ -47,6 +47,8 @@ private:
     void HandleCursorPos(double xpos, double ypos);
 
     void SwitchScene(ESceneType type);
+    
+    void ApplyActiveSceneRenderSettings() const;
 
     void OnSceneSwitchRequest(const SceneSwitchRequest& request);
 
@@ -66,6 +68,7 @@ private:
     double              m_lastFrameTime = 0.0;
     bool                m_applicationDebugEnabled = false;
     bool                m_inputDebugEnabled       = false;
+    bool                m_ssaoEnabled             = true;
     bool                m_commandHandlersConnected = false;
 };
 

@@ -23,6 +23,11 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     EnsureFallbackShadowResources(renderCtx);
 }
 
+void Renderer::SetSsaoEnabled(const bool enabled) {
+    m_ssaoEnabled = enabled;
+    m_ssaoPass.SetEnabled(enabled);
+}
+
 void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;

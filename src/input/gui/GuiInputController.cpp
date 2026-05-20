@@ -9,7 +9,7 @@ void GuiInputController::SetEventBus(InputEventBus* eventBus) {
     m_eventBus = eventBus;
 }
 
-void GuiInputController::BuildUi(const char* activeSceneName) {
+void GuiInputController::BuildUi(const char* activeSceneName, bool* ssaoEnabled) {
     m_sceneNameCache = (activeSceneName == nullptr) ? "Unknown" : activeSceneName;
 
     ImGui::Begin("Hello, world!");
@@ -17,12 +17,9 @@ void GuiInputController::BuildUi(const char* activeSceneName) {
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)",
                 1000.0f / ImGui::GetIO().Framerate,
                 ImGui::GetIO().Framerate);
-    if (ImGui::Button("Button")) {
-        ++m_buttonClickCount;
+    if (ssaoEnabled != nullptr) {
+        ImGui::Checkbox("Enable SSAO", ssaoEnabled);
     }
-    ImGui::SameLine();
-    ImGui::Text("clicks = %d", m_buttonClickCount);
-    ImGui::Checkbox("Sample checkbox", &m_checkboxEnabled);
 
     if (m_eventBus != nullptr) {
         if (ImGui::Button("Switch Scene2D")) {
@@ -38,9 +35,6 @@ void GuiInputController::BuildUi(const char* activeSceneName) {
         ImGui::SameLine();
         if (ImGui::Button("Switch Room")) {
             m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneRoom});
-        }
-        if (ImGui::Button("Toggle Camera Mode")) {
-            m_eventBus->Dispatcher().trigger<ToggleCameraModeRequest>(ToggleCameraModeRequest{});
         }
     }
 

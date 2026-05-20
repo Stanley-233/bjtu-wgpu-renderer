@@ -2,7 +2,9 @@
 
 #include "Entity.h"
 #include "components/CameraComponent.h"
+#include "components/TransformComponent.h"
 #include "components/light/DirectionalLightComponent.h"
+#include "math/Transform3D.h"
 
 const char* SceneRoom::Name() const {
     return "SceneRoom";
@@ -10,6 +12,10 @@ const char* SceneRoom::Name() const {
 
 bool SceneRoom::BuildSceneContent() {
     const Entity root = LoadModelRoot("living_room_interior_free/scene.gltf", "Room");
+    if (root.IsValid() && root.HasComponent<TransformComponent>()) {
+        auto& [rootTransform] = root.GetComponent<TransformComponent>();
+        rootTransform = Transform3D::Scale(0.2f, 0.2f, 0.2f);
+    }
     return root.IsValid();
 }
 

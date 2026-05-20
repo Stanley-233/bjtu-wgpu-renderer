@@ -25,6 +25,8 @@ public:
 
     void Render(RenderContext& renderCtx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer);
 
+    void SetSsaoEnabled(bool enabled);
+
     void SetClearColor(double r, double g, double b, double a);
 
 private:
@@ -73,6 +75,7 @@ private:
     std::vector<DrawItemResources>  m_drawItemResources;
     std::vector<PreparedDrawItem>   m_preparedDrawItems;
     wgpu::Color                     m_clearColor{0.08, 0.09, 0.12, 1.0};
+    bool                            m_ssaoEnabled = true;
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERER_H

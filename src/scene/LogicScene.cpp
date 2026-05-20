@@ -170,6 +170,10 @@ void LogicScene::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer
     m_renderer.Render(renderCtx, renderScene, guiRenderer);
 }
 
+void LogicScene::SetSsaoEnabled(const bool enabled) {
+    m_renderer.SetSsaoEnabled(enabled);
+}
+
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().connect<&LogicScene::OnCameraLookInputEvent>(*this);

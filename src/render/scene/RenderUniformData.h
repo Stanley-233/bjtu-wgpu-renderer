@@ -4,6 +4,7 @@
 #include <array>
 
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
 #include "asset/types/MaterialAsset.h"
@@ -44,7 +45,10 @@ struct alignas(16) MaterialUniformData {
 };
 
 struct alignas(16) SsaoUniformData {
-
+    glm::mat4 projection{1.0f};
+    glm::mat4 invProjection{1.0f};
+    glm::vec4 viewportSizeAndRadius{1.0f, 1.0f, 0.5f, 0.0f};
+    glm::vec4 aoParams{0.025f, 1.5f, 16.0f, 0.0f};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERUNIFORMDATA_H
