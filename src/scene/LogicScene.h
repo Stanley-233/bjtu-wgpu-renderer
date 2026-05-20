@@ -9,6 +9,7 @@
 #include "asset/AssetServer.h"
 #include "asset/types/MaterialAsset.h"
 #include "render/Renderer.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/IScene.h"
 #include "scene/World.h"
 #include "scene/camera/CameraController.h"
@@ -36,6 +37,15 @@ public:
     void SetLitShadingModelOverride(EMaterialShadingModel shadingModel);
 
     void SetPbrDebugView(EPbrDebugView debugView);
+
+    // 获取平行光数据（用于 GUI）
+    [[nodiscard]] DirectionalLightGuiData GetDirectionalLightData() const;
+
+    // 设置平行光数据（用于 GUI）
+    void SetDirectionalLightData(const DirectionalLightGuiData& data);
+
+    // 获取摄像机数据（用于 GUI）
+    [[nodiscard]] CameraGuiData GetCameraData() const;
 
     [[nodiscard]] virtual const char* Name() const override = 0;
 

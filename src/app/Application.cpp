@@ -159,6 +159,21 @@ void Application::Tick(float deltaTime) {
         &m_ssaoEnabled,
         &m_litShadingModel,
         &m_pbrDebugView);
+
+    // 绘制调试面板（平行光控制和摄像机信息）
+    if (m_sceneManager.HasActiveScene()) {
+        if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
+            m_guiRenderer.SetDirectionalLightCallbacks(
+                [logicScene]() { return logicScene->GetDirectionalLightData(); },
+                [logicScene](const DirectionalLightGuiData& data) { logicScene->SetDirectionalLightData(data); }
+            );
+            m_guiRenderer.SetCameraInfoCallback(
+                [logicScene]() { return logicScene->GetCameraData(); }
+            );
+            m_guiRenderer.DrawDebugPanel();
+        }
+    }
+
     m_guiRenderer.EndFrame();
     ApplyActiveSceneRenderSettings();
 
