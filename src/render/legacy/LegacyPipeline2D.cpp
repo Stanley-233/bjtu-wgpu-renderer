@@ -9,11 +9,11 @@
 
 using namespace wgpu;
 
-LegacyPipeline2D::Pipeline LegacyPipeline2D::Create(RenderContext& ctx) {
+LegacyPipeline2D::Pipeline LegacyPipeline2D::Create(RenderContext& renderCtx) {
     std::cout << "[LegacyPipeline2D] Creating shader module..." << std::endl;
     ShaderModule shaderModule = LegacyShaderLoader::Load(
         LegacyResourcePaths::ResolveShader("shader.wgsl"),
-        *ctx.GetDevice());
+        *renderCtx.GetDevice());
     std::cout << "[LegacyPipeline2D] Shader module: " << shaderModule << std::endl;
 
     if (shaderModule == nullptr) {
@@ -64,7 +64,7 @@ LegacyPipeline2D::Pipeline LegacyPipeline2D::Create(RenderContext& ctx) {
     blendState.alpha.operation = BlendOperation::Add;
 
     ColorTargetState colorTarget{};
-    colorTarget.format    = ctx.GetSurfaceFormat();
+    colorTarget.format    = renderCtx.GetSurfaceFormat();
     colorTarget.blend     = &blendState;
     colorTarget.writeMask = ColorWriteMask::All;
 
@@ -86,15 +86,15 @@ LegacyPipeline2D::Pipeline LegacyPipeline2D::Create(RenderContext& ctx) {
     bindGroupLayoutDesc.entries    = &bindingLayout;
 
     Pipeline result;
-    result.bindGroupLayout = ctx.GetDevice()->createBindGroupLayout(bindGroupLayoutDesc);
+    result.bindGroupLayout = renderCtx.GetDevice()->createBindGroupLayout(bindGroupLayoutDesc);
 
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.bindGroupLayoutCount = 1;
     layoutDesc.bindGroupLayouts     = reinterpret_cast<WGPUBindGroupLayout*>(result.bindGroupLayout.Ptr());
-    result.layout                   = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout                   = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline     = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline     = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 
     shaderModule.release();
     return result;

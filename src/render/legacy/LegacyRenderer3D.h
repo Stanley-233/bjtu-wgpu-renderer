@@ -11,11 +11,11 @@ class LegacyGuiRenderer;
 
 class LegacyRenderer3D {
 public:
-    void Initialize(RenderContext& ctx);
+    void Initialize(RenderContext& renderCtx);
 
-    void SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera);
+    void SyncScene(RenderContext& renderCtx, const std::vector<Object3D>& objects, const Camera& camera);
 
-    void RenderFrame(RenderContext& ctx, LegacyGuiRenderer& guiRenderer);
+    void RenderFrame(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer);
 
     void SetClearColor(double r, double g, double b, double a);
 

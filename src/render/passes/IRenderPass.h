@@ -43,7 +43,7 @@ class IRenderPass {
 public:
     virtual ~IRenderPass() = default;
 
-    virtual void Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) = 0;
+    virtual void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) = 0;
 };
 
 #endif // BJTU_WGPU_RENDERER_IRENDERPASS_H

@@ -120,11 +120,11 @@ class IScene {
 public:
     virtual ~IScene() = default;
 
-    virtual bool Initialize(RenderContext& ctx) = 0;
+    virtual bool Initialize(RenderContext& renderCtx) = 0;
 
     virtual void Update(float dt) = 0;
 
-    virtual void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) = 0;
+    virtual void Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) = 0;
 
     virtual const char* Name() const = 0;
 

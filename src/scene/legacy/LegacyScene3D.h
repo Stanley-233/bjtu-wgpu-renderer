@@ -16,11 +16,11 @@ public:
         Orthographic,
     };
 
-    bool Initialize(RenderContext& ctx) override;
+    bool Initialize(RenderContext& renderCtx) override;
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) override;
+    void Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) override;
 
     const char* Name() const override;
 

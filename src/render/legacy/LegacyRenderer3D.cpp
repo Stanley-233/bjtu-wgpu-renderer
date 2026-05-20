@@ -6,14 +6,14 @@
 #include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/Camera.h"
 
-void LegacyRenderer3D::Initialize(RenderContext& ctx) {
-    m_renderer.Initialize(ctx);
+void LegacyRenderer3D::Initialize(RenderContext& renderCtx) {
+    m_renderer.Initialize(renderCtx);
 }
 
-void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>& objects, const Camera& camera) {
+void LegacyRenderer3D::SyncScene(RenderContext& renderCtx, const std::vector<Object3D>& objects, const Camera& camera) {
     int surfaceWidth = 0;
     int surfaceHeight = 0;
-    ctx.GetSurfaceSize(surfaceWidth, surfaceHeight);
+    renderCtx.GetSurfaceSize(surfaceWidth, surfaceHeight);
     const float aspect = static_cast<float>(std::max(1, surfaceWidth)) / static_cast<float>(std::max(1, surfaceHeight));
 
     m_scene.camera = RenderCamera{
@@ -30,8 +30,8 @@ void LegacyRenderer3D::SyncScene(RenderContext& ctx, const std::vector<Object3D>
     }
 }
 
-void LegacyRenderer3D::RenderFrame(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
-    m_renderer.Render(ctx, m_scene, guiRenderer);
+void LegacyRenderer3D::RenderFrame(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) {
+    m_renderer.Render(renderCtx, m_scene, guiRenderer);
 }
 
 void LegacyRenderer3D::SetClearColor(const double r, const double g, const double b, const double a) {

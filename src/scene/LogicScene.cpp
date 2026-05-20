@@ -131,8 +131,8 @@ LogicScene::LogicScene()
     : m_cameraController(std::make_unique<FreeCameraController>()) {
 }
 
-bool LogicScene::Initialize(RenderContext& ctx) {
-    m_renderer.Initialize(ctx);
+bool LogicScene::Initialize(RenderContext& renderCtx) {
+    m_renderer.Initialize(renderCtx);
 
     Entity cameraEntity = m_world.CreateEntity("Primary Camera");
     CameraComponent& cameraComponent = cameraEntity.AddComponent<CameraComponent>();
@@ -165,9 +165,9 @@ void LogicScene::Update(const float dt) {
     m_world.Update(dt);
 }
 
-void LogicScene::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
-    RenderScene renderScene = BuildRenderScene(ctx);
-    m_renderer.Render(ctx, renderScene, guiRenderer);
+void LogicScene::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) {
+    RenderScene renderScene = BuildRenderScene(renderCtx);
+    m_renderer.Render(renderCtx, renderScene, guiRenderer);
 }
 
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
@@ -287,7 +287,7 @@ void LogicScene::SetStaticMeshShadingModelOverrideRecursive(
     }
 }
 
-RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
+RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
     RenderScene renderScene{};
     renderScene.assetServer = &m_assetServer;
     renderScene.lights = BuildRenderLightSet();
@@ -297,7 +297,7 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& ctx) const {
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;
-    ctx.GetSurfaceSize(surfaceWidth, surfaceHeight);
+    renderCtx.GetSurfaceSize(surfaceWidth, surfaceHeight);
     const float aspect = static_cast<float>(std::max(1, surfaceWidth)) / static_cast<float>(std::max(1, surfaceHeight));
 
     World& world = const_cast<World&>(m_world);

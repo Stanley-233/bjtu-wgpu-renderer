@@ -3,9 +3,9 @@
 #include "render/frame/RenderFrame.h"
 #include "render/legacy/LegacyGuiRenderer.h"
 
-void GuiPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) {
-    (void)ctx;
-    if (!frame.surfaceFrame.view || !frame.encoder || context.guiRenderer == nullptr) {
+void GuiPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
+    (void)renderCtx;
+    if (!frame.surfaceFrame.view || !frame.encoder || passCtx.guiRenderer == nullptr) {
         return;
     }
 
@@ -26,6 +26,6 @@ void GuiPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& 
     renderPassDesc.timestampWrites = nullptr;
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    context.guiRenderer->Render(renderPass);
+    passCtx.guiRenderer->Render(renderPass);
     renderPass->end();
 }

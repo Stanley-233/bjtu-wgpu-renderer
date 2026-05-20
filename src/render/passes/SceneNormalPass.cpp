@@ -4,35 +4,35 @@
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
-static SceneUniformData BuildSceneUniformData(const PassContext& context) {
+static SceneUniformData BuildSceneUniformData(const PassContext& passCtx) {
     SceneUniformData uniformData{};
-    if (context.camera.has_value()) {
-        uniformData.view = context.camera->view;
-        uniformData.projection = context.camera->projection;
-        uniformData.cameraPosition = glm::vec4{context.camera->position, 1.0f};
+    if (passCtx.camera.has_value()) {
+        uniformData.view = passCtx.camera->view;
+        uniformData.projection = passCtx.camera->projection;
+        uniformData.cameraPosition = glm::vec4{passCtx.camera->position, 1.0f};
     }
     return uniformData;
 }
 
-void SceneNormalPass::Initialize(RenderContext& ctx) {
-    auto pipeline = Scene3DPipelineFactory::CreateSceneNormalPipeline(ctx, wgpu::TextureFormat::RGBA16Float);
+void SceneNormalPass::Initialize(RenderContext& renderCtx) {
+    auto pipeline = Scene3DPipelineFactory::CreateSceneNormalPipeline(renderCtx, wgpu::TextureFormat::RGBA16Float);
     m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
     m_layout = std::move(pipeline.layout);
     m_pipeline = std::move(pipeline.pipeline);
 }
 
-void SceneNormalPass::EnsureSceneResources(RenderContext& ctx) {
+void SceneNormalPass::EnsureSceneResources(RenderContext& renderCtx) {
     if (!m_sceneResources.sceneUniformBuffer) {
         wgpu::BufferDescriptor uniformBufferDesc{};
         uniformBufferDesc.size = sizeof(SceneUniformData);
         uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
         uniformBufferDesc.mappedAtCreation = false;
-        m_sceneResources.sceneUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+        m_sceneResources.sceneUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
     }
 }
 
-void SceneNormalPass::EnsureObjectResources(RenderContext& ctx, const std::size_t objectCount) {
+void SceneNormalPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
     if (m_objectResources.size() < objectCount) {
         m_objectResources.resize(objectCount);
     }
@@ -44,18 +44,18 @@ void SceneNormalPass::EnsureObjectResources(RenderContext& ctx, const std::size_
             uniformBufferDesc.size = sizeof(ObjectUniformData);
             uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
             uniformBufferDesc.mappedAtCreation = false;
-            resources.objectUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+            resources.objectUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
         }
     }
 }
 
-void SceneNormalPass::UpdateSceneResources(RenderContext& ctx, const PassContext& context) {
-    if (!m_sceneResources.sceneUniformBuffer || !m_sceneBindGroupLayout || context.queue == nullptr) {
+void SceneNormalPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
+    if (!m_sceneResources.sceneUniformBuffer || !m_sceneBindGroupLayout || passCtx.queue == nullptr) {
         return;
     }
 
-    const SceneUniformData uniformData = BuildSceneUniformData(context);
-    context.queue->writeBuffer(
+    const SceneUniformData uniformData = BuildSceneUniformData(passCtx);
+    passCtx.queue->writeBuffer(
         *m_sceneResources.sceneUniformBuffer,
         0,
         &uniformData,
@@ -71,10 +71,10 @@ void SceneNormalPass::UpdateSceneResources(RenderContext& ctx, const PassContext
     bindGroupDesc.layout = *m_sceneBindGroupLayout;
     bindGroupDesc.entryCount = 1;
     bindGroupDesc.entries = &binding;
-    m_sceneResources.sceneBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+    m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
-void SceneNormalPass::UpdateObjectResources(RenderContext& ctx, const std::span<const PreparedDrawItem> drawItems) {
+void SceneNormalPass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
     if (!m_objectBindGroupLayout) {
         return;
     }
@@ -86,7 +86,7 @@ void SceneNormalPass::UpdateObjectResources(RenderContext& ctx, const std::span<
         }
 
         const PreparedDrawItem& drawItem = drawItems[i];
-        ctx.GetQueue()->writeBuffer(
+        renderCtx.GetQueue()->writeBuffer(
             *resources.objectUniformBuffer,
             0,
             &drawItem.objectUniformData,
@@ -102,19 +102,19 @@ void SceneNormalPass::UpdateObjectResources(RenderContext& ctx, const std::span<
         bindGroupDesc.layout = *m_objectBindGroupLayout;
         bindGroupDesc.entryCount = 1;
         bindGroupDesc.entries = &binding;
-        resources.objectBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+        resources.objectBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
     }
 }
 
-void SceneNormalPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) {
+void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
     if (!frame.encoder || frame.sceneDepthView == nullptr || frame.sceneNormalView == nullptr || !m_pipeline) {
         return;
     }
 
-    EnsureSceneResources(ctx);
-    EnsureObjectResources(ctx, context.drawItems.size());
-    UpdateSceneResources(ctx, context);
-    UpdateObjectResources(ctx, context.drawItems);
+    EnsureSceneResources(renderCtx);
+    EnsureObjectResources(renderCtx, passCtx.drawItems.size());
+    UpdateSceneResources(renderCtx, passCtx);
+    UpdateObjectResources(renderCtx, passCtx.drawItems);
 
     wgpu::RenderPassColorAttachment colorAttachment{};
     colorAttachment.view = frame.sceneNormalView;
@@ -144,8 +144,8 @@ void SceneNormalPass::Render(RenderContext& ctx, RenderFrame& frame, const PassC
     if (m_sceneResources.sceneBindGroup) {
         renderPass->setPipeline(*m_pipeline);
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
-        for (std::size_t i = 0; i < context.drawItems.size(); ++i) {
-            const PreparedDrawItem& drawItem = context.drawItems[i];
+        for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
+            const PreparedDrawItem& drawItem = passCtx.drawItems[i];
             const wgpu::BindGroup objectBindGroup =
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup

@@ -2,7 +2,6 @@
 
 #include <array>
 #include <cstddef>
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 
@@ -10,21 +9,22 @@
 #include "asset/types/AssetVertex3D.h"
 #include "render/RenderContext.h"
 #include "render/ShaderLoader.h"
+#include "render/scene/RenderUniformData.h"
 
 using namespace wgpu;
 
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-static void FlushDeviceValidation(RenderContext& ctx) {
+static void FlushDeviceValidation(RenderContext& renderCtx) {
 #ifdef WEBGPU_BACKEND_DAWN
-    ctx.GetDevice()->tick();
+    renderCtx.GetDevice()->tick();
 #elif WEBGPU_BACKEND_WGPU
-    ctx.GetDevice()->poll(false);
+    renderCtx.GetDevice()->poll(false);
 #endif
 }
 
-static void PopValidationScope(RenderContext& ctx, const char* label) {
+static void PopValidationScope(RenderContext& renderCtx, const char* label) {
     wgpuDevicePopErrorScope(
-        *ctx.GetDevice(),
+        *renderCtx.GetDevice(),
         [](const WGPUErrorType type, const char* message, void* userdata) {
             if (type == WGPUErrorType_NoError) {
                 return;
@@ -36,16 +36,16 @@ static void PopValidationScope(RenderContext& ctx, const char* label) {
             std::cerr << std::endl;
         },
         const_cast<char*>(label));
-    FlushDeviceValidation(ctx);
+    FlushDeviceValidation(renderCtx);
 }
 #endif
 
 static ShaderModule LoadShaderModule(
-    RenderContext&               ctx,
+    RenderContext&               renderCtx,
     const std::filesystem::path& shaderPath,
     const char*                  label) {
     std::cout << "[" << label << "] Creating shader module..." << std::endl;
-    ShaderModule shaderModule = ShaderLoader::Load(shaderPath, *ctx.GetDevice());
+    ShaderModule shaderModule = ShaderLoader::Load(shaderPath, *renderCtx.GetDevice());
     std::cout << "[" << label << "] Shader module: " << shaderModule << std::endl;
 
     if (shaderModule == nullptr) {
@@ -77,14 +77,16 @@ static void BuildMeshVertexState(
     layout.stepMode = VertexStepMode::Vertex;
 }
 
-static wgpu::raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 6> bindings{};
     bindings[0].binding = 0;
     bindings[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindings[0].buffer.type = BufferBindingType::Uniform;
+    bindings[0].buffer.minBindingSize = sizeof(SceneUniformData);
     bindings[1].binding = 1;
     bindings[1].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     bindings[1].buffer.type = BufferBindingType::Uniform;
+    bindings[1].buffer.minBindingSize = sizeof(DirectionalShadowUniformData);
     bindings[2].binding = 2;
     bindings[2].visibility = ShaderStage::Fragment;
     bindings[2].texture.sampleType = TextureSampleType::Depth;
@@ -104,53 +106,57 @@ static wgpu::raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderConte
     desc.label = "Scene3D/ForwardSceneBindGroupLayout";
     desc.entryCount = static_cast<uint32_t>(bindings.size());
     desc.entries = bindings.data();
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateSceneUniformBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateSceneUniformBindGroupLayout(RenderContext& renderCtx) {
     BindGroupLayoutEntry binding{};
     binding.binding = 0;
     binding.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
     binding.buffer.type = BufferBindingType::Uniform;
+    binding.buffer.minBindingSize = sizeof(SceneUniformData);
 
     BindGroupLayoutDescriptor desc{};
     desc.label = "Scene3D/SceneUniformBindGroupLayout";
     desc.entryCount = 1;
     desc.entries = &binding;
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateShadowSceneBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateShadowSceneBindGroupLayout(RenderContext& renderCtx) {
     BindGroupLayoutEntry binding{};
     binding.binding = 0;
     binding.visibility = ShaderStage::Vertex;
     binding.buffer.type = BufferBindingType::Uniform;
+    binding.buffer.minBindingSize = sizeof(DirectionalShadowUniformData);
 
     BindGroupLayoutDescriptor desc{};
     desc.label = "Scene3D/ShadowSceneBindGroupLayout";
     desc.entryCount = 1;
     desc.entries = &binding;
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateObjectBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateObjectBindGroupLayout(RenderContext& renderCtx, const uint64_t minBindingSize) {
     BindGroupLayoutEntry binding{};
     binding.binding = 0;
     binding.visibility = ShaderStage::Vertex;
     binding.buffer.type = BufferBindingType::Uniform;
+    binding.buffer.minBindingSize = minBindingSize;
 
     BindGroupLayoutDescriptor desc{};
     desc.label = "Scene3D/ObjectBindGroupLayout";
     desc.entryCount = 1;
     desc.entries = &binding;
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 3> bindings{};
     bindings[0].binding = 0;
     bindings[0].visibility = ShaderStage::Fragment;
     bindings[0].buffer.type = BufferBindingType::Uniform;
+    bindings[0].buffer.minBindingSize = sizeof(MaterialUniformData);
     bindings[1].binding = 1;
     bindings[1].visibility = ShaderStage::Fragment;
     bindings[1].texture.sampleType = TextureSampleType::Float;
@@ -163,24 +169,40 @@ static wgpu::raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& 
     desc.label = "Scene3D/MaterialBindGroupLayout";
     desc.entryCount = static_cast<uint32_t>(bindings.size());
     desc.entries = bindings.data();
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateDepthTextureBindGroupLayout(RenderContext& ctx) {
-    BindGroupLayoutEntry binding{};
-    binding.binding = 0;
-    binding.visibility = ShaderStage::Fragment;
-    binding.texture.sampleType = TextureSampleType::Depth;
-    binding.texture.viewDimension = TextureViewDimension::_2D;
+static raii::BindGroupLayout CreateSsaoBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 3> bindings{};
+
+    // binding 0: scene depth
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].texture.sampleType = TextureSampleType::Depth;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[0].texture.multisampled = false;
+    // binding 1: scene normal
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].texture.sampleType = TextureSampleType::Float;
+    bindings[1].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].texture.multisampled = false;
+    // binding 2: ssao uniform
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].buffer.type = BufferBindingType::Uniform;
+    bindings[2].buffer.hasDynamicOffset = false;
+    bindings[2].buffer.minBindingSize = sizeof(SsaoUniformData);
 
     BindGroupLayoutDescriptor desc{};
-    desc.label = "Scene3D/SsaoDepthBindGroupLayout";
-    desc.entryCount = 1;
-    desc.entries = &binding;
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    desc.label = "Scene3D/SsaoBindGroupLayout";
+    desc.entryCount = 2;
+    desc.entries = bindings.data();
+
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
-static wgpu::raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& ctx) {
+static raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 2> bindings{};
     bindings[0].binding = 0;
     bindings[0].visibility = ShaderStage::Fragment;
@@ -194,7 +216,7 @@ static wgpu::raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext
     desc.label = "Scene3D/CompositeSceneColorBindGroupLayout";
     desc.entryCount = static_cast<uint32_t>(bindings.size());
     desc.entries = bindings.data();
-    return ctx.GetDevice()->createBindGroupLayout(desc);
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
 static void SetCommonPrimitiveState(
@@ -227,18 +249,18 @@ static DepthStencilState BuildDepthStencilState(
     return depthStencil;
 }
 
-static WGPUTextureFormat ToNativeTextureFormat(wgpu::TextureFormat format) {
+static WGPUTextureFormat ToNativeTextureFormat(TextureFormat format) {
     return format;
 }
 
 static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
-    RenderContext&               ctx,
+    RenderContext&               renderCtx,
     const std::filesystem::path& shaderPath,
     const char*                  label,
-    const wgpu::TextureFormat    colorTargetFormat) {
-    ShaderModule shaderModule = LoadShaderModule(ctx, shaderPath, label);
+    const TextureFormat    colorTargetFormat) {
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, shaderPath, label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     std::array<VertexAttribute, 4> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
@@ -280,9 +302,9 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     pipelineDesc.fragment = &fragmentState;
 
     Scene3DPipelineFactory::ForwardPipeline result;
-    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(ctx);
-    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
-    result.materialBindGroupLayout = CreateMaterialBindGroupLayout(ctx);
+    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(renderCtx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
+    result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
 
     std::array<WGPUBindGroupLayout, 3> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -294,39 +316,39 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     layoutDesc.label = "Scene3D/ForwardPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }
 
 Scene3DPipelineFactory::ForwardPipeline
-Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
     return CreateForwardPipeline(
-        ctx,
+        renderCtx,
         ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardUnlit",
         colorTargetFormat);
 }
 
 Scene3DPipelineFactory::ForwardPipeline
-Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
     return CreateForwardPipeline(
-        ctx,
+        renderCtx,
         ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardLambert",
         colorTargetFormat);
 }
 
-Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepthPrepassPipeline(RenderContext& ctx) {
+Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepthPrepassPipeline(RenderContext& renderCtx) {
     constexpr const char* label = "Scene3DPipelineFactory/DepthPrepass";
-    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_depth_prepass.wgsl"), label);
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_depth_prepass.wgsl"), label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     std::array<VertexAttribute, 4> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
@@ -347,8 +369,8 @@ Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepth
     pipelineDesc.depthStencil = &depthStencil;
 
     DepthPrepassPipeline result;
-    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(ctx);
-    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
+    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(renderCtx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
 
     std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -359,22 +381,22 @@ Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepth
     layoutDesc.label = "Scene3D/DepthPrepassPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }
 
 Scene3DPipelineFactory::SceneNormalPipeline
-Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
     constexpr const char* label = "Scene3DPipelineFactory/SceneNormal";
-    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_normal_prepass.wgsl"), label);
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_normal_prepass.wgsl"), label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     std::array<VertexAttribute, 4> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
@@ -408,8 +430,8 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& ctx, const wgpu
     pipelineDesc.fragment = &fragmentState;
 
     SceneNormalPipeline result;
-    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(ctx);
-    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
+    result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(renderCtx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
 
     std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -420,21 +442,21 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& ctx, const wgpu
     layoutDesc.label = "Scene3D/SceneNormalPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }
 
-Scene3DPipelineFactory::SsaoPipeline Scene3DPipelineFactory::CreateSsaoPipeline(RenderContext& ctx) {
+Scene3DPipelineFactory::SsaoPipeline Scene3DPipelineFactory::CreateSsaoPipeline(RenderContext& renderCtx) {
     constexpr const char* label = "Scene3DPipelineFactory/SSAO";
-    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_ssao.wgsl"), label);
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_ssao.wgsl"), label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     RenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.label = label;
@@ -462,32 +484,31 @@ Scene3DPipelineFactory::SsaoPipeline Scene3DPipelineFactory::CreateSsaoPipeline(
     pipelineDesc.fragment = &fragmentState;
 
     SsaoPipeline result;
-    result.depthBindGroupLayout = CreateDepthTextureBindGroupLayout(ctx);
-
+    result.ssaoBindGroupLayout = CreateSsaoBindGroupLayout(renderCtx);
     std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
-        *result.depthBindGroupLayout,
+        *result.ssaoBindGroupLayout,
     };
 
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.label = "Scene3D/SsaoPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }
 
 Scene3DPipelineFactory::CompositePipeline
-Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& ctx, const wgpu::TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
     constexpr const char* label = "Scene3DPipelineFactory/Composite";
-    ShaderModule shaderModule = LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_composite.wgsl"), label);
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_composite.wgsl"), label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     RenderPipelineDescriptor pipelineDesc{};
     pipelineDesc.label = label;
@@ -515,7 +536,7 @@ Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& ctx, const wgpu::
     pipelineDesc.fragment = &fragmentState;
 
     CompositePipeline result;
-    result.sceneColorBindGroupLayout = CreateSceneColorBindGroupLayout(ctx);
+    result.sceneColorBindGroupLayout = CreateSceneColorBindGroupLayout(renderCtx);
 
     std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
         *result.sceneColorBindGroupLayout,
@@ -525,22 +546,22 @@ Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& ctx, const wgpu::
     layoutDesc.label = "Scene3D/CompositePipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }
 
-Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectionalShadowPipeline(RenderContext& ctx) {
+Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectionalShadowPipeline(RenderContext& renderCtx) {
     constexpr const char* label = "Scene3DPipelineFactory/DirectionalShadow";
     ShaderModule shaderModule =
-        LoadShaderModule(ctx, ShaderPaths::Resolve("scene/scene_directional_shadow.wgsl"), label);
+        LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_directional_shadow.wgsl"), label);
 
-    wgpuDevicePushErrorScope(*ctx.GetDevice(), WGPUErrorFilter_Validation);
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
     std::array<VertexAttribute, 4> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
@@ -561,8 +582,8 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
     pipelineDesc.depthStencil = &depthStencil;
 
     ShadowPipeline result;
-    result.sceneBindGroupLayout = CreateShadowSceneBindGroupLayout(ctx);
-    result.objectBindGroupLayout = CreateObjectBindGroupLayout(ctx);
+    result.sceneBindGroupLayout = CreateShadowSceneBindGroupLayout(renderCtx);
+    result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ShadowObjectUniformData));
 
     std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
         *result.sceneBindGroupLayout,
@@ -573,12 +594,12 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
     layoutDesc.label = "Scene3D/ShadowPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
-    result.layout = ctx.GetDevice()->createPipelineLayout(layoutDesc);
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
 
     pipelineDesc.layout = *result.layout;
-    result.pipeline = ctx.GetDevice()->createRenderPipeline(pipelineDesc);
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
-    PopValidationScope(ctx, label);
+    PopValidationScope(renderCtx, label);
 #endif
     return result;
 }

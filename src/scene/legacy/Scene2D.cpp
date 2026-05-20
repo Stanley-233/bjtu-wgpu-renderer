@@ -17,21 +17,21 @@
 
 using namespace wgpu;
 
-bool Scene2D::Initialize(RenderContext& ctx) {
-    m_context         = &ctx;
-    auto pipeline2D   = LegacyPipeline2D::Create(ctx);
+bool Scene2D::Initialize(RenderContext& renderCtx) {
+    m_renderContext   = &renderCtx;
+    auto pipeline2D   = LegacyPipeline2D::Create(renderCtx);
     m_bindGroupLayout = std::move(pipeline2D.bindGroupLayout);
     m_layout          = std::move(pipeline2D.layout);
     m_pipeline        = std::move(pipeline2D.pipeline);
-    if (!InitializeBuffers(ctx)) {
+    if (!InitializeBuffers(renderCtx)) {
         return false;
     }
-    InitializeBindGroups(ctx);
+    InitializeBindGroups(renderCtx);
     return true;
 }
 
-void Scene2D::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
-    LegacyFrameContext legacyFrameContext(ctx);
+void Scene2D::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) {
+    LegacyFrameContext legacyFrameContext(renderCtx);
     SurfaceFrame       surfaceFrame = legacyFrameContext.AcquireSurfaceFrame();
     if (!surfaceFrame.view) {
         return;
@@ -139,7 +139,7 @@ void Scene2D::OnTransform2DStateEvent(const Transform2DStateEvent& event) {
 
 void Scene2D::ApplyTransform(const Transform2D& t) {
     m_transform.Combine(t);
-    if (m_context) {
+    if (m_renderContext) {
         UploadTransformMatrix(m_transform.Matrix());
     }
 }
@@ -147,7 +147,7 @@ void Scene2D::ApplyTransform(const Transform2D& t) {
 void Scene2D::ResetTransform() {
     m_transform.Reset();
     m_pendingDelta.Reset();
-    if (m_context) {
+    if (m_renderContext) {
         UploadTransformMatrix(glm::mat3(1.0f));
     }
 }
@@ -158,13 +158,13 @@ void Scene2D::UploadTransformMatrix(const glm::mat3& matrix) {
 }
 
 void Scene2D::UpdateAspectUniform() {
-    if (!m_context) {
+    if (!m_renderContext) {
         return;
     }
 
     int drawableWidth  = 0;
     int drawableHeight = 0;
-    m_context->GetSurfaceSize(drawableWidth, drawableHeight);
+    m_renderContext->GetSurfaceSize(drawableWidth, drawableHeight);
 
     const float width  = static_cast<float>(std::max(1, drawableWidth));
     const float height = static_cast<float>(std::max(1, drawableHeight));
@@ -179,13 +179,13 @@ void Scene2D::UpdateAspectUniform() {
 }
 
 void Scene2D::UploadUniformData() const {
-    if (!m_context || !m_uniformBuffer) {
+    if (!m_renderContext || !m_uniformBuffer) {
         return;
     }
-    m_context->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &m_uniformData, sizeof(m_uniformData));
+    m_renderContext->GetQueue()->writeBuffer(*m_uniformBuffer, 0, &m_uniformData, sizeof(m_uniformData));
 }
 
-bool Scene2D::InitializeBuffers(RenderContext& ctx) {
+bool Scene2D::InitializeBuffers(RenderContext& renderCtx) {
     std::vector<float>    pointData;
     std::vector<uint16_t> indexData;
 
@@ -203,24 +203,24 @@ bool Scene2D::InitializeBuffers(RenderContext& ctx) {
     bufferDesc.size             = pointData.size() * sizeof(float);
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Vertex;
     bufferDesc.mappedAtCreation = false;
-    m_pointBuffer               = ctx.GetDevice()->createBuffer(bufferDesc);
-    ctx.GetQueue()->writeBuffer(*m_pointBuffer, 0, pointData.data(), bufferDesc.size);
+    m_pointBuffer               = renderCtx.GetDevice()->createBuffer(bufferDesc);
+    renderCtx.GetQueue()->writeBuffer(*m_pointBuffer, 0, pointData.data(), bufferDesc.size);
 
     const size_t indexBufferWriteSize = indexData.size() * sizeof(uint16_t);
     bufferDesc.size  = (indexBufferWriteSize + 3) & ~3;
     bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
-    m_indexBuffer    = ctx.GetDevice()->createBuffer(bufferDesc);
+    m_indexBuffer    = renderCtx.GetDevice()->createBuffer(bufferDesc);
     std::vector<uint16_t> paddedIndices = indexData;
     if ((paddedIndices.size() & 1u) != 0u) {
         paddedIndices.push_back(0);
     }
     const size_t alignedIndexWriteSize = paddedIndices.size() * sizeof(uint16_t);
-    ctx.GetQueue()->writeBuffer(*m_indexBuffer, 0, paddedIndices.data(), alignedIndexWriteSize);
+    renderCtx.GetQueue()->writeBuffer(*m_indexBuffer, 0, paddedIndices.data(), alignedIndexWriteSize);
 
     bufferDesc.size             = sizeof(m_uniformData);
     bufferDesc.usage            = BufferUsage::CopyDst | BufferUsage::Uniform;
     bufferDesc.mappedAtCreation = false;
-    m_uniformBuffer             = ctx.GetDevice()->createBuffer(bufferDesc);
+    m_uniformBuffer             = renderCtx.GetDevice()->createBuffer(bufferDesc);
     // 初始化为单位矩阵 + 当前画布宽高比
     m_uniformData.transform = Transform2D::ToWgslMat3Uniform(glm::mat3(1.0f));
     UpdateAspectUniform();
@@ -228,7 +228,7 @@ bool Scene2D::InitializeBuffers(RenderContext& ctx) {
     return true;
 }
 
-void Scene2D::InitializeBindGroups(RenderContext& ctx) {
+void Scene2D::InitializeBindGroups(RenderContext& renderCtx) {
     BindGroupEntry binding{};
     binding.binding = 0;
     binding.buffer  = *m_uniformBuffer;
@@ -239,5 +239,5 @@ void Scene2D::InitializeBindGroups(RenderContext& ctx) {
     bindGroupDesc.layout     = *m_bindGroupLayout;
     bindGroupDesc.entryCount = 1;
     bindGroupDesc.entries    = &binding;
-    m_bindGroup              = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+    m_bindGroup              = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }

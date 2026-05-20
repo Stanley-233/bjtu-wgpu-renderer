@@ -3,6 +3,7 @@ struct VertexOutput {
 };
 
 @group(0) @binding(0) var uSceneDepth: texture_depth_2d;
+@group(0) @binding(1) var uSceneNormal: texture_2d<f32>;
 
 @vertex
 fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {

@@ -74,8 +74,8 @@ void SetMeshColor(LegacyMeshData3D& mesh, const glm::vec3 color) {
 }
 } // namespace
 
-bool LegacyScene3D::Initialize(RenderContext& ctx) {
-    m_renderer.Initialize(ctx);
+bool LegacyScene3D::Initialize(RenderContext& renderCtx) {
+    m_renderer.Initialize(renderCtx);
     SceneDescription sceneDescription{};
     const std::filesystem::path scenePath = LegacyResourcePaths::ResolveAsset("scene3d.toml");
     if (!LegacyResourceManager::LoadSceneFromToml(scenePath, sceneDescription)) {
@@ -210,12 +210,12 @@ void LegacyScene3D::Update(float dt) {
     }
 }
 
-void LegacyScene3D::Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) {
+void LegacyScene3D::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) {
     if (m_camera == nullptr) {
         return;
     }
-    m_renderer.SyncScene(ctx, m_objects, *m_camera);
-    m_renderer.RenderFrame(ctx, guiRenderer);
+    m_renderer.SyncScene(renderCtx, m_objects, *m_camera);
+    m_renderer.RenderFrame(renderCtx, guiRenderer);
 }
 
 const char* LegacyScene3D::Name() const {

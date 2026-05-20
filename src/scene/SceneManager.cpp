@@ -19,7 +19,7 @@ void SceneManager::SetInputEventBus(InputEventBus& eventBus) {
     }
 }
 
-bool SceneManager::SetActiveScene(const ESceneType type, RenderContext& ctx) {
+bool SceneManager::SetActiveScene(const ESceneType type, RenderContext& renderCtx) {
     const auto it = m_sceneFactories.find(type);
     if (it == m_sceneFactories.end()) {
         throw std::runtime_error("Scene was not registered.");
@@ -29,7 +29,7 @@ bool SceneManager::SetActiveScene(const ESceneType type, RenderContext& ctx) {
     if (!candidate) {
         throw std::runtime_error("Scene factory returned a null scene.");
     }
-    if (!candidate->Initialize(ctx)) {
+    if (!candidate->Initialize(renderCtx)) {
         return false;
     }
 
@@ -64,9 +64,9 @@ void SceneManager::UpdateActive(float dt) const {
     }
 }
 
-void SceneManager::RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const {
+void SceneManager::RenderActive(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) const {
     if (m_activeScene) {
-        m_activeScene->Render(ctx, guiRenderer);
+        m_activeScene->Render(renderCtx, guiRenderer);
     }
 }
 

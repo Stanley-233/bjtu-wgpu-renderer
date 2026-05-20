@@ -21,9 +21,9 @@ class RenderContext;
 
 class Renderer {
 public:
-    void Initialize(RenderContext& ctx);
+    void Initialize(RenderContext& renderCtx);
 
-    void Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer);
+    void Render(RenderContext& renderCtx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer);
 
     void SetClearColor(double r, double g, double b, double a);
 
@@ -34,15 +34,15 @@ private:
         wgpu::raii::BindGroup materialBindGroup;
     };
 
-    [[nodiscard]] RenderFrame BeginRenderFrame(RenderContext& ctx);
+    [[nodiscard]] RenderFrame BeginRenderFrame(RenderContext& renderCtx);
 
-    void EnsureFrameResources(RenderContext& ctx, int width, int height);
+    void EnsureFrameResources(RenderContext& renderCtx, int width, int height);
 
-    void EnsureDirectionalShadowResources(RenderContext& ctx, uint32_t width, uint32_t height);
+    void EnsureDirectionalShadowResources(RenderContext& renderCtx, uint32_t width, uint32_t height);
 
-    void EnsureFallbackShadowResources(RenderContext& ctx);
+    void EnsureFallbackShadowResources(RenderContext& renderCtx);
 
-    void BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& scene);
+    void BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScene& scene);
 
     GpuResourceCache                m_resourceCache;
     ShadowPass                      m_shadowPass;

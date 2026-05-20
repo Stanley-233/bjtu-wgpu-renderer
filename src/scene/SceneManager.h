@@ -20,7 +20,7 @@ public:
 
     void SetInputEventBus(InputEventBus& eventBus);
 
-    bool SetActiveScene(ESceneType type, RenderContext& ctx);
+    bool SetActiveScene(ESceneType type, RenderContext& renderCtx);
 
     void Shutdown();
 
@@ -30,7 +30,7 @@ public:
 
     void UpdateActive(float dt) const;
 
-    void RenderActive(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) const;
+    void RenderActive(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) const;
 
 private:
     void UnloadActiveScene();

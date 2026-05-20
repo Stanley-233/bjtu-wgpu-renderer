@@ -43,4 +43,8 @@ struct alignas(16) MaterialUniformData {
     };
 };
 
+struct alignas(16) SsaoUniformData {
+
+};
+
 #endif // BJTU_WGPU_RENDERER_RENDERUNIFORMDATA_H

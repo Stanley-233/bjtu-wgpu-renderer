@@ -7,9 +7,9 @@ class RenderContext;
 
 class CompositePass final : public IRenderPass {
 public:
-    void Initialize(RenderContext& ctx);
+    void Initialize(RenderContext& renderCtx);
 
-    void Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) override;
+    void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) override;
 
 private:
     wgpu::raii::PipelineLayout  m_layout;

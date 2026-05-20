@@ -10,25 +10,25 @@ static ShadowObjectUniformData BuildShadowObjectUniformData(const PreparedDrawIt
     };
 }
 
-void ShadowPass::Initialize(RenderContext& ctx) {
-    auto pipeline = Scene3DPipelineFactory::CreateDirectionalShadowPipeline(ctx);
+void ShadowPass::Initialize(RenderContext& renderCtx) {
+    auto pipeline = Scene3DPipelineFactory::CreateDirectionalShadowPipeline(renderCtx);
     m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
     m_layout = std::move(pipeline.layout);
     m_pipeline = std::move(pipeline.pipeline);
 }
 
-void ShadowPass::EnsureSceneResources(RenderContext& ctx) {
+void ShadowPass::EnsureSceneResources(RenderContext& renderCtx) {
     if (!m_sceneResources.sceneUniformBuffer) {
         wgpu::BufferDescriptor uniformBufferDesc{};
         uniformBufferDesc.size = sizeof(DirectionalShadowUniformData);
         uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
         uniformBufferDesc.mappedAtCreation = false;
-        m_sceneResources.sceneUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+        m_sceneResources.sceneUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
     }
 }
 
-void ShadowPass::EnsureObjectResources(RenderContext& ctx, const std::size_t objectCount) {
+void ShadowPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
     if (m_objectResources.size() < objectCount) {
         m_objectResources.resize(objectCount);
     }
@@ -40,23 +40,23 @@ void ShadowPass::EnsureObjectResources(RenderContext& ctx, const std::size_t obj
             uniformBufferDesc.size = sizeof(ShadowObjectUniformData);
             uniformBufferDesc.usage = wgpu::BufferUsage::CopyDst | wgpu::BufferUsage::Uniform;
             uniformBufferDesc.mappedAtCreation = false;
-            resources.objectUniformBuffer = ctx.GetDevice()->createBuffer(uniformBufferDesc);
+            resources.objectUniformBuffer = renderCtx.GetDevice()->createBuffer(uniformBufferDesc);
         }
     }
 }
 
-void ShadowPass::UpdateSceneResources(RenderContext& ctx, const PassContext& context) {
+void ShadowPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
     if (!m_sceneResources.sceneUniformBuffer
         || !m_sceneBindGroupLayout
-        || context.queue == nullptr
-        || !context.directionalShadow.has_value()) {
+        || passCtx.queue == nullptr
+        || !passCtx.directionalShadow.has_value()) {
         return;
     }
 
-    context.queue->writeBuffer(
+    passCtx.queue->writeBuffer(
         *m_sceneResources.sceneUniformBuffer,
         0,
-        &context.directionalShadow->uniformData,
+        &passCtx.directionalShadow->uniformData,
         sizeof(DirectionalShadowUniformData));
 
     wgpu::BindGroupEntry sceneBinding{};
@@ -69,10 +69,10 @@ void ShadowPass::UpdateSceneResources(RenderContext& ctx, const PassContext& con
     bindGroupDesc.layout = *m_sceneBindGroupLayout;
     bindGroupDesc.entryCount = 1;
     bindGroupDesc.entries = &sceneBinding;
-    m_sceneResources.sceneBindGroup = ctx.GetDevice()->createBindGroup(bindGroupDesc);
+    m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
-void ShadowPass::UpdateObjectResources(RenderContext& ctx, const std::span<const PreparedDrawItem> drawItems) {
+void ShadowPass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
     if (!m_objectBindGroupLayout) {
         return;
     }
@@ -84,7 +84,7 @@ void ShadowPass::UpdateObjectResources(RenderContext& ctx, const std::span<const
         }
 
         const ShadowObjectUniformData uniformData = BuildShadowObjectUniformData(drawItems[i]);
-        ctx.GetQueue()->writeBuffer(
+        renderCtx.GetQueue()->writeBuffer(
             *resources.objectUniformBuffer,
             0,
             &uniformData,
@@ -100,26 +100,26 @@ void ShadowPass::UpdateObjectResources(RenderContext& ctx, const std::span<const
         objectBindGroupDesc.layout = *m_objectBindGroupLayout;
         objectBindGroupDesc.entryCount = 1;
         objectBindGroupDesc.entries = &objectBinding;
-        resources.objectBindGroup = ctx.GetDevice()->createBindGroup(objectBindGroupDesc);
+        resources.objectBindGroup = renderCtx.GetDevice()->createBindGroup(objectBindGroupDesc);
     }
 }
 
-void ShadowPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) {
-    if (!frame.encoder || !context.directionalShadow.has_value()) {
+void ShadowPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
+    if (!frame.encoder || !passCtx.directionalShadow.has_value()) {
         return;
     }
-    if (context.directionalShadow->uniformData.shadowParams.x <= 0.0f
-        || context.directionalShadow->shadowMapView == nullptr) {
+    if (passCtx.directionalShadow->uniformData.shadowParams.x <= 0.0f
+        || passCtx.directionalShadow->shadowMapView == nullptr) {
         return;
     }
 
-    EnsureSceneResources(ctx);
-    EnsureObjectResources(ctx, context.drawItems.size());
-    UpdateSceneResources(ctx, context);
-    UpdateObjectResources(ctx, context.drawItems);
+    EnsureSceneResources(renderCtx);
+    EnsureObjectResources(renderCtx, passCtx.drawItems.size());
+    UpdateSceneResources(renderCtx, passCtx);
+    UpdateObjectResources(renderCtx, passCtx.drawItems);
 
     wgpu::RenderPassDepthStencilAttachment depthAttachment{};
-    depthAttachment.view = context.directionalShadow->shadowMapView;
+    depthAttachment.view = passCtx.directionalShadow->shadowMapView;
     depthAttachment.depthClearValue = 1.0f;
     depthAttachment.depthLoadOp = wgpu::LoadOp::Clear;
     depthAttachment.depthStoreOp = wgpu::StoreOp::Store;
@@ -136,8 +136,8 @@ void ShadowPass::Render(RenderContext& ctx, RenderFrame& frame, const PassContex
     if (m_pipeline && m_sceneResources.sceneBindGroup) {
         renderPass->setPipeline(*m_pipeline);
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
-        for (std::size_t i = 0; i < context.drawItems.size(); ++i) {
-            const PreparedDrawItem& drawItem = context.drawItems[i];
+        for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
+            const PreparedDrawItem& drawItem = passCtx.drawItems[i];
             const wgpu::BindGroup objectBindGroup =
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup

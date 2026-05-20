@@ -25,11 +25,11 @@ public:
 
     LogicScene();
 
-    bool Initialize(RenderContext& ctx) override;
+    bool Initialize(RenderContext& renderCtx) override;
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) override;
+    void Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) override;
 
     [[nodiscard]] virtual const char* Name() const override = 0;
 
@@ -75,7 +75,7 @@ protected:
     void SetStaticMeshShadingModelOverrideRecursive(Entity root, std::optional<EMaterialShadingModel> shadingModel);
 
 private:
-    RenderScene BuildRenderScene(const RenderContext& ctx) const;
+    RenderScene BuildRenderScene(const RenderContext& renderCtx) const;
 
     RenderLightSet BuildRenderLightSet() const;
 

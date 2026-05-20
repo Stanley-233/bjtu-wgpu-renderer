@@ -20,7 +20,7 @@ class RenderContext;
 
 class GpuResourceCache {
 public:
-    [[nodiscard]] const GpuMesh* SyncMesh(RenderContext& ctx, const AssetServer* assetServer, const RenderObject& object);
+    [[nodiscard]] const GpuMesh* SyncMesh(RenderContext& renderCtx, const AssetServer* assetServer, const RenderObject& object);
 
     struct GpuMaterialResources {
         MaterialUniformData uniformData{};
@@ -30,7 +30,7 @@ public:
     };
 
     [[nodiscard]] const GpuMaterialResources* SyncMaterial(
-        RenderContext& ctx,
+        RenderContext& renderCtx,
         const AssetServer* assetServer,
         const RenderObject& object);
 
@@ -71,18 +71,18 @@ private:
         }
     };
 
-    static GpuMesh UploadMeshToGpu(RenderContext& ctx, const MeshAsset* assetMesh, const LegacyMeshData3D* legacyMesh);
-    static GpuTexture2D UploadTextureToGpu(RenderContext& ctx, const ImageAsset& image);
+    static GpuMesh UploadMeshToGpu(RenderContext& renderCtx, const MeshAsset* assetMesh, const LegacyMeshData3D* legacyMesh);
+    static GpuTexture2D UploadTextureToGpu(RenderContext& renderCtx, const ImageAsset& image);
 
     [[nodiscard]] const GpuTexture2D* SyncTexture(
-        RenderContext& ctx,
+        RenderContext& renderCtx,
         const AssetServer* assetServer,
         AssetId<ImageAsset> imageId);
 
-    [[nodiscard]] const GpuTexture2D* GetOrCreateWhiteTexture(RenderContext& ctx);
+    [[nodiscard]] const GpuTexture2D* GetOrCreateWhiteTexture(RenderContext& renderCtx);
 
     [[nodiscard]] GpuMaterialResources BuildMaterialResources(
-        RenderContext& ctx,
+        RenderContext& renderCtx,
         const MaterialAsset& material,
         EMaterialShadingModel shadingModel,
         const GpuTexture2D& baseColorTexture) const;

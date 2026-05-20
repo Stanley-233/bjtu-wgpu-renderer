@@ -9,11 +9,11 @@
 
 class Scene2D : public IScene, public ITransform2DInputSink {
 public:
-    bool Initialize(RenderContext& ctx) override;
+    bool Initialize(RenderContext& renderCtx) override;
 
     void Update(float dt) override;
 
-    void Render(RenderContext& ctx, LegacyGuiRenderer& guiRenderer) override;
+    void Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) override;
 
     const char* Name() const override;
 
@@ -36,9 +36,9 @@ private:
         "Scene2D aspect uniform offset must match WGSL layout");
     static_assert(sizeof(SceneUniformData) == 16 * sizeof(float), "Scene2D uniform size must be 64 bytes");
 
-    bool InitializeBuffers(RenderContext& ctx);
+    bool InitializeBuffers(RenderContext& renderCtx);
 
-    void InitializeBindGroups(RenderContext& ctx);
+    void InitializeBindGroups(RenderContext& renderCtx);
 
     void ApplyTransform(const Transform2D& t);
 
@@ -50,7 +50,7 @@ private:
 
     void UploadUniformData() const;
 
-    RenderContext*              m_context = nullptr;
+    RenderContext*              m_renderContext = nullptr;
     wgpu::raii::Buffer          m_uniformBuffer;
     wgpu::raii::PipelineLayout  m_layout;
     wgpu::raii::BindGroupLayout m_bindGroupLayout;

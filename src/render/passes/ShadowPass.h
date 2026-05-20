@@ -10,9 +10,9 @@ class RenderContext;
 
 class ShadowPass final : public IRenderPass {
 public:
-    void Initialize(RenderContext& ctx);
+    void Initialize(RenderContext& renderCtx);
 
-    void Render(RenderContext& ctx, RenderFrame& frame, const PassContext& context) override;
+    void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) override;
 
 private:
     struct SceneResources {
@@ -25,13 +25,13 @@ private:
         wgpu::raii::BindGroup objectBindGroup;
     };
 
-    void EnsureSceneResources(RenderContext& ctx);
+    void EnsureSceneResources(RenderContext& renderCtx);
 
-    void EnsureObjectResources(RenderContext& ctx, std::size_t objectCount);
+    void EnsureObjectResources(RenderContext& renderCtx, std::size_t objectCount);
 
-    void UpdateSceneResources(RenderContext& ctx, const PassContext& context);
+    void UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx);
 
-    void UpdateObjectResources(RenderContext& ctx, std::span<const PreparedDrawItem> drawItems);
+    void UpdateObjectResources(RenderContext& renderCtx, std::span<const PreparedDrawItem> drawItems);
 
     wgpu::raii::PipelineLayout  m_layout;
     wgpu::raii::BindGroupLayout m_sceneBindGroupLayout;

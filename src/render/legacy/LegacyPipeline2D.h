@@ -13,7 +13,7 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
-    static Pipeline Create(RenderContext& ctx);
+    static Pipeline Create(RenderContext& renderCtx);
 };
 
 #endif // BJTU_WGPU_RENDERER_LEGACYPIPELINE2D_H

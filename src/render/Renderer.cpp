@@ -13,17 +13,17 @@ static ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
     };
 }
 
-void Renderer::Initialize(RenderContext& ctx) {
-    m_shadowPass.Initialize(ctx);
-    m_depthPrepass.Initialize(ctx);
-    m_sceneNormalPass.Initialize(ctx);
-    m_ssaoPass.Initialize(ctx);
-    m_forwardOpaquePass.Initialize(ctx);
-    m_compositePass.Initialize(ctx);
-    EnsureFallbackShadowResources(ctx);
+void Renderer::Initialize(RenderContext& renderCtx) {
+    m_shadowPass.Initialize(renderCtx);
+    m_depthPrepass.Initialize(renderCtx);
+    m_sceneNormalPass.Initialize(renderCtx);
+    m_ssaoPass.Initialize(renderCtx);
+    m_forwardOpaquePass.Initialize(renderCtx);
+    m_compositePass.Initialize(renderCtx);
+    EnsureFallbackShadowResources(renderCtx);
 }
 
-void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const int height) {
+void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
     }
@@ -45,7 +45,7 @@ void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const i
     depthDesc.mipLevelCount = 1;
     depthDesc.format = wgpu::TextureFormat::Depth24Plus;
     depthDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_sceneDepthTexture = ctx.GetDevice()->createTexture(depthDesc);
+    m_sceneDepthTexture = renderCtx.GetDevice()->createTexture(depthDesc);
     m_sceneDepthView = m_sceneDepthTexture->createView();
 
     wgpu::TextureDescriptor aoDesc{};
@@ -57,7 +57,7 @@ void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const i
     aoDesc.mipLevelCount = 1;
     aoDesc.format = wgpu::TextureFormat::R8Unorm;
     aoDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_sceneAoTexture = ctx.GetDevice()->createTexture(aoDesc);
+    m_sceneAoTexture = renderCtx.GetDevice()->createTexture(aoDesc);
     m_sceneAoView = m_sceneAoTexture->createView();
 
     wgpu::TextureDescriptor sceneColorDesc{};
@@ -67,9 +67,9 @@ void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const i
     sceneColorDesc.size.depthOrArrayLayers = 1;
     sceneColorDesc.sampleCount = 1;
     sceneColorDesc.mipLevelCount = 1;
-    sceneColorDesc.format = ctx.GetSurfaceFormat();
+    sceneColorDesc.format = renderCtx.GetSurfaceFormat();
     sceneColorDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_sceneColorTexture = ctx.GetDevice()->createTexture(sceneColorDesc);
+    m_sceneColorTexture = renderCtx.GetDevice()->createTexture(sceneColorDesc);
     m_sceneColorView = m_sceneColorTexture->createView();
 
     wgpu::TextureDescriptor sceneNormalDesc{};
@@ -81,14 +81,14 @@ void Renderer::EnsureFrameResources(RenderContext& ctx, const int width, const i
     sceneNormalDesc.mipLevelCount = 1;
     sceneNormalDesc.format = wgpu::TextureFormat::RGBA16Float;
     sceneNormalDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_sceneNormalTexture = ctx.GetDevice()->createTexture(sceneNormalDesc);
+    m_sceneNormalTexture = renderCtx.GetDevice()->createTexture(sceneNormalDesc);
     m_sceneNormalView = m_sceneNormalTexture->createView();
 
     m_frameResourceWidth = width;
     m_frameResourceHeight = height;
 }
 
-void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32_t width, const uint32_t height) {
+void Renderer::EnsureDirectionalShadowResources(RenderContext& renderCtx, const uint32_t width, const uint32_t height) {
     if (width == 0 || height == 0) {
         return;
     }
@@ -109,7 +109,7 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32
     shadowDesc.mipLevelCount = 1;
     shadowDesc.format = wgpu::TextureFormat::Depth24Plus;
     shadowDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_directionalShadowTexture = ctx.GetDevice()->createTexture(shadowDesc);
+    m_directionalShadowTexture = renderCtx.GetDevice()->createTexture(shadowDesc);
     m_directionalShadowView = m_directionalShadowTexture->createView();
 
     wgpu::SamplerDescriptor samplerDesc{};
@@ -123,13 +123,13 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& ctx, const uint32
     samplerDesc.lodMinClamp = 0.0f;
     samplerDesc.lodMaxClamp = 1.0f;
     samplerDesc.maxAnisotropy = 1;
-    m_directionalShadowSampler = ctx.GetDevice()->createSampler(samplerDesc);
+    m_directionalShadowSampler = renderCtx.GetDevice()->createSampler(samplerDesc);
 
     m_directionalShadowWidth = width;
     m_directionalShadowHeight = height;
 }
 
-void Renderer::EnsureFallbackShadowResources(RenderContext& ctx) {
+void Renderer::EnsureFallbackShadowResources(RenderContext& renderCtx) {
     if (m_fallbackShadowTexture && m_fallbackShadowView && m_fallbackShadowSampler) {
         return;
     }
@@ -144,7 +144,7 @@ void Renderer::EnsureFallbackShadowResources(RenderContext& ctx) {
     shadowDesc.mipLevelCount = 1;
     shadowDesc.format = wgpu::TextureFormat::Depth24Plus;
     shadowDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_fallbackShadowTexture = ctx.GetDevice()->createTexture(shadowDesc);
+    m_fallbackShadowTexture = renderCtx.GetDevice()->createTexture(shadowDesc);
     m_fallbackShadowView = m_fallbackShadowTexture->createView();
 
     wgpu::SamplerDescriptor samplerDesc{};
@@ -158,23 +158,23 @@ void Renderer::EnsureFallbackShadowResources(RenderContext& ctx) {
     samplerDesc.lodMinClamp = 0.0f;
     samplerDesc.lodMaxClamp = 1.0f;
     samplerDesc.maxAnisotropy = 1;
-    m_fallbackShadowSampler = ctx.GetDevice()->createSampler(samplerDesc);
+    m_fallbackShadowSampler = renderCtx.GetDevice()->createSampler(samplerDesc);
 }
 
-RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
+RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     RenderFrame frame{};
     frame.clearColor = m_clearColor;
-    frame.surfaceFrame = ctx.AcquireSurfaceFrame();
+    frame.surfaceFrame = renderCtx.AcquireSurfaceFrame();
     if (!frame.surfaceFrame.view) {
         return frame;
     }
 
     EnsureFrameResources(
-        ctx,
+        renderCtx,
         std::max(1, frame.surfaceFrame.surfaceWidth),
         std::max(1, frame.surfaceFrame.surfaceHeight));
 
-    frame.encoder = ctx.CreateCommandEncoder();
+    frame.encoder = renderCtx.CreateCommandEncoder();
     if (m_sceneDepthView) {
         frame.sceneDepthView = *m_sceneDepthView;
     }
@@ -190,16 +190,16 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& ctx) {
     return frame;
 }
 
-void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& scene) {
+void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScene& scene) {
     m_preparedDrawItems.clear();
     m_drawItemResources.clear();
     m_preparedDrawItems.reserve(scene.objects.size());
     m_drawItemResources.reserve(scene.objects.size());
 
     for (const RenderObject& object : scene.objects) {
-        const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(ctx, scene.assetServer, object);
+        const GpuMesh* gpuMesh = m_resourceCache.SyncMesh(renderCtx, scene.assetServer, object);
         const GpuResourceCache::GpuMaterialResources* materialResources =
-            m_resourceCache.SyncMaterial(ctx, scene.assetServer, object);
+            m_resourceCache.SyncMaterial(renderCtx, scene.assetServer, object);
         if (gpuMesh == nullptr || materialResources == nullptr) {
             continue;
         }
@@ -223,7 +223,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
         materialBindGroupDesc.entryCount = 3;
         materialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
-            .materialBindGroup = ctx.GetDevice()->createBindGroup(materialBindGroupDesc),
+            .materialBindGroup = renderCtx.GetDevice()->createBindGroup(materialBindGroupDesc),
         });
         const DrawItemResources& resources = m_drawItemResources.back();
 
@@ -241,21 +241,21 @@ void Renderer::BuildPreparedDrawItems(RenderContext& ctx, const RenderScene& sce
     }
 }
 
-void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer) {
-    RenderFrame frame = BeginRenderFrame(ctx);
+void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer) {
+    RenderFrame frame = BeginRenderFrame(renderCtx);
     if (!frame.surfaceFrame.view || !frame.encoder) {
         return;
     }
 
-    EnsureFallbackShadowResources(ctx);
+    EnsureFallbackShadowResources(renderCtx);
     if (scene.directionalShadow.has_value()) {
         EnsureDirectionalShadowResources(
-            ctx,
+            renderCtx,
             kDirectionalShadowMapResolution,
             kDirectionalShadowMapResolution);
     }
 
-    BuildPreparedDrawItems(ctx, scene);
+    BuildPreparedDrawItems(renderCtx, scene);
 
     std::optional<DirectionalShadowPassData> directionalShadow;
     if (scene.directionalShadow.has_value() && m_directionalShadowView && m_directionalShadowSampler) {
@@ -266,13 +266,13 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         };
     }
 
-    const PassContext passContext{
+    const PassContext passCtx{
         .camera = scene.camera,
         .directionalShadow = directionalShadow,
         .lights = scene.lights,
         .drawItems = m_preparedDrawItems,
         .guiRenderer = &guiRenderer,
-        .queue = &*ctx.GetQueue(),
+        .queue = &*renderCtx.GetQueue(),
         .fallbackShadowMapView = m_fallbackShadowView ? *m_fallbackShadowView : nullptr,
         .fallbackShadowSampler = m_fallbackShadowSampler ? *m_fallbackShadowSampler : nullptr,
         .sceneDepthView = frame.sceneDepthView,
@@ -282,15 +282,15 @@ void Renderer::Render(RenderContext& ctx, const RenderScene& scene, LegacyGuiRen
         .viewportWidth = frame.surfaceFrame.surfaceWidth,
         .viewportHeight = frame.surfaceFrame.surfaceHeight,
     };
-    m_shadowPass.Render(ctx, frame, passContext);
-    m_depthPrepass.Render(ctx, frame, passContext);
-    m_sceneNormalPass.Render(ctx, frame, passContext);
-    m_ssaoPass.Render(ctx, frame, passContext);
-    m_forwardOpaquePass.Render(ctx, frame, passContext);
-    m_compositePass.Render(ctx, frame, passContext);
-    m_guiPass.Render(ctx, frame, passContext);
-    ctx.Submit(frame.encoder);
-    ctx.Present(frame.surfaceFrame);
+    m_shadowPass.Render(renderCtx, frame, passCtx);
+    m_depthPrepass.Render(renderCtx, frame, passCtx);
+    m_sceneNormalPass.Render(renderCtx, frame, passCtx);
+    m_ssaoPass.Render(renderCtx, frame, passCtx);
+    m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
+    m_compositePass.Render(renderCtx, frame, passCtx);
+    m_guiPass.Render(renderCtx, frame, passCtx);
+    renderCtx.Submit(frame.encoder);
+    renderCtx.Present(frame.surfaceFrame);
 }
 
 void Renderer::SetClearColor(const double r, const double g, const double b, const double a) {
