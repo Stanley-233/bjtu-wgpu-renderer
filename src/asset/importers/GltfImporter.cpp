@@ -4,11 +4,14 @@
 
 #include "GltfImporter.h"
 
-#include <cstdint>
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -197,10 +200,6 @@ static bool ReadIndices(const tinygltf::Model& model, const int accessorIndex, s
         return false;
     };
 
-    if (accessorIndex < 0) {
-        return fail("accessor index is negative");
-    }
-
     const tinygltf::Accessor& accessor = model.accessors[static_cast<std::size_t>(accessorIndex)];
     if (accessor.bufferView < 0 || accessor.type != TINYGLTF_TYPE_SCALAR) {
         return fail("accessor is missing a buffer view or is not a scalar index buffer");
@@ -250,10 +249,11 @@ static bool ReadIndices(const tinygltf::Model& model, const int accessorIndex, s
     return true;
 }
 
-static ImageAsset DecodeImage(const tinygltf::Image& image) {
+static ImageAsset DecodeImage(const tinygltf::Image& image, const EImageAssetFormat format) {
     ImageAsset asset{};
     asset.width = static_cast<uint32_t>(std::max(0, image.width));
     asset.height = static_cast<uint32_t>(std::max(0, image.height));
+    asset.format = format;
 
     if (asset.width == 0U || asset.height == 0U || image.image.empty()) {
         return asset;
@@ -306,6 +306,170 @@ static ImageAsset DecodeImage(const tinygltf::Image& image) {
     }
 
     return asset;
+}
+
+static AssetId<ImageAsset> LoadTextureImage(
+    const tinygltf::Model& model,
+    const int textureIndex,
+    AssetServer& assetServer,
+    const EImageAssetFormat format) {
+    if (textureIndex < 0 || static_cast<std::size_t>(textureIndex) >= model.textures.size()) {
+        return {};
+    }
+    const tinygltf::Texture& texture = model.textures[static_cast<std::size_t>(textureIndex)];
+    if (texture.source < 0 || static_cast<std::size_t>(texture.source) >= model.images.size()) {
+        return {};
+    }
+    return assetServer.CreateImage(DecodeImage(model.images[static_cast<std::size_t>(texture.source)], format));
+}
+
+static std::optional<MaterialTextureAsset> LoadTextureAsset(
+    const tinygltf::Model& model,
+    const int textureIndex,
+    const int texCoord,
+    AssetServer& assetServer,
+    const EImageAssetFormat format) {
+    const AssetId<ImageAsset> imageId = LoadTextureImage(model, textureIndex, assetServer, format);
+    if (!imageId.IsValid()) {
+        return std::nullopt;
+    }
+
+    MaterialTextureAsset textureAsset{};
+    textureAsset.image = imageId;
+    textureAsset.texCoord = texCoord >= 0 ? static_cast<uint32_t>(texCoord) : 0U;
+    return textureAsset;
+}
+
+static bool ReadExtensionFloat(const tinygltf::Value& objectValue, const char* key, float& outValue) {
+    if (!objectValue.IsObject() || !objectValue.Has(key)) {
+        return false;
+    }
+    const tinygltf::Value& value = objectValue.Get(key);
+    if (!value.IsNumber()) {
+        return false;
+    }
+    outValue = static_cast<float>(value.GetNumberAsDouble());
+    return true;
+}
+
+static bool ReadExtensionVec3(const tinygltf::Value& objectValue, const char* key, glm::vec3& outValue) {
+    if (!objectValue.IsObject() || !objectValue.Has(key)) {
+        return false;
+    }
+    const tinygltf::Value& value = objectValue.Get(key);
+    if (!value.IsArray() || value.ArrayLen() != 3U) {
+        return false;
+    }
+    glm::vec3 parsedValue{1.0f, 1.0f, 1.0f};
+    for (std::size_t i = 0; i < 3U; ++i) {
+        const tinygltf::Value& component = value.Get(i);
+        if (!component.IsNumber()) {
+            return false;
+        }
+        parsedValue[static_cast<glm::vec3::length_type>(i)] = static_cast<float>(component.GetNumberAsDouble());
+    }
+    outValue = parsedValue;
+    return true;
+}
+
+static std::optional<MaterialTextureAsset> ReadExtensionTextureAsset(
+    const tinygltf::Model& model,
+    const tinygltf::Value& objectValue,
+    const char* key,
+    AssetServer& assetServer,
+    const EImageAssetFormat format) {
+    if (!objectValue.IsObject() || !objectValue.Has(key)) {
+        return std::nullopt;
+    }
+
+    const tinygltf::Value& textureValue = objectValue.Get(key);
+    if (!textureValue.IsObject() || !textureValue.Has("index")) {
+        return std::nullopt;
+    }
+
+    const tinygltf::Value& indexValue = textureValue.Get("index");
+    if (!indexValue.IsNumber()) {
+        return std::nullopt;
+    }
+
+    int texCoord = 0;
+    if (textureValue.Has("texCoord")) {
+        const tinygltf::Value& texCoordValue = textureValue.Get("texCoord");
+        if (texCoordValue.IsNumber()) {
+            texCoord = texCoordValue.GetNumberAsInt();
+        }
+    }
+
+    return LoadTextureAsset(
+        model,
+        indexValue.GetNumberAsInt(),
+        texCoord,
+        assetServer,
+        format);
+}
+
+static std::optional<SpecularExtensionAsset> ReadSpecularExtension(
+    const tinygltf::Model& model,
+    const tinygltf::Material& material,
+    AssetServer& assetServer) {
+    const auto extensionIt = material.extensions.find("KHR_materials_specular");
+    if (extensionIt == material.extensions.end()) {
+        return std::nullopt;
+    }
+    if (!extensionIt->second.IsObject()) {
+        return std::nullopt;
+    }
+
+    SpecularExtensionAsset specular{};
+    (void)ReadExtensionFloat(extensionIt->second, "specularFactor", specular.specularFactor);
+    (void)ReadExtensionVec3(extensionIt->second, "specularColorFactor", specular.specularColorFactor);
+    specular.specularTexture = ReadExtensionTextureAsset(
+        model,
+        extensionIt->second,
+        "specularTexture",
+        assetServer,
+        EImageAssetFormat::Rgba8Unorm);
+    specular.specularColorTexture = ReadExtensionTextureAsset(
+        model,
+        extensionIt->second,
+        "specularColorTexture",
+        assetServer,
+        EImageAssetFormat::Rgba8Unorm);
+    return specular;
+}
+
+static bool IsSupportedExtension(const std::string_view extensionName) {
+    return extensionName == "KHR_materials_unlit"
+           || extensionName == "KHR_materials_specular";
+}
+
+static void WarnUnsupportedExtension(
+    const std::string_view extensionName,
+    const std::filesystem::path& path,
+    std::unordered_set<std::string>& warnedExtensions) {
+    if (IsSupportedExtension(extensionName) || warnedExtensions.contains(std::string{extensionName})) {
+        return;
+    }
+
+    std::cerr << "[GltfImporter] Warning: unsupported extension '" << extensionName
+              << "' in '" << path.string() << "'." << std::endl;
+    warnedExtensions.insert(std::string{extensionName});
+}
+
+static void WarnUnsupportedExtensions(const tinygltf::Model& model, const std::filesystem::path& path) {
+    std::unordered_set<std::string> warnedExtensions{};
+    for (const std::string& extensionName : model.extensionsUsed) {
+        WarnUnsupportedExtension(extensionName, path, warnedExtensions);
+    }
+    for (const std::string& extensionName : model.extensionsRequired) {
+        WarnUnsupportedExtension(extensionName, path, warnedExtensions);
+    }
+    for (const tinygltf::Material& material : model.materials) {
+        for (const auto& [extensionName, _] : material.extensions) {
+            (void)_;
+            WarnUnsupportedExtension(extensionName, path, warnedExtensions);
+        }
+    }
 }
 
 static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primitive& primitive) {
@@ -399,14 +563,14 @@ static void LoadNodeRecursive(
         const tinygltf::Mesh& mesh = model.meshes[static_cast<std::size_t>(node.mesh)];
         for (std::size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
             const tinygltf::Primitive& primitive = mesh.primitives[primitiveIndex];
-            glm::vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
-            AssetId<ImageAsset> baseColorTexture{};
+            MaterialAsset materialAsset{};
+            materialAsset.shadingModel = EMaterialShadingModel::Lambert;
 
             if (primitive.material >= 0) {
                 const tinygltf::Material& material = model.materials[static_cast<std::size_t>(primitive.material)];
                 const auto& pbr = material.pbrMetallicRoughness;
                 if (pbr.baseColorFactor.size() == 4U) {
-                    baseColorFactor = glm::vec4{
+                    materialAsset.baseColorFactor = glm::vec4{
                         static_cast<float>(pbr.baseColorFactor[0]),
                         static_cast<float>(pbr.baseColorFactor[1]),
                         static_cast<float>(pbr.baseColorFactor[2]),
@@ -415,14 +579,35 @@ static void LoadNodeRecursive(
                 }
 
                 if (pbr.baseColorTexture.index >= 0) {
-                    const int textureIndex = pbr.baseColorTexture.index;
-                    if (textureIndex >= 0 && static_cast<std::size_t>(textureIndex) < model.textures.size()) {
-                        const tinygltf::Texture& texture = model.textures[static_cast<std::size_t>(textureIndex)];
-                        if (texture.source >= 0 && static_cast<std::size_t>(texture.source) < model.images.size()) {
-                            const tinygltf::Image& image = model.images[static_cast<std::size_t>(texture.source)];
-                            baseColorTexture = assetServer.CreateImage(DecodeImage(image));
-                        }
-                    }
+                    materialAsset.baseColorTexture = LoadTextureAsset(
+                        model,
+                        pbr.baseColorTexture.index,
+                        pbr.baseColorTexture.texCoord,
+                        assetServer,
+                        EImageAssetFormat::Rgba8Srgb);
+                }
+                materialAsset.metallicFactor = static_cast<float>(pbr.metallicFactor);
+                materialAsset.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
+                if (pbr.metallicRoughnessTexture.index >= 0) {
+                    materialAsset.metallicRoughnessTexture = LoadTextureAsset(
+                        model,
+                        pbr.metallicRoughnessTexture.index,
+                        pbr.metallicRoughnessTexture.texCoord,
+                        assetServer,
+                        EImageAssetFormat::Rgba8Unorm);
+                }
+                if (material.normalTexture.index >= 0) {
+                    materialAsset.normalTexture = LoadTextureAsset(
+                        model,
+                        material.normalTexture.index,
+                        material.normalTexture.texCoord,
+                        assetServer,
+                        EImageAssetFormat::Rgba8Unorm);
+                    materialAsset.normalScale = static_cast<float>(material.normalTexture.scale);
+                }
+                materialAsset.specular = ReadSpecularExtension(model, material, assetServer);
+                if (material.extensions.contains("KHR_materials_unlit")) {
+                    materialAsset.shadingModel = EMaterialShadingModel::Unlit;
                 }
             }
 
@@ -432,16 +617,6 @@ static void LoadNodeRecursive(
             }
 
             const AssetId<MeshAsset> meshId = assetServer.CreateMesh(std::move(meshAsset));
-            MaterialAsset materialAsset{};
-            materialAsset.shadingModel = EMaterialShadingModel::Lambert;
-            if (primitive.material >= 0) {
-                const tinygltf::Material& material = model.materials[static_cast<std::size_t>(primitive.material)];
-                if (material.extensions.contains("KHR_materials_unlit")) {
-                    materialAsset.shadingModel = EMaterialShadingModel::Unlit;
-                }
-            }
-            materialAsset.baseColorFactor = baseColorFactor;
-            materialAsset.baseColorTexture = baseColorTexture;
             materialAsset.useVertexColor = true;
             const AssetId<MaterialAsset> materialId = assetServer.CreateMaterial(std::move(materialAsset));
 
@@ -485,6 +660,7 @@ bool GltfImporter::Import(const std::filesystem::path& path, AssetServer& assetS
         outModel = ModelAsset{};
         return false;
     }
+    WarnUnsupportedExtensions(model, path);
 
     outModel = ModelAsset{};
     if (model.scenes.empty()) {

@@ -1,6 +1,7 @@
 #include "RenderContext.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <iostream>
 
 #include "app/WindowContext.h"
@@ -8,6 +9,19 @@
 #include <magic_enum.hpp>
 
 using namespace wgpu;
+
+namespace {
+
+[[noreturn]] void FailFastOnWebGpuError(const char* source, const WGPUErrorType type, const char* message) {
+    std::cerr << source << ": type " << type;
+    if (message != nullptr) {
+        std::cerr << " (" << message << ")";
+    }
+    std::cerr << std::endl;
+    std::exit(EXIT_FAILURE);
+}
+
+}
 
 RenderContext& RenderContext::SetSurfaceFormat(TextureFormat format) {
     m_surfaceFormat = format;
@@ -49,11 +63,7 @@ bool RenderContext::Initialize(WindowContext& windowContext) {
 
     m_uncapturedErrorCallbackHandle = m_device->setUncapturedErrorCallback(
         [](ErrorType type, char const* message) {
-            std::cout << "Uncaptured device error: type " << type;
-            if (message != nullptr) {
-                std::cout << " (" << message << ")";
-            }
-            std::cout << std::endl;
+            FailFastOnWebGpuError("Uncaptured device error", type, message);
         });
 
     m_queue = m_device->getQueue();

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 
@@ -22,6 +23,15 @@ static void FlushDeviceValidation(RenderContext& renderCtx) {
 #endif
 }
 
+[[noreturn]] static void FailFastOnValidationError(const char* label, const WGPUErrorType type, const char* message) {
+    std::cerr << "[" << label << "] Validation scope error: type " << type;
+    if (message != nullptr) {
+        std::cerr << " (" << message << ")";
+    }
+    std::cerr << std::endl;
+    std::exit(EXIT_FAILURE);
+}
+
 static void PopValidationScope(RenderContext& renderCtx, const char* label) {
     wgpuDevicePopErrorScope(
         *renderCtx.GetDevice(),
@@ -29,11 +39,7 @@ static void PopValidationScope(RenderContext& renderCtx, const char* label) {
             if (type == WGPUErrorType_NoError) {
                 return;
             }
-            std::cerr << "[" << static_cast<const char*>(userdata) << "] Validation scope error: type " << type;
-            if (message != nullptr) {
-                std::cerr << " (" << message << ")";
-            }
-            std::cerr << std::endl;
+            FailFastOnValidationError(static_cast<const char*>(userdata), type, message);
         },
         const_cast<char*>(label));
     FlushDeviceValidation(renderCtx);

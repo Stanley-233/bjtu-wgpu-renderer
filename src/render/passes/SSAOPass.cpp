@@ -9,14 +9,12 @@
 #include "render/pipelines/Scene3DPipelineFactory.h"
 #include "render/scene/RenderUniformData.h"
 
-namespace {
-
 constexpr float kDefaultSsaoRadius = 0.15f;
 constexpr float kDefaultSsaoBias = 0.025f;
 constexpr float kDefaultSsaoPower = 1.5f;
 constexpr float kDefaultSsaoSampleCount = 16.0f;
 
-SsaoUniformData BuildSsaoUniformData(const PassContext& passCtx) {
+static SsaoUniformData BuildSsaoUniformData(const PassContext& passCtx) {
     SsaoUniformData uniformData{};
     if (!passCtx.camera.has_value()) {
         return uniformData;
@@ -30,8 +28,6 @@ SsaoUniformData BuildSsaoUniformData(const PassContext& passCtx) {
     uniformData.viewportSizeAndRadius = glm::vec4(viewportWidth, viewportHeight, kDefaultSsaoRadius, 0.0f);
     uniformData.aoParams = glm::vec4(kDefaultSsaoBias, kDefaultSsaoPower, kDefaultSsaoSampleCount, 0.0f);
     return uniformData;
-}
-
 }
 
 void SSAOPass::Initialize(RenderContext& renderCtx) {

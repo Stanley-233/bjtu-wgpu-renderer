@@ -97,8 +97,8 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
                                                  : fallbackMaterial;
 
     const GpuTexture2D* baseColorTexture = nullptr;
-    if (effectiveMaterial.baseColorTexture.IsValid()) {
-        baseColorTexture = SyncTexture(renderCtx, assetServer, effectiveMaterial.baseColorTexture);
+    if (effectiveMaterial.baseColorTexture.has_value()) {
+        baseColorTexture = SyncTexture(renderCtx, assetServer, effectiveMaterial.baseColorTexture->image);
     }
     if (baseColorTexture == nullptr) {
         baseColorTexture = GetOrCreateWhiteTexture(renderCtx);

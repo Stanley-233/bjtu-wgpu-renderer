@@ -21,7 +21,7 @@ struct SsaoUniform {
 
 const kKernelSize: u32 = 16u;
 
-const kKernel = array<vec3f, kKernelSize>(
+var<private> kKernel: array<vec3f, 16> = array<vec3f, kKernelSize>(
     vec3f(0.5381,  0.1856, 0.4319),
     vec3f(0.1379,  0.2486, 0.4430),
     vec3f(0.3371,  0.5679, 0.1287),
