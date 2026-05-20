@@ -25,7 +25,9 @@ public:
     struct GpuMaterialResources {
         MaterialUniformData uniformData{};
         wgpu::raii::Buffer  uniformBuffer;
-        wgpu::TextureView   textureView = nullptr;
+        wgpu::TextureView   baseColorTextureView = nullptr;
+        wgpu::TextureView   normalTextureView = nullptr;
+        wgpu::TextureView   metallicRoughnessTextureView = nullptr;
         wgpu::Sampler       sampler = nullptr;
     };
 
@@ -81,16 +83,24 @@ private:
 
     [[nodiscard]] const GpuTexture2D* GetOrCreateWhiteTexture(RenderContext& renderCtx);
 
+    [[nodiscard]] const GpuTexture2D* GetOrCreateLinearWhiteTexture(RenderContext& renderCtx);
+
+    [[nodiscard]] const GpuTexture2D* GetOrCreateFlatNormalTexture(RenderContext& renderCtx);
+
     [[nodiscard]] GpuMaterialResources BuildMaterialResources(
         RenderContext& renderCtx,
         const MaterialAsset& material,
         EMaterialShadingModel shadingModel,
-        const GpuTexture2D& baseColorTexture) const;
+        const GpuTexture2D& baseColorTexture,
+        const GpuTexture2D& normalTexture,
+        const GpuTexture2D& metallicRoughnessTexture) const;
 
     std::unordered_map<CacheKey, GpuMesh, CacheKeyHash> m_meshes;
     std::unordered_map<AssetId<ImageAsset>, GpuTexture2D, AssetIdHash> m_textures;
     std::unordered_map<MaterialCacheKey, GpuMaterialResources, MaterialCacheKeyHash> m_materials;
     std::optional<GpuTexture2D> m_whiteTexture;
+    std::optional<GpuTexture2D> m_linearWhiteTexture;
+    std::optional<GpuTexture2D> m_flatNormalTexture;
     wgpu::raii::Sampler m_sampler;
 };
 

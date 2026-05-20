@@ -493,7 +493,8 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
     }
 
     std::vector<glm::vec3> normals{};
-    std::vector<glm::vec2> texcoords{};
+    std::vector<glm::vec2> texcoords0{};
+    std::vector<glm::vec2> texcoords1{};
     std::vector<glm::vec4> colors{};
     const auto normalIt = primitive.attributes.find("NORMAL");
     if (normalIt != primitive.attributes.end()) {
@@ -501,7 +502,11 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
     }
     const auto texcoordIt = primitive.attributes.find("TEXCOORD_0");
     if (texcoordIt != primitive.attributes.end()) {
-        (void)ReadAccessorVec2(model, texcoordIt->second, texcoords);
+        (void)ReadAccessorVec2(model, texcoordIt->second, texcoords0);
+    }
+    const auto texcoord1It = primitive.attributes.find("TEXCOORD_1");
+    if (texcoord1It != primitive.attributes.end()) {
+        (void)ReadAccessorVec2(model, texcoord1It->second, texcoords1);
     }
     const auto colorIt = primitive.attributes.find("COLOR_0");
     if (colorIt != primitive.attributes.end()) {
@@ -533,8 +538,11 @@ static MeshAsset BuildMesh(const tinygltf::Model& model, const tinygltf::Primiti
         if (vertexIndex < normals.size()) {
             mesh.vertices[vertexIndex].normal = normals[vertexIndex];
         }
-        if (vertexIndex < texcoords.size()) {
-            mesh.vertices[vertexIndex].uv0 = texcoords[vertexIndex];
+        if (vertexIndex < texcoords0.size()) {
+            mesh.vertices[vertexIndex].uv0 = texcoords0[vertexIndex];
+        }
+        if (vertexIndex < texcoords1.size()) {
+            mesh.vertices[vertexIndex].uv1 = texcoords1[vertexIndex];
         }
         if (vertexIndex < colors.size()) {
             mesh.vertices[vertexIndex].color = colors[vertexIndex];

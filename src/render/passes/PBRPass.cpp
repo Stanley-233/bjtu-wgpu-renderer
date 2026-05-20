@@ -1,10 +1,11 @@
-#include "ForwardOpaquePass.h"
+#include "PBRPass.h"
 
 #include "render/RenderContext.h"
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
-static SceneUniformData BuildSceneUniformData(const PassContext& passCtx) {
+namespace {
+SceneUniformData BuildSceneUniformData(const PassContext& passCtx) {
     SceneUniformData uniformData{};
     if (passCtx.camera.has_value()) {
         uniformData.view = passCtx.camera->view;
@@ -23,23 +24,21 @@ static SceneUniformData BuildSceneUniformData(const PassContext& passCtx) {
     return uniformData;
 }
 
-static DirectionalShadowUniformData BuildDirectionalShadowUniformData(const PassContext& passCtx) {
+DirectionalShadowUniformData BuildDirectionalShadowUniformData(const PassContext& passCtx) {
     if (passCtx.directionalShadow.has_value()) {
         return passCtx.directionalShadow->uniformData;
     }
     return DirectionalShadowUniformData{};
 }
+} // namespace
 
-void ForwardOpaquePass::Initialize(RenderContext& renderCtx) {
-    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
-    m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
-    m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
-    m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
-    m_layout = std::move(unlitPipeline.layout);
-    m_unlitPipeline = std::move(unlitPipeline.pipeline);
-
-    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
-    m_lambertPipeline = std::move(lambertPipeline.pipeline);
+void PBRPass::Initialize(RenderContext& renderCtx) {
+    auto pbrPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
+    m_sceneBindGroupLayout = std::move(pbrPipeline.sceneBindGroupLayout);
+    m_objectBindGroupLayout = std::move(pbrPipeline.objectBindGroupLayout);
+    m_materialBindGroupLayout = std::move(pbrPipeline.materialBindGroupLayout);
+    m_layout = std::move(pbrPipeline.layout);
+    m_pipeline = std::move(pbrPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -52,7 +51,7 @@ void ForwardOpaquePass::Initialize(RenderContext& renderCtx) {
     m_sceneAoSampler = renderCtx.GetDevice()->createSampler(samplerDesc);
 }
 
-void ForwardOpaquePass::EnsureSceneResources(RenderContext& renderCtx) {
+void PBRPass::EnsureSceneResources(RenderContext& renderCtx) {
     if (!m_sceneResources.sceneUniformBuffer) {
         wgpu::BufferDescriptor uniformBufferDesc{};
         uniformBufferDesc.size = sizeof(SceneUniformData);
@@ -69,7 +68,7 @@ void ForwardOpaquePass::EnsureSceneResources(RenderContext& renderCtx) {
     }
 }
 
-void ForwardOpaquePass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
+void PBRPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
     if (m_objectResources.size() < objectCount) {
         m_objectResources.resize(objectCount);
     }
@@ -86,13 +85,13 @@ void ForwardOpaquePass::EnsureObjectResources(RenderContext& renderCtx, const st
     }
 }
 
-void ForwardOpaquePass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
-    const wgpu::TextureView shadowMapView = passCtx.directionalShadow.has_value() ?
-                                                passCtx.directionalShadow->shadowMapView :
-                                                passCtx.fallbackShadowMapView;
-    const wgpu::Sampler shadowSampler = passCtx.directionalShadow.has_value() ?
-                                            passCtx.directionalShadow->shadowSampler :
-                                            passCtx.fallbackShadowSampler;
+void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
+    const wgpu::TextureView shadowMapView = passCtx.directionalShadow.has_value()
+                                                ? passCtx.directionalShadow->shadowMapView
+                                                : passCtx.fallbackShadowMapView;
+    const wgpu::Sampler shadowSampler = passCtx.directionalShadow.has_value()
+                                            ? passCtx.directionalShadow->shadowSampler
+                                            : passCtx.fallbackShadowSampler;
     if (!m_sceneResources.sceneUniformBuffer
         || !m_sceneResources.directionalShadowUniformBuffer
         || !m_sceneBindGroupLayout
@@ -105,13 +104,8 @@ void ForwardOpaquePass::UpdateSceneResources(RenderContext& renderCtx, const Pas
     }
 
     const SceneUniformData uniformData = BuildSceneUniformData(passCtx);
-    const DirectionalShadowUniformData directionalShadowUniformData =
-        BuildDirectionalShadowUniformData(passCtx);
-    passCtx.queue->writeBuffer(
-        *m_sceneResources.sceneUniformBuffer,
-        0,
-        &uniformData,
-        sizeof(SceneUniformData));
+    const DirectionalShadowUniformData directionalShadowUniformData = BuildDirectionalShadowUniformData(passCtx);
+    passCtx.queue->writeBuffer(*m_sceneResources.sceneUniformBuffer, 0, &uniformData, sizeof(SceneUniformData));
     passCtx.queue->writeBuffer(
         *m_sceneResources.directionalShadowUniformBuffer,
         0,
@@ -143,7 +137,7 @@ void ForwardOpaquePass::UpdateSceneResources(RenderContext& renderCtx, const Pas
     m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
-void ForwardOpaquePass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
+void PBRPass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
     if (!m_objectBindGroupLayout) {
         return;
     }
@@ -154,11 +148,10 @@ void ForwardOpaquePass::UpdateObjectResources(RenderContext& renderCtx, const st
             continue;
         }
 
-        const PreparedDrawItem& drawItem = drawItems[i];
         renderCtx.GetQueue()->writeBuffer(
             *resources.objectUniformBuffer,
             0,
-            &drawItem.objectUniformData,
+            &drawItems[i].objectUniformData,
             sizeof(ObjectUniformData));
 
         wgpu::BindGroupEntry objectBinding{};
@@ -175,8 +168,17 @@ void ForwardOpaquePass::UpdateObjectResources(RenderContext& renderCtx, const st
     }
 }
 
-void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
-    if (!frame.encoder || frame.sceneColorView == nullptr) {
+bool PBRPass::HasPbrDrawItems(const std::span<const PreparedDrawItem> drawItems) const {
+    for (const PreparedDrawItem& drawItem : drawItems) {
+        if (drawItem.shadingModel == EMaterialShadingModel::Pbr) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void PBRPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
+    if (!frame.encoder || frame.sceneColorView == nullptr || !HasPbrDrawItems(passCtx.drawItems)) {
         return;
     }
 
@@ -188,7 +190,7 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
     wgpu::RenderPassColorAttachment colorAttachment{};
     colorAttachment.view = frame.sceneColorView;
     colorAttachment.resolveTarget = nullptr;
-    colorAttachment.loadOp = wgpu::LoadOp::Clear;
+    colorAttachment.loadOp = wgpu::LoadOp::Load;
     colorAttachment.storeOp = wgpu::StoreOp::Store;
     colorAttachment.clearValue = frame.clearColor;
 #ifndef WEBGPU_BACKEND_WGPU
@@ -214,27 +216,26 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
     }
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    if (m_sceneResources.sceneBindGroup) {
+    if (m_sceneResources.sceneBindGroup && m_pipeline) {
+        renderPass->setPipeline(*m_pipeline);
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
         for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
             const PreparedDrawItem& drawItem = passCtx.drawItems[i];
-            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel);
             const wgpu::BindGroup objectBindGroup =
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup
                     : nullptr;
-            if (pipeline == nullptr
+            if (drawItem.shadingModel != EMaterialShadingModel::Pbr
                 || objectBindGroup == nullptr
-                || drawItem.forwardMaterialBindGroup == nullptr
+                || drawItem.pbrMaterialBindGroup == nullptr
                 || drawItem.vertexBuffer == nullptr
                 || drawItem.indexBuffer == nullptr
                 || drawItem.indexCount == 0) {
                 continue;
             }
 
-            renderPass->setPipeline(pipeline);
             renderPass->setBindGroup(1, objectBindGroup, 0, nullptr);
-            renderPass->setBindGroup(2, drawItem.forwardMaterialBindGroup, 0, nullptr);
+            renderPass->setBindGroup(2, drawItem.pbrMaterialBindGroup, 0, nullptr);
             renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
             renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
             renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
@@ -243,26 +244,6 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
     renderPass->end();
 }
 
-const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetSceneBindGroupLayout() const {
-    return m_sceneBindGroupLayout;
-}
-
-const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetObjectBindGroupLayout() const {
-    return m_objectBindGroupLayout;
-}
-
-const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetMaterialBindGroupLayout() const {
+const wgpu::raii::BindGroupLayout& PBRPass::GetMaterialBindGroupLayout() const {
     return m_materialBindGroupLayout;
-}
-
-wgpu::RenderPipeline ForwardOpaquePass::SelectPipeline(const EMaterialShadingModel shadingModel) const {
-    switch (shadingModel) {
-    case EMaterialShadingModel::Unlit:
-        return m_unlitPipeline ? *m_unlitPipeline : nullptr;
-    case EMaterialShadingModel::Lambert:
-        return m_lambertPipeline ? *m_lambertPipeline : nullptr;
-    case EMaterialShadingModel::Pbr:
-        return nullptr;
-    }
-    return nullptr;
 }

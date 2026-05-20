@@ -9,6 +9,7 @@
 #include "passes/DepthPrepass.h"
 #include "passes/ForwardOpaquePass.h"
 #include "passes/GuiPass.h"
+#include "passes/PBRPass.h"
 #include "passes/PreparedDrawItem.h"
 #include "passes/SceneNormalPass.h"
 #include "passes/SSAOPass.h"
@@ -33,7 +34,8 @@ private:
     static constexpr uint32_t kDirectionalShadowMapResolution = 2048;
 
     struct DrawItemResources {
-        wgpu::raii::BindGroup materialBindGroup;
+        wgpu::raii::BindGroup forwardMaterialBindGroup;
+        wgpu::raii::BindGroup pbrMaterialBindGroup;
     };
 
     [[nodiscard]] RenderFrame BeginRenderFrame(RenderContext& renderCtx);
@@ -52,6 +54,7 @@ private:
     SceneNormalPass                 m_sceneNormalPass;
     SSAOPass                        m_ssaoPass;
     ForwardOpaquePass               m_forwardOpaquePass;
+    PBRPass                         m_pbrPass;
     CompositePass                   m_compositePass;
     GuiPass                         m_guiPass;
     wgpu::raii::Texture             m_sceneDepthTexture;

@@ -52,6 +52,8 @@ public:
 
     static ForwardPipeline CreateLambertForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
+    static ForwardPipeline CreatePbrForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
     static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& renderCtx);
 
     static SceneNormalPipeline CreateSceneNormalPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);

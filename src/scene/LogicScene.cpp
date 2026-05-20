@@ -174,6 +174,28 @@ void LogicScene::SetSsaoEnabled(const bool enabled) {
     m_renderer.SetSsaoEnabled(enabled);
 }
 
+void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingModel) {
+    if (shadingModel != EMaterialShadingModel::Lambert && shadingModel != EMaterialShadingModel::Pbr) {
+        return;
+    }
+
+    auto view = m_world.View<StaticMeshComponent>();
+    for (const entt::entity entityHandle : view) {
+        auto& meshComponent = view.get<StaticMeshComponent>(entityHandle);
+        if (meshComponent.shadingModelOverride.has_value()
+            && *meshComponent.shadingModelOverride == EMaterialShadingModel::Unlit) {
+            continue;
+        }
+
+        const MaterialAsset* materialAsset = m_assetServer.Get(meshComponent.material);
+        if (materialAsset != nullptr && materialAsset->shadingModel == EMaterialShadingModel::Unlit) {
+            continue;
+        }
+
+        meshComponent.SetShadingModelOverride(shadingModel);
+    }
+}
+
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().connect<&LogicScene::OnCameraLookInputEvent>(*this);

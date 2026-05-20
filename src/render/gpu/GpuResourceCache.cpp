@@ -15,6 +15,18 @@ MaterialUniformData BuildMaterialUniformData(
     const EMaterialShadingModel shadingModel) {
     return MaterialUniformData{
         .baseColorFactor = material.baseColorFactor,
+        .pbrParams = glm::vec4{
+            material.metallicFactor,
+            material.roughnessFactor,
+            material.normalScale,
+            0.0f,
+        },
+        .textureCoordSets = glm::uvec4{
+            material.baseColorTexture.has_value() ? material.baseColorTexture->texCoord : 0U,
+            material.normalTexture.has_value() ? material.normalTexture->texCoord : 0U,
+            material.metallicRoughnessTexture.has_value() ? material.metallicRoughnessTexture->texCoord : 0U,
+            0U,
+        },
         .surfaceOptions = glm::uvec4{
             static_cast<uint32_t>(shadingModel),
             material.useVertexColor ? 1U : 0U,
@@ -107,6 +119,28 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
         return nullptr;
     }
 
+    const GpuTexture2D* normalTexture = nullptr;
+    if (effectiveMaterial.normalTexture.has_value()) {
+        normalTexture = SyncTexture(renderCtx, assetServer, effectiveMaterial.normalTexture->image);
+    }
+    if (normalTexture == nullptr) {
+        normalTexture = GetOrCreateFlatNormalTexture(renderCtx);
+    }
+    if (normalTexture == nullptr) {
+        return nullptr;
+    }
+
+    const GpuTexture2D* metallicRoughnessTexture = nullptr;
+    if (effectiveMaterial.metallicRoughnessTexture.has_value()) {
+        metallicRoughnessTexture = SyncTexture(renderCtx, assetServer, effectiveMaterial.metallicRoughnessTexture->image);
+    }
+    if (metallicRoughnessTexture == nullptr) {
+        metallicRoughnessTexture = GetOrCreateLinearWhiteTexture(renderCtx);
+    }
+    if (metallicRoughnessTexture == nullptr) {
+        return nullptr;
+    }
+
     const MaterialCacheKey key{
         .materialId = object.materialId,
         .shadingModel = object.shadingModel,
@@ -118,7 +152,12 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
         &resources.uniformData,
         &desiredUniform,
         sizeof(MaterialUniformData)) != 0;
-    const bool textureChanged = resources.textureView == nullptr || resources.textureView != *baseColorTexture->view;
+    const bool textureChanged = resources.baseColorTextureView == nullptr
+                                || resources.baseColorTextureView != *baseColorTexture->view
+                                || resources.normalTextureView == nullptr
+                                || resources.normalTextureView != *normalTexture->view
+                                || resources.metallicRoughnessTextureView == nullptr
+                                || resources.metallicRoughnessTextureView != *metallicRoughnessTexture->view;
     const bool samplerChanged = resources.sampler == nullptr || resources.sampler != *m_sampler;
     const bool needsRebuild = inserted
                               || !resources.uniformBuffer
@@ -126,7 +165,13 @@ const GpuResourceCache::GpuMaterialResources* GpuResourceCache::SyncMaterial(
                               || samplerChanged
                               || uniformChanged;
     if (needsRebuild) {
-        resources = BuildMaterialResources(renderCtx, effectiveMaterial, object.shadingModel, *baseColorTexture);
+        resources = BuildMaterialResources(
+            renderCtx,
+            effectiveMaterial,
+            object.shadingModel,
+            *baseColorTexture,
+            *normalTexture,
+            *metallicRoughnessTexture);
     }
     return &resources;
 }
@@ -136,6 +181,8 @@ void GpuResourceCache::Reset() {
     m_textures.clear();
     m_materials.clear();
     m_whiteTexture.reset();
+    m_linearWhiteTexture.reset();
+    m_flatNormalTexture.reset();
     m_sampler = {};
 }
 
@@ -158,6 +205,7 @@ GpuMesh GpuResourceCache::UploadMeshToGpu(RenderContext& renderCtx, const MeshAs
                 .position = legacyVertex.position,
                 .normal = glm::vec3{0.0f, 0.0f, 1.0f},
                 .uv0 = glm::vec2{0.0f, 0.0f},
+                .uv1 = glm::vec2{0.0f, 0.0f},
                 .color = glm::vec4{legacyVertex.color, 1.0f},
             });
         }
@@ -282,11 +330,43 @@ const GpuResourceCache::GpuTexture2D* GpuResourceCache::GetOrCreateWhiteTexture(
     return &*m_whiteTexture;
 }
 
+const GpuResourceCache::GpuTexture2D* GpuResourceCache::GetOrCreateLinearWhiteTexture(RenderContext& renderCtx) {
+    if (!m_linearWhiteTexture.has_value() || !m_linearWhiteTexture->texture || !m_linearWhiteTexture->view) {
+        ImageAsset whiteImage{};
+        whiteImage.width = 1;
+        whiteImage.height = 1;
+        whiteImage.format = EImageAssetFormat::Rgba8Unorm;
+        whiteImage.pixels = {255U, 255U, 255U, 255U};
+        m_linearWhiteTexture = UploadTextureToGpu(renderCtx, whiteImage);
+    }
+    if (!m_linearWhiteTexture->texture || !m_linearWhiteTexture->view) {
+        return nullptr;
+    }
+    return &*m_linearWhiteTexture;
+}
+
+const GpuResourceCache::GpuTexture2D* GpuResourceCache::GetOrCreateFlatNormalTexture(RenderContext& renderCtx) {
+    if (!m_flatNormalTexture.has_value() || !m_flatNormalTexture->texture || !m_flatNormalTexture->view) {
+        ImageAsset flatNormalImage{};
+        flatNormalImage.width = 1;
+        flatNormalImage.height = 1;
+        flatNormalImage.format = EImageAssetFormat::Rgba8Unorm;
+        flatNormalImage.pixels = {128U, 128U, 255U, 255U};
+        m_flatNormalTexture = UploadTextureToGpu(renderCtx, flatNormalImage);
+    }
+    if (!m_flatNormalTexture->texture || !m_flatNormalTexture->view) {
+        return nullptr;
+    }
+    return &*m_flatNormalTexture;
+}
+
 GpuResourceCache::GpuMaterialResources GpuResourceCache::BuildMaterialResources(
     RenderContext& renderCtx,
     const MaterialAsset& material,
     const EMaterialShadingModel shadingModel,
-    const GpuTexture2D& baseColorTexture) const {
+    const GpuTexture2D& baseColorTexture,
+    const GpuTexture2D& normalTexture,
+    const GpuTexture2D& metallicRoughnessTexture) const {
     GpuMaterialResources resources{};
     resources.uniformData = BuildMaterialUniformData(material, shadingModel);
 
@@ -300,7 +380,9 @@ GpuResourceCache::GpuMaterialResources GpuResourceCache::BuildMaterialResources(
         0,
         &resources.uniformData,
         sizeof(MaterialUniformData));
-    resources.textureView = *baseColorTexture.view;
+    resources.baseColorTextureView = *baseColorTexture.view;
+    resources.normalTextureView = *normalTexture.view;
+    resources.metallicRoughnessTextureView = *metallicRoughnessTexture.view;
     resources.sampler = *m_sampler;
     return resources;
 }

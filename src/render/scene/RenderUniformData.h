@@ -36,6 +36,10 @@ struct alignas(16) ShadowObjectUniformData {
 
 struct alignas(16) MaterialUniformData {
     glm::vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
+    // x=metallicFactor, y=roughnessFactor, z=normalScale, w=reserved
+    glm::vec4 pbrParams{1.0f, 1.0f, 1.0f, 0.0f};
+    // x=baseColorTexCoord, y=normalTexCoord, z=metallicRoughnessTexCoord, w=reserved
+    glm::uvec4 textureCoordSets{0U, 0U, 0U, 0U};
     glm::uvec4 surfaceOptions{
         static_cast<uint32_t>(EMaterialShadingModel::Unlit),
         1U,
@@ -47,7 +51,9 @@ struct alignas(16) MaterialUniformData {
 struct alignas(16) SsaoUniformData {
     glm::mat4 projection{1.0f};
     glm::mat4 invProjection{1.0f};
+    // x=viewportWidth, y=viewportHeight, z=sampleRadius, w=reserved
     glm::vec4 viewportSizeAndRadius{1.0f, 1.0f, 0.5f, 0.0f};
+    // x=bias, y=intensity, z=sampleCount, w=reserved
     glm::vec4 aoParams{0.025f, 1.5f, 16.0f, 0.0f};
 };
 

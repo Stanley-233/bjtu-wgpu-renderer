@@ -19,6 +19,7 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_sceneNormalPass.Initialize(renderCtx);
     m_ssaoPass.Initialize(renderCtx);
     m_forwardOpaquePass.Initialize(renderCtx);
+    m_pbrPass.Initialize(renderCtx);
     m_compositePass.Initialize(renderCtx);
     EnsureFallbackShadowResources(renderCtx);
 }
@@ -213,22 +214,32 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             continue;
         }
 
-        wgpu::BindGroupEntry materialBindings[3]{};
+        wgpu::BindGroupEntry materialBindings[5]{};
         materialBindings[0].binding = 0;
         materialBindings[0].buffer = *materialResources->uniformBuffer;
         materialBindings[0].offset = 0;
         materialBindings[0].size = sizeof(MaterialUniformData);
         materialBindings[1].binding = 1;
-        materialBindings[1].textureView = materialResources->textureView;
+        materialBindings[1].textureView = materialResources->baseColorTextureView;
         materialBindings[2].binding = 2;
-        materialBindings[2].sampler = materialResources->sampler;
+        materialBindings[2].textureView = materialResources->normalTextureView;
+        materialBindings[3].binding = 3;
+        materialBindings[3].textureView = materialResources->metallicRoughnessTextureView;
+        materialBindings[4].binding = 4;
+        materialBindings[4].sampler = materialResources->sampler;
 
-        wgpu::BindGroupDescriptor materialBindGroupDesc{};
-        materialBindGroupDesc.layout = *m_forwardOpaquePass.GetMaterialBindGroupLayout();
-        materialBindGroupDesc.entryCount = 3;
-        materialBindGroupDesc.entries = materialBindings;
+        wgpu::BindGroupDescriptor forwardMaterialBindGroupDesc{};
+        forwardMaterialBindGroupDesc.layout = *m_forwardOpaquePass.GetMaterialBindGroupLayout();
+        forwardMaterialBindGroupDesc.entryCount = 5;
+        forwardMaterialBindGroupDesc.entries = materialBindings;
+
+        wgpu::BindGroupDescriptor pbrMaterialBindGroupDesc{};
+        pbrMaterialBindGroupDesc.layout = *m_pbrPass.GetMaterialBindGroupLayout();
+        pbrMaterialBindGroupDesc.entryCount = 5;
+        pbrMaterialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
-            .materialBindGroup = renderCtx.GetDevice()->createBindGroup(materialBindGroupDesc),
+            .forwardMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(forwardMaterialBindGroupDesc),
+            .pbrMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(pbrMaterialBindGroupDesc),
         });
         const DrawItemResources& resources = m_drawItemResources.back();
 
@@ -238,7 +249,8 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             .objectUniformData = BuildObjectUniformData(object.worldMatrix),
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
-            .materialBindGroup = resources.materialBindGroup ? *resources.materialBindGroup : nullptr,
+            .forwardMaterialBindGroup = resources.forwardMaterialBindGroup ? *resources.forwardMaterialBindGroup : nullptr,
+            .pbrMaterialBindGroup = resources.pbrMaterialBindGroup ? *resources.pbrMaterialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
             .indexCount = gpuMesh->indexCount,
@@ -292,6 +304,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     m_sceneNormalPass.Render(renderCtx, frame, passCtx);
     m_ssaoPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
+    m_pbrPass.Render(renderCtx, frame, passCtx);
     m_compositePass.Render(renderCtx, frame, passCtx);
     m_guiPass.Render(renderCtx, frame, passCtx);
     renderCtx.Submit(frame.encoder);

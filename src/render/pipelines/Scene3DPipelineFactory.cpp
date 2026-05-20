@@ -62,7 +62,7 @@ static ShaderModule LoadShaderModule(
 }
 
 static void BuildMeshVertexState(
-    std::array<VertexAttribute, 4>& attributes,
+    std::array<VertexAttribute, 5>& attributes,
     VertexBufferLayout&             layout) {
     attributes[0].shaderLocation = 0;
     attributes[0].format = VertexFormat::Float32x3;
@@ -74,8 +74,11 @@ static void BuildMeshVertexState(
     attributes[2].format = VertexFormat::Float32x2;
     attributes[2].offset = offsetof(AssetVertex3D, uv0);
     attributes[3].shaderLocation = 3;
-    attributes[3].format = VertexFormat::Float32x4;
-    attributes[3].offset = offsetof(AssetVertex3D, color);
+    attributes[3].format = VertexFormat::Float32x2;
+    attributes[3].offset = offsetof(AssetVertex3D, uv1);
+    attributes[4].shaderLocation = 4;
+    attributes[4].format = VertexFormat::Float32x4;
+    attributes[4].offset = offsetof(AssetVertex3D, color);
 
     layout.attributeCount = static_cast<uint32_t>(attributes.size());
     layout.attributes = attributes.data();
@@ -158,7 +161,7 @@ static raii::BindGroupLayout CreateObjectBindGroupLayout(RenderContext& renderCt
 }
 
 static raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& renderCtx) {
-    std::array<BindGroupLayoutEntry, 3> bindings{};
+    std::array<BindGroupLayoutEntry, 5> bindings{};
     bindings[0].binding = 0;
     bindings[0].visibility = ShaderStage::Fragment;
     bindings[0].buffer.type = BufferBindingType::Uniform;
@@ -169,7 +172,15 @@ static raii::BindGroupLayout CreateMaterialBindGroupLayout(RenderContext& render
     bindings[1].texture.viewDimension = TextureViewDimension::_2D;
     bindings[2].binding = 2;
     bindings[2].visibility = ShaderStage::Fragment;
-    bindings[2].sampler.type = SamplerBindingType::Filtering;
+    bindings[2].texture.sampleType = TextureSampleType::Float;
+    bindings[2].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[3].binding = 3;
+    bindings[3].visibility = ShaderStage::Fragment;
+    bindings[3].texture.sampleType = TextureSampleType::Float;
+    bindings[3].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[4].binding = 4;
+    bindings[4].visibility = ShaderStage::Fragment;
+    bindings[4].sampler.type = SamplerBindingType::Filtering;
 
     BindGroupLayoutDescriptor desc{};
     desc.label = "Scene3D/MaterialBindGroupLayout";
@@ -268,7 +279,7 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 4> vertexAttributes{};
+    std::array<VertexAttribute, 5> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -350,13 +361,22 @@ Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& renderCtx, c
         colorTargetFormat);
 }
 
+Scene3DPipelineFactory::ForwardPipeline
+Scene3DPipelineFactory::CreatePbrForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    return CreateForwardPipeline(
+        renderCtx,
+        ShaderPaths::Resolve("scene/scene_pbr_textured.wgsl"),
+        "Scene3DPipelineFactory/ForwardPbr",
+        colorTargetFormat);
+}
+
 Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepthPrepassPipeline(RenderContext& renderCtx) {
     constexpr const char* label = "Scene3DPipelineFactory/DepthPrepass";
     ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_depth_prepass.wgsl"), label);
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 4> vertexAttributes{};
+    std::array<VertexAttribute, 5> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -404,7 +424,7 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, cons
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 4> vertexAttributes{};
+    std::array<VertexAttribute, 5> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 
@@ -569,7 +589,7 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
-    std::array<VertexAttribute, 4> vertexAttributes{};
+    std::array<VertexAttribute, 5> vertexAttributes{};
     VertexBufferLayout             vertexBufferLayout{};
     BuildMeshVertexState(vertexAttributes, vertexBufferLayout);
 

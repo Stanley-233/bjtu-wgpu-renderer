@@ -15,7 +15,8 @@ struct PreparedDrawItem {
     ObjectUniformData     objectUniformData{};
     wgpu::Buffer          vertexBuffer       = nullptr;
     wgpu::Buffer          indexBuffer        = nullptr;
-    wgpu::BindGroup       materialBindGroup  = nullptr;
+    wgpu::BindGroup       forwardMaterialBindGroup  = nullptr;
+    wgpu::BindGroup       pbrMaterialBindGroup      = nullptr;
     uint64_t              vertexBufferSize   = 0;
     uint64_t              indexBufferSize    = 0;
     uint32_t              indexCount         = 0;

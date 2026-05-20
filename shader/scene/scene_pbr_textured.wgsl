@@ -90,6 +90,36 @@ fn vs_main(in: VertexInput) -> VertexOutput {
     return out;
 }
 
+fn BuildCotangentFrame(normalWS: vec3f, worldPos: vec3f, uv: vec2f) -> mat3x3f {
+    let dpdxPos = dpdx(worldPos);
+    let dpdyPos = dpdy(worldPos);
+    let dpdxUv = dpdx(uv);
+    let dpdyUv = dpdy(uv);
+
+    let dp2Perp = cross(dpdyPos, normalWS);
+    let dp1Perp = cross(normalWS, dpdxPos);
+    var tangent = dp2Perp * dpdxUv.x + dp1Perp * dpdyUv.x;
+    var bitangent = dp2Perp * dpdxUv.y + dp1Perp * dpdyUv.y;
+    let invScale = inverseSqrt(max(max(dot(tangent, tangent), dot(bitangent, bitangent)), 1.0e-8));
+    tangent *= invScale;
+    bitangent *= invScale;
+    return mat3x3f(tangent, bitangent, normalWS);
+}
+
+fn SampleNormalWS(in: VertexOutput) -> vec3f {
+    let normalUv = SelectUv(uMaterial.textureCoordSets.y, in.uv0, in.uv1);
+    let sampledNormal = textureSample(uNormalTexture, uMaterialSampler, normalUv).xyz * 2.0 - vec3f(1.0, 1.0, 1.0);
+    let normalScale = select(uMaterial.pbrParams.z, 1.0, uMaterial.pbrParams.z <= 0.0);
+    let scaledXY = sampledNormal.xy * normalScale;
+    let normalTS = normalize(vec3f(
+        scaledXY.x,
+        scaledXY.y,
+        max(sampledNormal.z, 1.0e-4),
+    ));
+    let tbn = BuildCotangentFrame(normalize(in.normalWS), in.worldPos, normalUv);
+    return normalize(tbn * normalTS);
+}
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let baseColorUv = SelectUv(uMaterial.textureCoordSets.x, in.uv0, in.uv1);
@@ -98,28 +128,22 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     if (uMaterial.surfaceOptions.y != 0u) {
         baseColor *= in.color;
     }
-    let normal = normalize(in.normalWS);
+    let normal = SampleNormalWS(in);
 
     let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
     let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
     let ambientOcclusion = textureSample(uAmbientOcclusionTexture, uAmbientOcclusionSampler, aoUv).r;
 
-    var shadowFactor = 1.0;
-    if (uDirectionalShadow.shadowParams.x > 0.0) {
-        // TODO: [Shadow] 将 worldPos 变换到 light space，并结合 uDirectionalShadowMap / uDirectionalShadowSampler 计算 shadow factor。
-        let shadowCoord = uDirectionalShadow.lightViewProjection * vec4f(in.worldPos, 1.0);
-        shadowFactor *= 1.0 + 0.0 * shadowCoord.x;
-    }
     var lighting = vec3f(0.25) * ambientOcclusion;
     if (uScene.lightCounts.x > 0u) {
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
         let ndotl = max(dot(normal, lightDir), 0.0);
 
-        let ambientFactor = 0.28;
+        let ambientFactor = 0.2;
         let ambient = uScene.directionalLight.color.rgb * ambientFactor;
         let direct = uScene.directionalLight.color.rgb * ndotl;
 
-        lighting = ambient * ambientOcclusion + direct * shadowFactor;
+        lighting = ambient * ambientOcclusion + direct;
     }
     return vec4f(baseColor.rgb * lighting, baseColor.a);
 }

@@ -156,7 +156,8 @@ void Application::Tick(float deltaTime) {
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
     m_guiInputController.BuildUi(
         m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
-        &m_ssaoEnabled);
+        &m_ssaoEnabled,
+        &m_litShadingModel);
     m_guiRenderer.EndFrame();
     ApplyActiveSceneRenderSettings();
 
@@ -194,6 +195,7 @@ void Application::ApplyActiveSceneRenderSettings() const {
 
     if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
         logicScene->SetSsaoEnabled(m_ssaoEnabled);
+        logicScene->SetLitShadingModelOverride(m_litShadingModel);
     }
 }
 

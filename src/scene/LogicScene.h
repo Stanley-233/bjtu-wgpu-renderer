@@ -33,6 +33,8 @@ public:
 
     void SetSsaoEnabled(bool enabled);
 
+    void SetLitShadingModelOverride(EMaterialShadingModel shadingModel);
+
     [[nodiscard]] virtual const char* Name() const override = 0;
 
     void RegisterInputHandlers(InputEventBus& eventBus) override;

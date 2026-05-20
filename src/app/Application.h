@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 
 #include "app/WindowContext.h"
+#include "asset/types/MaterialAsset.h"
 #include "input/InputEventBus.h"
 #include "input/InputManager.h"
 #include "input/gui/GuiInputController.h"
@@ -69,6 +70,7 @@ private:
     bool                m_applicationDebugEnabled = false;
     bool                m_inputDebugEnabled       = false;
     bool                m_ssaoEnabled             = true;
+    EMaterialShadingModel m_litShadingModel       = EMaterialShadingModel::Lambert;
     bool                m_commandHandlersConnected = false;
 };
 
