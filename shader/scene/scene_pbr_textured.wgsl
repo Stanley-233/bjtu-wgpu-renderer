@@ -116,6 +116,11 @@ fn BuildCotangentFrame(normalWS: vec3f, worldPos: vec3f, uv: vec2f) -> mat3x3f {
 }
 
 fn SampleNormalWS(in: VertexOutput) -> vec3f {
+    let geometricNormal = normalize(in.normalWS);
+    if (uMaterial.surfaceOptions.z == 0u) {
+        return geometricNormal;
+    }
+
     let normalUv = SelectUv(uMaterial.textureCoordSets.y, in.uv0, in.uv1);
     let sampledNormal = textureSample(uNormalTexture, uMaterialSampler, normalUv).xyz * 2.0 - vec3f(1.0, 1.0, 1.0);
     let normalScale = select(uMaterial.pbrParams.z, 1.0, uMaterial.pbrParams.z <= 0.0);
@@ -125,7 +130,6 @@ fn SampleNormalWS(in: VertexOutput) -> vec3f {
         scaledXY.y,
         max(sampledNormal.z, 1.0e-4),
     ));
-    let geometricNormal = normalize(in.normalWS);
     var tbn = BuildCotangentFrame(geometricNormal, in.worldPos, normalUv);
     if (length(in.tangentWS.xyz) > 1.0e-5) {
         let tangentWS = normalize(in.tangentWS.xyz);
@@ -165,7 +169,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
         let ndotl = max(dot(normal, lightDir), 0.0);
 
-        let ambientFactor = 0.2;
+        let ambientFactor = 0.25;
         let ambient = uScene.directionalLight.color.rgb * ambientFactor;
         let direct = uScene.directionalLight.color.rgb * ndotl;
 

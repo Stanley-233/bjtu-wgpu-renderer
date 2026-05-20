@@ -52,6 +52,7 @@ struct alignas(16) MaterialUniformData {
     glm::vec4 pbrParams{1.0f, 1.0f, 1.0f, 0.0f};
     // x=baseColorTexCoord, y=normalTexCoord, z=metallicRoughnessTexCoord, w=reserved
     glm::uvec4 textureCoordSets{0U, 0U, 0U, 0U};
+    // x=shadingModel, y=useVertexColor, z=hasNormalTexture, w=reserved
     glm::uvec4 surfaceOptions{
         static_cast<uint32_t>(EMaterialShadingModel::Unlit),
         1U,
