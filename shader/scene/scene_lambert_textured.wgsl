@@ -115,7 +115,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
         let ndotl = max(dot(normal, lightDir), 0.0);
 
-        let ambientFactor = 0.28;
+        let ambientFactor = 0.2;
         let ambient = uScene.directionalLight.color.rgb * ambientFactor;
         let direct = uScene.directionalLight.color.rgb * ndotl;
 
