@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "gpu/EnvironmentMapCache.h"
 #include "frame/SurfaceFrame.h"
 #include "webgpu-raii.hpp"
 
@@ -34,6 +35,8 @@ public:
 
     void GetSurfaceSize(int& width, int& height) const;
 
+    [[nodiscard]] EnvironmentMapCache& GetEnvironmentMapCache();
+
 private:
     static wgpu::RequiredLimits GetRequiredLimits(wgpu::Adapter adapter);
     void ConfigureSurface(uint32_t width, uint32_t height);
@@ -47,6 +50,7 @@ private:
     wgpu::TextureFormat                  m_surfaceFormat = wgpu::TextureFormat::Undefined;
     uint32_t                             m_surfaceWidth  = 0;
     uint32_t                             m_surfaceHeight = 0;
+    EnvironmentMapCache                  m_environmentMapCache{};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERCONTEXT_H

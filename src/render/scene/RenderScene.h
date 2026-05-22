@@ -1,6 +1,7 @@
 #ifndef BJTU_WGPU_RENDERER_RENDERSCENE_H
 #define BJTU_WGPU_RENDERER_RENDERSCENE_H
 
+#include <filesystem>
 #include <optional>
 #include <vector>
 
@@ -14,9 +15,15 @@ struct DirectionalShadowSceneData {
     DirectionalShadowUniformData uniformData{};
 };
 
+struct SkyboxSceneData {
+    std::filesystem::path hdrPath{};
+    uint32_t              faceSize = 512;
+};
+
 struct RenderScene {
     std::optional<RenderCamera>              camera{};
     std::optional<DirectionalShadowSceneData> directionalShadow{};
+    std::optional<SkyboxSceneData>           skybox{};
     RenderLightSet                           lights{};
     EPbrDebugView                            pbrDebugView = EPbrDebugView::Off;
     const AssetServer*                       assetServer = nullptr;

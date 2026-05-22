@@ -5,7 +5,6 @@
 
 #include "frame/RenderFrame.h"
 #include "gpu/GpuResourceCache.h"
-#include "passes/CompositePass.h"
 #include "passes/DepthPrepass.h"
 #include "passes/ForwardOpaquePass.h"
 #include "passes/GuiPass.h"
@@ -13,7 +12,9 @@
 #include "passes/PreparedDrawItem.h"
 #include "passes/SceneNormalPass.h"
 #include "passes/SSAOPass.h"
+#include "passes/SkyboxPass.h"
 #include "passes/ShadowPass.h"
+#include "passes/ToneMapPass.h"
 #include "render/scene/RenderScene.h"
 #include "webgpu-raii.hpp"
 
@@ -22,6 +23,9 @@ class RenderContext;
 
 class Renderer {
 public:
+    static constexpr uint32_t kSkyboxCubemapFaceSize = 512;
+    inline static const wgpu::TextureFormat kHdrSceneColorFormat = wgpu::TextureFormat::RGBA16Float;
+
     void Initialize(RenderContext& renderCtx);
 
     void Render(RenderContext& renderCtx, const RenderScene& scene, LegacyGuiRenderer& guiRenderer);
@@ -29,6 +33,8 @@ public:
     void SetSsaoEnabled(bool enabled);
 
     void SetClearColor(double r, double g, double b, double a);
+
+    void PrepareSkybox(RenderContext& renderCtx, const std::filesystem::path& hdrPath, uint32_t faceSize);
 
 private:
     static constexpr uint32_t kDirectionalShadowMapResolution = 2048;
@@ -53,9 +59,10 @@ private:
     DepthPrepass                    m_depthPrepass;
     SceneNormalPass                 m_sceneNormalPass;
     SSAOPass                        m_ssaoPass;
+    SkyboxPass                      m_skyboxPass;
     ForwardOpaquePass               m_forwardOpaquePass;
     PBRPass                         m_pbrPass;
-    CompositePass                   m_compositePass;
+    ToneMapPass                     m_toneMapPass;
     GuiPass                         m_guiPass;
     wgpu::raii::Texture             m_sceneDepthTexture;
     wgpu::raii::TextureView         m_sceneDepthView;

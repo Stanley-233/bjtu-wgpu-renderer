@@ -253,6 +253,49 @@ static raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& rend
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
+static raii::BindGroupLayout CreateSkyboxBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 3> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].buffer.type = BufferBindingType::Uniform;
+    bindings[0].buffer.minBindingSize = sizeof(SkyboxUniformData);
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].texture.sampleType = TextureSampleType::Float;
+    bindings[1].texture.viewDimension = TextureViewDimension::Cube;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].sampler.type = SamplerBindingType::Filtering;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/SkyboxBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static raii::BindGroupLayout CreateEquirectToCubemapBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 3> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Compute;
+    bindings[0].texture.sampleType = TextureSampleType::Float;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Compute;
+    bindings[1].sampler.type = SamplerBindingType::Filtering;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Compute;
+    bindings[2].storageTexture.access = StorageTextureAccess::WriteOnly;
+    bindings[2].storageTexture.format = TextureFormat::RGBA16Float;
+    bindings[2].storageTexture.viewDimension = TextureViewDimension::_2DArray;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/EquirectToCubemapBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
 static void SetCommonPrimitiveState(
     RenderPipelineDescriptor& pipelineDesc,
     const WGPUPrimitiveTopology topology,
@@ -657,6 +700,147 @@ Scene3DPipelineFactory::CreateCompositePipeline(RenderContext& renderCtx, const 
 
     pipelineDesc.layout = *result.layout;
     result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::ToneMapPipeline
+Scene3DPipelineFactory::CreateToneMapPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/ToneMap";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_tone_map.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    ToneMapPipeline result;
+    result.sceneColorBindGroupLayout = CreateSceneColorBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.sceneColorBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/ToneMapPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::SkyboxPipeline
+Scene3DPipelineFactory::CreateSkyboxPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/Skybox";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_skybox.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    SkyboxPipeline result;
+    result.skyboxBindGroupLayout = CreateSkyboxBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.skyboxBindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/SkyboxPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::EquirectToCubemapComputePipeline
+Scene3DPipelineFactory::CreateEquirectToCubemapComputePipeline(RenderContext& renderCtx) {
+    constexpr const char* label = "Scene3DPipelineFactory/EquirectToCubemap";
+    ShaderModule shaderModule =
+        LoadShaderModule(renderCtx, ShaderPaths::Resolve("compute/equirect_to_cubemap.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    EquirectToCubemapComputePipeline result;
+    result.bindGroupLayout = CreateEquirectToCubemapBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.bindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/EquirectToCubemapPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    ComputePipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.layout = *result.layout;
+    pipelineDesc.compute.module = shaderModule;
+    pipelineDesc.compute.entryPoint = "cs_main";
+    pipelineDesc.compute.constantCount = 0;
+    pipelineDesc.compute.constants = nullptr;
+    result.pipeline = renderCtx.GetDevice()->createComputePipeline(pipelineDesc);
 #ifndef WEBGPU_BACKEND_EMSCRIPTEN
     PopValidationScope(renderCtx, label);
 #endif

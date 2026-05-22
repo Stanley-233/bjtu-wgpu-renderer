@@ -37,6 +37,11 @@ struct alignas(16) DirectionalShadowUniformData {
     glm::vec4 shadowParams{0.0f, 0.0f, 0.0f, 0.0f};
 };
 
+struct alignas(16) SkyboxUniformData {
+    glm::mat4 invViewRotation{1.0f};
+    glm::mat4 invProjection{1.0f};
+};
+
 struct alignas(16) ObjectUniformData {
     glm::mat4 model{1.0f};
     glm::mat4 normalMatrix{1.0f};

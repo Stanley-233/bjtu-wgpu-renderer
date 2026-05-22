@@ -4,6 +4,7 @@
 #include <optional>
 #include <span>
 
+#include "render/gpu/EnvironmentMapCache.h"
 #include "PreparedDrawItem.h"
 #include "render/scene/RenderCamera.h"
 #include "render/scene/RenderLightSet.h"
@@ -30,6 +31,7 @@ struct PassContext {
     std::span<const PreparedDrawItem>         drawItems{};
     LegacyGuiRenderer*                        guiRenderer = nullptr;
     wgpu::Queue*                              queue = nullptr;
+    const EnvironmentMapGpuResources*         skybox = nullptr;
     wgpu::TextureView                         fallbackShadowMapView = nullptr;
     wgpu::Sampler                             fallbackShadowSampler = nullptr;
     wgpu::TextureView                         sceneDepthView = nullptr;

@@ -11,7 +11,7 @@ class RenderContext;
 
 class PBRPass final : public IRenderPass {
 public:
-    void Initialize(RenderContext& renderCtx);
+    void Initialize(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) override;
 

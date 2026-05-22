@@ -43,8 +43,8 @@ PbrDebugUniformData BuildPbrDebugUniformData(const PassContext& passCtx) {
 }
 } // namespace
 
-void PBRPass::Initialize(RenderContext& renderCtx) {
-    auto pbrPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
+void PBRPass::Initialize(RenderContext& renderCtx, const wgpu::TextureFormat colorTargetFormat) {
+    auto pbrPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(renderCtx, colorTargetFormat);
     m_sceneBindGroupLayout = std::move(pbrPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pbrPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(pbrPipeline.materialBindGroupLayout);

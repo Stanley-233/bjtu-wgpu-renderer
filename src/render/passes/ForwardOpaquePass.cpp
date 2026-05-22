@@ -30,15 +30,15 @@ static DirectionalShadowUniformData BuildDirectionalShadowUniformData(const Pass
     return DirectionalShadowUniformData{};
 }
 
-void ForwardOpaquePass::Initialize(RenderContext& renderCtx) {
-    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
+void ForwardOpaquePass::Initialize(RenderContext& renderCtx, const wgpu::TextureFormat colorTargetFormat) {
+    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(renderCtx, colorTargetFormat);
     m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
     m_layout = std::move(unlitPipeline.layout);
     m_unlitPipeline = std::move(unlitPipeline.pipeline);
 
-    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(renderCtx, renderCtx.GetSurfaceFormat());
+    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(renderCtx, colorTargetFormat);
     m_lambertPipeline = std::move(lambertPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
@@ -188,7 +188,7 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
     wgpu::RenderPassColorAttachment colorAttachment{};
     colorAttachment.view = frame.sceneColorView;
     colorAttachment.resolveTarget = nullptr;
-    colorAttachment.loadOp = wgpu::LoadOp::Clear;
+    colorAttachment.loadOp = wgpu::LoadOp::Load;
     colorAttachment.storeOp = wgpu::StoreOp::Store;
     colorAttachment.clearValue = frame.clearColor;
 #ifndef WEBGPU_BACKEND_WGPU

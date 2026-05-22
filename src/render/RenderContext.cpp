@@ -95,6 +95,7 @@ void RenderContext::Shutdown() {
     if (m_surface) {
         m_surface->unconfigure();
     }
+    m_environmentMapCache.Reset();
     m_surfaceWidth  = 0;
     m_surfaceHeight = 0;
     m_uncapturedErrorCallbackHandle.reset();
@@ -228,6 +229,10 @@ void RenderContext::GetSurfaceSize(int& width, int& height) const {
     if (m_windowContext != nullptr) {
         m_windowContext->GetDrawableSize(width, height);
     }
+}
+
+EnvironmentMapCache& RenderContext::GetEnvironmentMapCache() {
+    return m_environmentMapCache;
 }
 
 RequiredLimits RenderContext::GetRequiredLimits(Adapter adapter) {

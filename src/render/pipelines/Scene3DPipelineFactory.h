@@ -50,6 +50,24 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
+    struct ToneMapPipeline {
+        wgpu::raii::BindGroupLayout sceneColorBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    struct SkyboxPipeline {
+        wgpu::raii::BindGroupLayout skyboxBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    struct EquirectToCubemapComputePipeline {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::ComputePipeline pipeline;
+    };
+
     struct ShadowPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
@@ -70,6 +88,12 @@ public:
     static SsaoPipeline CreateSsaoPipeline(RenderContext& renderCtx);
 
     static CompositePipeline CreateCompositePipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
+    static ToneMapPipeline CreateToneMapPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
+    static SkyboxPipeline CreateSkyboxPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
+    static EquirectToCubemapComputePipeline CreateEquirectToCubemapComputePipeline(RenderContext& renderCtx);
 
     static ShadowPipeline CreateDirectionalShadowPipeline(RenderContext& renderCtx);
 };

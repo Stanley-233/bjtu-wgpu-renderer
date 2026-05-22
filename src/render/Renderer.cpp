@@ -18,9 +18,10 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_depthPrepass.Initialize(renderCtx);
     m_sceneNormalPass.Initialize(renderCtx);
     m_ssaoPass.Initialize(renderCtx);
-    m_forwardOpaquePass.Initialize(renderCtx);
-    m_pbrPass.Initialize(renderCtx);
-    m_compositePass.Initialize(renderCtx);
+    m_skyboxPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_pbrPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_toneMapPass.Initialize(renderCtx);
     EnsureFallbackShadowResources(renderCtx);
 }
 
@@ -73,7 +74,7 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
     sceneColorDesc.size.depthOrArrayLayers = 1;
     sceneColorDesc.sampleCount = 1;
     sceneColorDesc.mipLevelCount = 1;
-    sceneColorDesc.format = renderCtx.GetSurfaceFormat();
+    sceneColorDesc.format = kHdrSceneColorFormat;
     sceneColorDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
     m_sceneColorTexture = renderCtx.GetDevice()->createTexture(sceneColorDesc);
     m_sceneColorView = m_sceneColorTexture->createView();
@@ -283,6 +284,14 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         };
     }
 
+    const EnvironmentMapGpuResources* skyboxResources = nullptr;
+    if (scene.skybox.has_value()) {
+        skyboxResources = renderCtx.GetEnvironmentMapCache().GetOrCreate(
+            renderCtx,
+            scene.skybox->hdrPath,
+            scene.skybox->faceSize);
+    }
+
     const PassContext passCtx{
         .camera = scene.camera,
         .directionalShadow = directionalShadow,
@@ -291,6 +300,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         .drawItems = m_preparedDrawItems,
         .guiRenderer = &guiRenderer,
         .queue = &*renderCtx.GetQueue(),
+        .skybox = skyboxResources,
         .fallbackShadowMapView = m_fallbackShadowView ? *m_fallbackShadowView : nullptr,
         .fallbackShadowSampler = m_fallbackShadowSampler ? *m_fallbackShadowSampler : nullptr,
         .sceneDepthView = frame.sceneDepthView,
@@ -304,9 +314,10 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     m_depthPrepass.Render(renderCtx, frame, passCtx);
     m_sceneNormalPass.Render(renderCtx, frame, passCtx);
     m_ssaoPass.Render(renderCtx, frame, passCtx);
+    m_skyboxPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
     m_pbrPass.Render(renderCtx, frame, passCtx);
-    m_compositePass.Render(renderCtx, frame, passCtx);
+    m_toneMapPass.Render(renderCtx, frame, passCtx);
     m_guiPass.Render(renderCtx, frame, passCtx);
     renderCtx.Submit(frame.encoder);
     renderCtx.Present(frame.surfaceFrame);
@@ -314,4 +325,8 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
 
 void Renderer::SetClearColor(const double r, const double g, const double b, const double a) {
     m_clearColor = wgpu::Color{r, g, b, a};
+}
+
+void Renderer::PrepareSkybox(RenderContext& renderCtx, const std::filesystem::path& hdrPath, const uint32_t faceSize) {
+    (void)renderCtx.GetEnvironmentMapCache().GetOrCreate(renderCtx, hdrPath, faceSize);
 }
