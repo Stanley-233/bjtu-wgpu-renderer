@@ -22,6 +22,7 @@
 #include "components/TransformComponent.h"
 #include "input/InputEventBus.h"
 #include "render/RenderContext.h"
+#include "render/legacy/LegacyGuiRenderer.h"
 #include "scene/camera/FreeCameraController.h"
 #include "scene/camera/PerspectiveCamera.h"
 
@@ -171,6 +172,7 @@ void LogicScene::Update(const float dt) {
 }
 
 void LogicScene::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer) {
+    // 构建并渲染场景
     RenderScene renderScene = BuildRenderScene(renderCtx);
     m_renderer.Render(renderCtx, renderScene, guiRenderer);
 }
@@ -203,6 +205,41 @@ void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingM
 
 void LogicScene::SetPbrDebugView(const EPbrDebugView debugView) {
     m_pbrDebugView = debugView;
+}
+
+DirectionalLightGuiData LogicScene::GetDirectionalLightData() const {
+    DirectionalLightGuiData data{};
+    const Entity directionalLightEntity = m_world.DirectionalLight();
+    if (directionalLightEntity && directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
+        const auto& light = directionalLightEntity.GetComponent<DirectionalLightComponent>();
+        data.direction = light.direction;
+        data.intensity = light.intensity;
+        data.color = light.color;
+    }
+    return data;
+}
+
+void LogicScene::SetDirectionalLightData(const DirectionalLightGuiData& data) {
+    Entity directionalLightEntity = m_world.DirectionalLight();
+    if (directionalLightEntity && directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
+        auto& light = directionalLightEntity.GetComponent<DirectionalLightComponent>();
+        light.direction = data.direction;
+        light.intensity = data.intensity;
+        light.color = data.color;
+    }
+}
+
+CameraGuiData LogicScene::GetCameraData() const {
+    CameraGuiData data{};
+    Entity primaryCameraEntity = FindPrimaryCamera(const_cast<World&>(m_world));
+    if (primaryCameraEntity && primaryCameraEntity.HasComponent<CameraComponent>()) {
+        const CameraComponent& cameraComponent = primaryCameraEntity.GetComponent<CameraComponent>();
+        if (cameraComponent.camera != nullptr) {
+            data.position = cameraComponent.camera->Position();
+            data.target = cameraComponent.camera->Target();
+        }
+    }
+    return data;
 }
 
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {

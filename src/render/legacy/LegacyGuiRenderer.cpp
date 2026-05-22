@@ -84,3 +84,139 @@ bool LegacyGuiRenderer::WantCaptureKeyboard() const {
     }
     return ImGui::GetIO().WantCaptureKeyboard;
 }
+
+bool LegacyGuiRenderer::WantCaptureMouse() const {
+    if (!m_initialized) {
+        return false;
+    }
+    return ImGui::GetIO().WantCaptureMouse;
+}
+
+void LegacyGuiRenderer::SetDirectionalLightCallbacks(DirectionalLightGetter getter, DirectionalLightSetter setter) {
+    m_directionalLightGetter = getter;
+    m_directionalLightSetter = setter;
+}
+
+void LegacyGuiRenderer::SetCameraInfoCallback(CameraGetter getter) {
+    m_cameraGetter = getter;
+}
+
+void LegacyGuiRenderer::DrawDebugPanel() {
+    if (!m_initialized) {
+        return;
+    }
+    DrawDebugPanelContent();
+}
+
+void LegacyGuiRenderer::DrawDebugPanelContent() {
+    // 移除固定标志，允许窗口自由拖动和调整大小
+    constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
+
+    // 设置初始位置在右上角，初始大小 320x400
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 330.0f, 10.0f), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(320.0f, 400.0f), ImGuiCond_Once);
+
+    if (!ImGui::Begin("Debug Panel", nullptr, windowFlags)) {
+        ImGui::End();
+        return;
+    }
+
+    // ===== 摄像机信息（只读显示）=====
+    if (ImGui::CollapsingHeader("Camera Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (m_cameraGetter) {
+            CameraGuiData camera = m_cameraGetter();
+
+            ImGui::Text("Position:");
+            ImGui::PushID("cam_pos");
+            ImGui::Text("  X: %.2f", camera.position.x);
+            ImGui::SameLine();
+            ImGui::Text("Y: %.2f", camera.position.y);
+            ImGui::SameLine();
+            ImGui::Text("Z: %.2f", camera.position.z);
+            ImGui::PopID();
+
+            ImGui::Text("Target:");
+            ImGui::PushID("cam_target");
+            ImGui::Text("  X: %.2f", camera.target.x);
+            ImGui::SameLine();
+            ImGui::Text("Y: %.2f", camera.target.y);
+            ImGui::SameLine();
+            ImGui::Text("Z: %.2f", camera.target.z);
+            ImGui::PopID();
+        } else {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No camera data available");
+        }
+    }
+
+    ImGui::Separator();
+
+    // ===== 平行光控制 =====
+    if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (m_directionalLightGetter && m_directionalLightSetter) {
+            DirectionalLightGuiData light = m_directionalLightGetter();
+
+            // 方向控制
+            ImGui::Text("Direction:");
+            ImGui::PushID("light_dir");
+            bool directionChanged = false;
+            directionChanged |= ImGui::SliderFloat("X", &light.direction.x, -1.0f, 1.0f, "%.2f");
+            directionChanged |= ImGui::SliderFloat("Y", &light.direction.y, -1.0f, 1.0f, "%.2f");
+            directionChanged |= ImGui::SliderFloat("Z", &light.direction.z, -1.0f, 1.0f, "%.2f");
+            ImGui::PopID();
+
+            // 归一化显示
+            float dirLength = sqrtf(light.direction.x * light.direction.x
+                                   + light.direction.y * light.direction.y
+                                   + light.direction.z * light.direction.z);
+            ImGui::Text("  Length: %.2f", dirLength);
+
+            if (directionChanged) {
+                // 归一化方向
+                if (dirLength > 0.001f) {
+                    light.direction.x /= dirLength;
+                    light.direction.y /= dirLength;
+                    light.direction.z /= dirLength;
+                }
+                m_directionalLightSetter(light);
+            }
+
+            ImGui::Spacing();
+
+            // 强度控制
+            ImGui::Text("Intensity:");
+            ImGui::PushID("light_intensity");
+            bool intensityChanged = ImGui::SliderFloat("##Intensity", &light.intensity, 0.0f, 5.0f, "%.2f");
+            ImGui::PopID();
+            if (intensityChanged) {
+                m_directionalLightSetter(light);
+            }
+
+            ImGui::Spacing();
+
+            // 颜色控制
+            ImGui::Text("Color:");
+            ImGui::PushID("light_color");
+            bool colorChanged = false;
+            colorChanged |= ImGui::SliderFloat("R", &light.color.r, 0.0f, 1.0f, "%.2f");
+            colorChanged |= ImGui::SliderFloat("G", &light.color.g, 0.0f, 1.0f, "%.2f");
+            colorChanged |= ImGui::SliderFloat("B", &light.color.b, 0.0f, 1.0f, "%.2f");
+            ImGui::PopID();
+
+            if (colorChanged) {
+                m_directionalLightSetter(light);
+            }
+
+            ImGui::Spacing();
+
+            // 颜色预览
+            ImGui::ColorButton("Preview", ImVec4(light.color.r, light.color.g, light.color.b, 1.0f));
+            ImGui::SameLine();
+            ImGui::Text("Preview");
+        } else {
+            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No directional light data available");
+        }
+    }
+
+    ImGui::End();
+}
