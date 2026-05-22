@@ -1,7 +1,6 @@
 #include "EnvironmentMapCache.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <iostream>
@@ -9,33 +8,9 @@
 
 #include <glm/packing.hpp>
 
-#include <stb_image.h>
-
 #include "render/RenderContext.h"
 
 namespace {
-
-struct HdrImageData {
-    int                width = 0;
-    int                height = 0;
-    std::vector<float> pixels{};
-};
-
-[[nodiscard]] HdrImageData LoadHdrImage(const std::filesystem::path& path) {
-    HdrImageData image{};
-    int channels = 0;
-    float* pixels = stbi_loadf(path.string().c_str(), &image.width, &image.height, &channels, 4);
-    if (pixels == nullptr) {
-        std::cerr << "[EnvironmentMapCache] Failed to load HDR image: " << path.string()
-                  << " (" << stbi_failure_reason() << ")" << std::endl;
-        return image;
-    }
-
-    const std::size_t pixelCount = static_cast<std::size_t>(image.width) * static_cast<std::size_t>(image.height) * 4U;
-    image.pixels.assign(pixels, pixels + pixelCount);
-    stbi_image_free(pixels);
-    return image;
-}
 
 [[nodiscard]] std::vector<uint16_t> ConvertFloatPixelsToHalf(const std::vector<float>& pixels) {
     std::vector<uint16_t> halfPixels{};
@@ -69,15 +44,15 @@ struct HdrImageData {
 
 } // namespace
 
-std::string EnvironmentMapCache::BuildCacheKey(const std::filesystem::path& hdrPath, const uint32_t faceSize) {
-    return hdrPath.lexically_normal().generic_string() + "#" + std::to_string(faceSize);
+std::string EnvironmentMapCache::BuildCacheKey(const HdrImageAsset& hdrImage, const uint32_t faceSize) {
+    return hdrImage.sourcePath.lexically_normal().generic_string() + "#" + std::to_string(faceSize);
 }
 
 const EnvironmentMapGpuResources* EnvironmentMapCache::GetOrCreate(
     RenderContext&               renderCtx,
-    const std::filesystem::path& hdrPath,
+    const HdrImageAsset&         hdrImage,
     const uint32_t               faceSize) {
-    const std::string key = BuildCacheKey(hdrPath, faceSize);
+    const std::string key = BuildCacheKey(hdrImage, faceSize);
     auto [it, inserted] = m_entries.try_emplace(key);
     CacheEntry& entry = it->second;
     if (entry.failed) {
@@ -87,7 +62,7 @@ const EnvironmentMapGpuResources* EnvironmentMapCache::GetOrCreate(
         return &entry.resources;
     }
 
-    if (!LoadEnvironmentMap(renderCtx, hdrPath, faceSize, entry.resources)) {
+    if (!LoadEnvironmentMap(renderCtx, hdrImage, faceSize, entry.resources)) {
         entry.failed = true;
         return nullptr;
     }
@@ -107,11 +82,10 @@ void EnvironmentMapCache::EnsureComputePipeline(RenderContext& renderCtx) {
 
 bool EnvironmentMapCache::LoadEnvironmentMap(
     RenderContext&               renderCtx,
-    const std::filesystem::path& hdrPath,
+    const HdrImageAsset&         hdrImage,
     const uint32_t               faceSize,
     EnvironmentMapGpuResources&  outResources) {
-    const HdrImageData hdrImage = LoadHdrImage(hdrPath);
-    if (hdrImage.width <= 0 || hdrImage.height <= 0 || hdrImage.pixels.empty() || faceSize == 0) {
+    if (hdrImage.width == 0 || hdrImage.height == 0 || hdrImage.pixels.empty() || faceSize == 0) {
         return false;
     }
 
@@ -126,8 +100,8 @@ bool EnvironmentMapCache::LoadEnvironmentMap(
 
     wgpu::TextureDescriptor equirectDesc{};
     equirectDesc.dimension = wgpu::TextureDimension::_2D;
-    equirectDesc.size.width = static_cast<uint32_t>(hdrImage.width);
-    equirectDesc.size.height = static_cast<uint32_t>(hdrImage.height);
+    equirectDesc.size.width = hdrImage.width;
+    equirectDesc.size.height = hdrImage.height;
     equirectDesc.size.depthOrArrayLayers = 1;
     equirectDesc.sampleCount = 1;
     equirectDesc.mipLevelCount = 1;
@@ -144,12 +118,12 @@ bool EnvironmentMapCache::LoadEnvironmentMap(
 
     WGPUTextureDataLayout layout{};
     layout.offset = 0;
-    layout.bytesPerRow = static_cast<uint32_t>(hdrImage.width) * 4U * sizeof(uint16_t);
-    layout.rowsPerImage = static_cast<uint32_t>(hdrImage.height);
+    layout.bytesPerRow = hdrImage.width * 4U * sizeof(uint16_t);
+    layout.rowsPerImage = hdrImage.height;
 
     WGPUExtent3D size{
-        .width = static_cast<uint32_t>(hdrImage.width),
-        .height = static_cast<uint32_t>(hdrImage.height),
+        .width = hdrImage.width,
+        .height = hdrImage.height,
         .depthOrArrayLayers = 1,
     };
     wgpuQueueWriteTexture(
@@ -198,7 +172,8 @@ bool EnvironmentMapCache::LoadEnvironmentMap(
         || !outResources.equirectView
         || !outResources.cubemapArrayView
         || !outResources.sampler) {
-        std::cerr << "[EnvironmentMapCache] Compute pipeline was not ready for " << hdrPath.string() << std::endl;
+        std::cerr << "[EnvironmentMapCache] Compute pipeline was not ready for "
+                  << hdrImage.sourcePath.string() << std::endl;
         return false;
     }
 
@@ -216,7 +191,8 @@ bool EnvironmentMapCache::LoadEnvironmentMap(
     bindGroupDesc.entries = bindings;
     wgpu::raii::BindGroup bindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
     if (!bindGroup) {
-        std::cerr << "[EnvironmentMapCache] Failed to create compute bind group for " << hdrPath.string() << std::endl;
+        std::cerr << "[EnvironmentMapCache] Failed to create compute bind group for "
+                  << hdrImage.sourcePath.string() << std::endl;
         return false;
     }
 

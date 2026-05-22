@@ -78,13 +78,6 @@
     return MaterialAsset{};
 }
 
-SkyboxSceneData BuildDefaultSkyboxSceneData() {
-    return SkyboxSceneData{
-        .hdrPath = AssetPaths::Resolve("grasslands_sunset_2k.hdr"),
-        .faceSize = Renderer::kSkyboxCubemapFaceSize,
-    };
-}
-
 glm::vec3 NormalizeDirectionOrDefault(const glm::vec3& direction) {
     constexpr float kMinDirectionLength = 1.0e-4f;
     if (glm::length(direction) < kMinDirectionLength) {
@@ -140,8 +133,11 @@ LogicScene::LogicScene()
 
 bool LogicScene::Initialize(RenderContext& renderCtx) {
     m_renderer.Initialize(renderCtx);
-    const SkyboxSceneData defaultSkybox = BuildDefaultSkyboxSceneData();
-    m_renderer.PrepareSkybox(renderCtx, defaultSkybox.hdrPath, defaultSkybox.faceSize);
+    const std::filesystem::path defaultSkyboxPath = AssetPaths::Resolve("grasslands_sunset_2k.hdr");
+    m_defaultSkyboxHdrImage = m_assetServer.LoadHdrImage(defaultSkyboxPath);
+    if (const HdrImageAsset* hdrImage = m_assetServer.Get(m_defaultSkyboxHdrImage)) {
+        m_renderer.PrepareSkybox(renderCtx, *hdrImage, Renderer::kSkyboxCubemapFaceSize);
+    }
 
     Entity cameraEntity = m_world.CreateEntity("Primary Camera");
     CameraComponent& cameraComponent = cameraEntity.AddComponent<CameraComponent>();
@@ -329,7 +325,12 @@ void LogicScene::SetStaticMeshShadingModelOverrideRecursive(
 RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
     RenderScene renderScene{};
     renderScene.assetServer = &m_assetServer;
-    renderScene.skybox = BuildDefaultSkyboxSceneData();
+    if (m_defaultSkyboxHdrImage.IsValid()) {
+        renderScene.skybox = SkyboxSceneData{
+            .hdrImage = m_defaultSkyboxHdrImage,
+            .faceSize = Renderer::kSkyboxCubemapFaceSize,
+        };
+    }
     renderScene.lights = BuildRenderLightSet();
     renderScene.pbrDebugView = m_pbrDebugView;
     if (renderScene.lights.directionalLightCount > 0) {

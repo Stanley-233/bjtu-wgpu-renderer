@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include "asset/types/HdrImageAsset.h"
 #include "frame/RenderFrame.h"
 #include "gpu/GpuResourceCache.h"
 #include "passes/DepthPrepass.h"
@@ -34,7 +35,7 @@ public:
 
     void SetClearColor(double r, double g, double b, double a);
 
-    void PrepareSkybox(RenderContext& renderCtx, const std::filesystem::path& hdrPath, uint32_t faceSize);
+    void PrepareSkybox(RenderContext& renderCtx, const HdrImageAsset& hdrImage, uint32_t faceSize);
 
 private:
     static constexpr uint32_t kDirectionalShadowMapResolution = 2048;

@@ -7,6 +7,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "asset/types/HdrImageAsset.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 #include "webgpu-raii.hpp"
 
@@ -26,7 +27,7 @@ class EnvironmentMapCache {
 public:
     [[nodiscard]] const EnvironmentMapGpuResources* GetOrCreate(
         RenderContext&               renderCtx,
-        const std::filesystem::path& hdrPath,
+        const HdrImageAsset&         hdrImage,
         uint32_t                     faceSize);
 
     void Reset();
@@ -37,13 +38,13 @@ private:
         bool                       failed = false;
     };
 
-    [[nodiscard]] static std::string BuildCacheKey(const std::filesystem::path& hdrPath, uint32_t faceSize);
+    [[nodiscard]] static std::string BuildCacheKey(const HdrImageAsset& hdrImage, uint32_t faceSize);
 
     void EnsureComputePipeline(RenderContext& renderCtx);
 
     [[nodiscard]] bool LoadEnvironmentMap(
         RenderContext&               renderCtx,
-        const std::filesystem::path& hdrPath,
+        const HdrImageAsset&         hdrImage,
         uint32_t                     faceSize,
         EnvironmentMapGpuResources&  outResources);
 

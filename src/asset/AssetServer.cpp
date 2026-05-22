@@ -4,9 +4,22 @@
 #include <utility>
 
 #include "importers/GltfImporter.h"
+#include "importers/HdrImageImporter.h"
 
 AssetId<ImageAsset> AssetServer::CreateImage(ImageAsset image) {
     return StoreImage(std::move(image));
+}
+
+AssetId<HdrImageAsset> AssetServer::LoadHdrImage(const std::filesystem::path& path) {
+    if (const auto it = m_hdrImagePathToId.find(path); it != m_hdrImagePathToId.end()) {
+        return it->second;
+    }
+
+    HdrImageAsset image{};
+    if (!HdrImageImporter::Import(path, image)) {
+        return {};
+    }
+    return StoreHdrImage(path, std::move(image));
 }
 
 AssetId<MeshAsset> AssetServer::CreateMesh(MeshAsset mesh) {
@@ -50,6 +63,13 @@ AssetId<MaterialAsset> AssetServer::StoreMaterial(MaterialAsset material) {
 AssetId<ImageAsset> AssetServer::StoreImage(ImageAsset image) {
     m_images.push_back(std::move(image));
     const AssetId<ImageAsset> id{static_cast<uint32_t>(m_images.size())};
+    return id;
+}
+
+AssetId<HdrImageAsset> AssetServer::StoreHdrImage(const std::filesystem::path& sourcePath, HdrImageAsset image) {
+    m_hdrImages.push_back(std::move(image));
+    const AssetId<HdrImageAsset> id{static_cast<uint32_t>(m_hdrImages.size())};
+    m_hdrImagePathToId[sourcePath] = id;
     return id;
 }
 

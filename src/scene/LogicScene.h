@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "asset/AssetServer.h"
+#include "asset/types/HdrImageAsset.h"
 #include "asset/types/MaterialAsset.h"
 #include "render/Renderer.h"
 #include "scene/IScene.h"
@@ -89,6 +90,7 @@ private:
     AssetServer                       m_assetServer{};
     Renderer                          m_renderer{};
     std::unique_ptr<CameraController> m_cameraController{};
+    AssetId<HdrImageAsset>            m_defaultSkyboxHdrImage{};
     EPbrDebugView                     m_pbrDebugView = EPbrDebugView::Off;
 };
 

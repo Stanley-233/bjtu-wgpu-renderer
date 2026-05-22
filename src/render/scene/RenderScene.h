@@ -5,7 +5,9 @@
 #include <optional>
 #include <vector>
 
+#include "asset/AssetId.h"
 #include "asset/AssetServer.h"
+#include "asset/types/HdrImageAsset.h"
 #include "RenderCamera.h"
 #include "RenderLightSet.h"
 #include "RenderObject.h"
@@ -16,8 +18,8 @@ struct DirectionalShadowSceneData {
 };
 
 struct SkyboxSceneData {
-    std::filesystem::path hdrPath{};
-    uint32_t              faceSize = 512;
+    AssetId<HdrImageAsset> hdrImage{};
+    uint32_t               faceSize = 512;
 };
 
 struct RenderScene {

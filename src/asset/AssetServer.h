@@ -7,6 +7,7 @@
 #include <unordered_map>
 
 #include "AssetId.h"
+#include "types/HdrImageAsset.h"
 #include "types/ImageAsset.h"
 #include "types/MaterialAsset.h"
 #include "types/MeshAsset.h"
@@ -15,6 +16,8 @@
 class AssetServer {
 public:
     AssetId<ImageAsset> CreateImage(ImageAsset image);
+
+    AssetId<HdrImageAsset> LoadHdrImage(const std::filesystem::path& path);
 
     AssetId<MeshAsset> CreateMesh(MeshAsset mesh);
 
@@ -26,6 +29,8 @@ public:
     [[nodiscard]] const T* Get(AssetId<T> id) const;
 
 private:
+    AssetId<HdrImageAsset> StoreHdrImage(const std::filesystem::path& sourcePath, HdrImageAsset image);
+
     AssetId<MeshAsset> StoreMesh(MeshAsset mesh);
 
     AssetId<MaterialAsset> StoreMaterial(MaterialAsset material);
@@ -34,7 +39,9 @@ private:
 
     AssetId<ModelAsset> StoreModel(const std::filesystem::path& sourcePath, ModelAsset model);
 
+    std::unordered_map<std::filesystem::path, AssetId<HdrImageAsset> > m_hdrImagePathToId;
     std::unordered_map<std::filesystem::path, AssetId<ModelAsset> > m_modelPathToId;
+    std::deque<HdrImageAsset>                                       m_hdrImages;
     std::deque<ImageAsset>                                          m_images;
     std::deque<MeshAsset>                                           m_meshes;
     std::deque<MaterialAsset>                                       m_materials;
@@ -66,6 +73,11 @@ const T* AssetServer::Get(AssetId<T> id) const {
             return nullptr;
         }
         return &m_images[index];
+    } else if constexpr (std::is_same_v<T, HdrImageAsset>) {
+        if (index >= m_hdrImages.size()) {
+            return nullptr;
+        }
+        return &m_hdrImages[index];
     } else if constexpr (std::is_same_v<T, ModelAsset>) {
         if (index >= m_models.size()) {
             return nullptr;

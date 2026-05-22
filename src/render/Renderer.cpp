@@ -285,11 +285,14 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     }
 
     const EnvironmentMapGpuResources* skyboxResources = nullptr;
-    if (scene.skybox.has_value()) {
-        skyboxResources = renderCtx.GetEnvironmentMapCache().GetOrCreate(
-            renderCtx,
-            scene.skybox->hdrPath,
-            scene.skybox->faceSize);
+    if (scene.skybox.has_value() && scene.assetServer != nullptr) {
+        const HdrImageAsset* hdrImage = scene.assetServer->Get(scene.skybox->hdrImage);
+        if (hdrImage != nullptr) {
+            skyboxResources = renderCtx.GetEnvironmentMapCache().GetOrCreate(
+                renderCtx,
+                *hdrImage,
+                scene.skybox->faceSize);
+        }
     }
 
     const PassContext passCtx{
@@ -327,6 +330,6 @@ void Renderer::SetClearColor(const double r, const double g, const double b, con
     m_clearColor = wgpu::Color{r, g, b, a};
 }
 
-void Renderer::PrepareSkybox(RenderContext& renderCtx, const std::filesystem::path& hdrPath, const uint32_t faceSize) {
-    (void)renderCtx.GetEnvironmentMapCache().GetOrCreate(renderCtx, hdrPath, faceSize);
+void Renderer::PrepareSkybox(RenderContext& renderCtx, const HdrImageAsset& hdrImage, const uint32_t faceSize) {
+    (void)renderCtx.GetEnvironmentMapCache().GetOrCreate(renderCtx, hdrImage, faceSize);
 }
