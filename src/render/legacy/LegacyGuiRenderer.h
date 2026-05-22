@@ -26,6 +26,7 @@ public:
     using DirectionalLightGetter = std::function<DirectionalLightGuiData()>;
     using DirectionalLightSetter = std::function<void(const DirectionalLightGuiData&)>;
     using CameraGetter = std::function<CameraGuiData()>;
+    using DebugPanelContentDrawer = std::function<void()>;
 
     bool Initialize(GLFWwindow *window, wgpu::raii::Device &device, WGPUTextureFormat surfaceFormat);
 
@@ -43,6 +44,7 @@ public:
     // 设置回调函数
     void SetDirectionalLightCallbacks(DirectionalLightGetter getter, DirectionalLightSetter setter);
     void SetCameraInfoCallback(CameraGetter getter);
+    void SetDebugPanelContentCallback(DebugPanelContentDrawer drawer);
 
     [[nodiscard]] bool WantCaptureKeyboard() const;
 
@@ -59,6 +61,7 @@ private:
     DirectionalLightGetter m_directionalLightGetter;
     DirectionalLightSetter m_directionalLightSetter;
     CameraGetter m_cameraGetter;
+    DebugPanelContentDrawer m_debugPanelContentDrawer;
 };
 
 #endif // BJTU_WGPU_RENDERER_LEGACYGUIRENDERER_H

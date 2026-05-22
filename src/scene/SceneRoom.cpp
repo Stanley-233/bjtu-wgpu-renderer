@@ -29,7 +29,7 @@ void SceneRoom::ConfigureInitialCamera(CameraComponent& camera) {
 }
 
 void SceneRoom::ConfigureInitialDirectionalLight(DirectionalLightComponent& light) {
-    light.direction = glm::vec3{0.15f, -1.0f, -0.2f};
+    light.direction = glm::vec3{-0.22f, -0.64f, 0.74f};
     light.intensity = 1.5f;
     light.color = glm::vec3{1.0f, 0.97f, 0.92f};
 }

@@ -101,6 +101,10 @@ void LegacyGuiRenderer::SetCameraInfoCallback(CameraGetter getter) {
     m_cameraGetter = getter;
 }
 
+void LegacyGuiRenderer::SetDebugPanelContentCallback(DebugPanelContentDrawer drawer) {
+    m_debugPanelContentDrawer = std::move(drawer);
+}
+
 void LegacyGuiRenderer::DrawDebugPanel() {
     if (!m_initialized) {
         return;
@@ -112,14 +116,19 @@ void LegacyGuiRenderer::DrawDebugPanelContent() {
     // 移除固定标志，允许窗口自由拖动和调整大小
     constexpr ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
 
-    // 设置初始位置在右上角，初始大小 320x400
+    // 设置初始位置在右上角，给合并后的面板预留更大的初始空间
     ImGuiIO& io = ImGui::GetIO();
-    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 330.0f, 10.0f), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(ImVec2(320.0f, 400.0f), ImGuiCond_Once);
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x - 370.0f, 10.0f), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(ImVec2(360.0f, 520.0f), ImGuiCond_Once);
 
     if (!ImGui::Begin("Debug Panel", nullptr, windowFlags)) {
         ImGui::End();
         return;
+    }
+
+    if (m_debugPanelContentDrawer) {
+        m_debugPanelContentDrawer();
+        ImGui::Separator();
     }
 
     // ===== 摄像机信息（只读显示）=====

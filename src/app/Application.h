@@ -2,6 +2,7 @@
 #define BJTU_WGPU_RENDERER_APPLICATION_H
 
 #include <GLFW/glfw3.h>
+#include <optional>
 
 #include "app/WindowContext.h"
 #include "asset/types/MaterialAsset.h"
@@ -48,31 +49,32 @@ private:
     void HandleCursorPos(double xpos, double ypos);
 
     void SwitchScene(ESceneType type);
-    
+
     void ApplyActiveSceneRenderSettings() const;
 
     void OnSceneSwitchRequest(const SceneSwitchRequest& request);
 
     void OnToggleCameraModeRequest(const ToggleCameraModeRequest& request);
 
-    int                 m_windowWidth   = 640;
-    int                 m_windowHeight  = 480;
-    double              m_maxDevicePixelRatio = 2.0;
-    wgpu::TextureFormat m_surfaceFormat = wgpu::TextureFormat::Undefined;
-    WindowContext       m_windowContext;
-    RenderContext       m_renderContext;
-    LegacyGuiRenderer   m_guiRenderer;
-    GuiInputController  m_guiInputController;
-    SceneManager        m_sceneManager;
-    InputEventBus       m_inputEventBus;
-    InputManager        m_inputManager;
-    double              m_lastFrameTime = 0.0;
-    bool                m_applicationDebugEnabled = false;
-    bool                m_inputDebugEnabled       = false;
-    bool                m_ssaoEnabled             = true;
-    EMaterialShadingModel m_litShadingModel       = EMaterialShadingModel::Lambert;
-    EPbrDebugView       m_pbrDebugView            = EPbrDebugView::Off;
-    bool                m_commandHandlersConnected = false;
+    int                       m_windowWidth         = 640;
+    int                       m_windowHeight        = 480;
+    double                    m_maxDevicePixelRatio = 2.0;
+    wgpu::TextureFormat       m_surfaceFormat       = wgpu::TextureFormat::Undefined;
+    WindowContext             m_windowContext;
+    RenderContext             m_renderContext;
+    LegacyGuiRenderer         m_guiRenderer;
+    GuiInputController        m_guiInputController;
+    SceneManager              m_sceneManager;
+    InputEventBus             m_inputEventBus;
+    InputManager              m_inputManager;
+    double                    m_lastFrameTime           = 0.0;
+    bool                      m_applicationDebugEnabled = false;
+    bool                      m_inputDebugEnabled       = false;
+    bool                      m_ssaoEnabled             = true;
+    EMaterialShadingModel     m_litShadingModel         = EMaterialShadingModel::Lambert;
+    EPbrDebugView             m_pbrDebugView            = EPbrDebugView::Off;
+    std::optional<ESceneType> m_pendingSceneSwitch;
+    bool                      m_commandHandlersConnected = false;
 };
 
 #endif // BJTU_WGPU_RENDERER_APPLICATION_H

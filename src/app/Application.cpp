@@ -154,13 +154,14 @@ void Application::Tick(float deltaTime) {
     int drawableHeight = 0;
     m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
-    m_guiInputController.BuildUi(
-        m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
-        &m_ssaoEnabled,
-        &m_litShadingModel,
-        &m_pbrDebugView);
+    m_guiRenderer.SetDebugPanelContentCallback([this]() {
+        m_guiInputController.BuildUi(
+            m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
+            &m_ssaoEnabled,
+            &m_litShadingModel,
+            &m_pbrDebugView);
+    });
 
-    // 绘制调试面板（平行光控制和摄像机信息）
     if (m_sceneManager.HasActiveScene()) {
         if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
             m_guiRenderer.SetDirectionalLightCallbacks(
@@ -170,11 +171,24 @@ void Application::Tick(float deltaTime) {
             m_guiRenderer.SetCameraInfoCallback(
                 [logicScene]() { return logicScene->GetCameraData(); }
             );
-            m_guiRenderer.DrawDebugPanel();
+        } else {
+            m_guiRenderer.SetDirectionalLightCallbacks({}, {});
+            m_guiRenderer.SetCameraInfoCallback({});
         }
+    } else {
+        m_guiRenderer.SetDirectionalLightCallbacks({}, {});
+        m_guiRenderer.SetCameraInfoCallback({});
     }
 
+    m_guiRenderer.DrawDebugPanel();
+
     m_guiRenderer.EndFrame();
+
+    if (m_pendingSceneSwitch.has_value()) {
+        SwitchScene(*m_pendingSceneSwitch);
+        m_pendingSceneSwitch.reset();
+    }
+
     ApplyActiveSceneRenderSettings();
 
     m_sceneManager.RenderActive(m_renderContext, m_guiRenderer);
@@ -220,8 +234,8 @@ void Application::OnSceneSwitchRequest(const SceneSwitchRequest& request) {
     if (m_applicationDebugEnabled) {
         std::cout << "[Application] Scene switch request" << std::endl;
     }
-    SwitchScene(request.type);
-    if (m_applicationDebugEnabled) {
+    m_pendingSceneSwitch = request.type;
+    if (m_applicationDebugEnabled && m_sceneManager.HasActiveScene()) {
         std::cout << "[Application] Active scene: " << m_sceneManager.ActiveScene().Name() << std::endl;
     }
 }
