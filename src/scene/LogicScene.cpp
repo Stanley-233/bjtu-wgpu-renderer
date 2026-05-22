@@ -324,6 +324,9 @@ Entity LogicScene::SpawnModelEntities(
             if (meshAsset == nullptr || materialAsset == nullptr) {
                 continue;
             }
+            if (options.skipMaskedMaterials && materialAsset->isAlphaMasked) {
+                continue;
+            }
 
             Entity mesh = m_world.CreateEntity(rootName + " " + std::to_string(nodeCounter++));
             mesh.SetParent(root);

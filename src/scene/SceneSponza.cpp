@@ -9,7 +9,9 @@ const char* SceneSponza::Name() const {
 }
 
 bool SceneSponza::BuildSceneContent() {
-    const Entity root = LoadModelRoot("Sponza/glTF/Sponza.gltf", "Sponza");
+    ModelSpawnOptions options{};
+    options.skipMaskedMaterials = true;
+    const Entity root = LoadModelRoot("Sponza/glTF/Sponza.gltf", "Sponza", options);
     return root.IsValid();
 }
 

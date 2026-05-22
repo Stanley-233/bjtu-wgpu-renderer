@@ -41,5 +41,6 @@ struct MaterialAsset {
     std::optional<MaterialTextureAsset>   normalTexture{};
     float                                 normalScale = 1.0f;
     std::optional<SpecularExtensionAsset> specular{};
+    bool                                  isAlphaMasked = false;
     bool                                  useVertexColor = true;
 };

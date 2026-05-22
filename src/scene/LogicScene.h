@@ -23,6 +23,7 @@ class LogicScene : public IScene, public ICameraMoveInputSink, public ICameraLoo
 public:
     struct ModelSpawnOptions {
         std::optional<EMaterialShadingModel> shadingModelOverride{};
+        bool                                 skipMaskedMaterials = false;
     };
 
     LogicScene();

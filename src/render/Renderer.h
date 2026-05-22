@@ -25,7 +25,7 @@ class RenderContext;
 class Renderer {
 public:
     static constexpr uint32_t kSkyboxCubemapFaceSize = 512;
-    inline static const wgpu::TextureFormat kHdrSceneColorFormat = wgpu::TextureFormat::RGBA16Float;
+    inline static wgpu::TextureFormat kHdrSceneColorFormat = wgpu::TextureFormat::RGBA16Float;
 
     void Initialize(RenderContext& renderCtx);
 

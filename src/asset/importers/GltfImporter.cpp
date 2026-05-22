@@ -472,6 +472,26 @@ static bool IsSupportedExtension(const std::string_view extensionName) {
            || extensionName == "KHR_materials_specular";
 }
 
+static bool IsMaskedAlphaMode(const std::string_view alphaMode) {
+    return alphaMode == "MASK" || alphaMode == "MASKED";
+}
+
+static void WarnMaskedAlphaMode(const tinygltf::Model& model, const std::filesystem::path& path) {
+    for (const tinygltf::Material& material : model.materials) {
+        if (!IsMaskedAlphaMode(material.alphaMode)) {
+            continue;
+        }
+
+        std::cerr << "[GltfImporter] Warning: alphaMode '"
+                  << material.alphaMode
+                  << "' is not supported in '"
+                  << path.string()
+                  << "'; ignoring alpha mask and loading the material without MASK support."
+                  << std::endl;
+        return;
+    }
+}
+
 static void WarnUnsupportedExtension(
     const std::string_view extensionName,
     const std::filesystem::path& path,
@@ -631,6 +651,7 @@ static void LoadNodeRecursive(
                         assetServer,
                         EImageAssetFormat::Rgba8Srgb);
                 }
+                materialAsset.isAlphaMasked = IsMaskedAlphaMode(material.alphaMode);
                 materialAsset.metallicFactor = static_cast<float>(pbr.metallicFactor);
                 materialAsset.roughnessFactor = static_cast<float>(pbr.roughnessFactor);
                 if (pbr.metallicRoughnessTexture.index >= 0) {
@@ -705,6 +726,7 @@ bool GltfImporter::Import(const std::filesystem::path& path, AssetServer& assetS
         outModel = ModelAsset{};
         return false;
     }
+    WarnMaskedAlphaMode(model, path);
     WarnUnsupportedExtensions(model, path);
 
     outModel = ModelAsset{};
