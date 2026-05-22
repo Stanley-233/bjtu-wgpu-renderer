@@ -223,7 +223,7 @@ void LogicScene::SetDirectionalLightData(const DirectionalLightGuiData& data) {
     Entity directionalLightEntity = m_world.DirectionalLight();
     if (directionalLightEntity && directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
         auto& light = directionalLightEntity.GetComponent<DirectionalLightComponent>();
-        light.direction = data.direction;
+        light.direction = NormalizeDirectionOrDefault(data.direction);
         light.intensity = data.intensity;
         light.color = data.color;
     }

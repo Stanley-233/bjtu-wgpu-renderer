@@ -1,5 +1,7 @@
 #include "SceneRoom.h"
 
+#include <glm/geometric.hpp>
+
 #include "Entity.h"
 #include "components/CameraComponent.h"
 #include "components/TransformComponent.h"
@@ -29,7 +31,7 @@ void SceneRoom::ConfigureInitialCamera(CameraComponent& camera) {
 }
 
 void SceneRoom::ConfigureInitialDirectionalLight(DirectionalLightComponent& light) {
-    light.direction = glm::vec3{-0.22f, -0.64f, 0.74f};
+    light.direction = glm::normalize(glm::vec3{-1.0f, -1.0f, -0.2f});
     light.intensity = 1.5f;
     light.color = glm::vec3{1.0f, 0.97f, 0.92f};
 }

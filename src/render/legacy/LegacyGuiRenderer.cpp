@@ -1,8 +1,22 @@
 #include "LegacyGuiRenderer.h"
 
+#include <cmath>
+
 #include <imgui.h>
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_wgpu.h>
+
+namespace {
+constexpr float kPi = 3.14159265358979323846f;
+
+float RadiansToDegrees(const float radians) {
+    return radians * (180.0f / kPi);
+}
+
+float DegreesToRadians(const float degrees) {
+    return degrees * (kPi / 180.0f);
+}
+}
 
 bool LegacyGuiRenderer::Initialize(GLFWwindow *window, wgpu::raii::Device &device, const WGPUTextureFormat surfaceFormat) {
     if (m_initialized) {
@@ -164,31 +178,42 @@ void LegacyGuiRenderer::DrawDebugPanelContent() {
     if (ImGui::CollapsingHeader("Directional Light", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (m_directionalLightGetter && m_directionalLightSetter) {
             DirectionalLightGuiData light = m_directionalLightGetter();
+            const float dirLength = std::sqrt(
+                light.direction.x * light.direction.x
+                + light.direction.y * light.direction.y
+                + light.direction.z * light.direction.z);
+            const glm::vec3 normalizedDirection = dirLength > 0.001f
+                                                      ? light.direction / dirLength
+                                                      : glm::vec3{0.0f, -1.0f, 0.0f};
+            float yawDegrees = RadiansToDegrees(std::atan2(normalizedDirection.x, -normalizedDirection.z));
+            float pitchDegrees = RadiansToDegrees(std::asin(normalizedDirection.y));
 
-            // 方向控制
-            ImGui::Text("Direction:");
+            // 方向控制改为角度，避免直接拖方向向量分量难以理解。
+            ImGui::Text("Direction Angles:");
             ImGui::PushID("light_dir");
             bool directionChanged = false;
-            directionChanged |= ImGui::SliderFloat("X", &light.direction.x, -1.0f, 1.0f, "%.2f");
-            directionChanged |= ImGui::SliderFloat("Y", &light.direction.y, -1.0f, 1.0f, "%.2f");
-            directionChanged |= ImGui::SliderFloat("Z", &light.direction.z, -1.0f, 1.0f, "%.2f");
+            directionChanged |= ImGui::SliderFloat("Yaw", &yawDegrees, -180.0f, 180.0f, "%.1f deg");
+            directionChanged |= ImGui::SliderFloat("Pitch", &pitchDegrees, -89.0f, 89.0f, "%.1f deg");
             ImGui::PopID();
 
-            // 归一化显示
-            float dirLength = sqrtf(light.direction.x * light.direction.x
-                                   + light.direction.y * light.direction.y
-                                   + light.direction.z * light.direction.z);
-            ImGui::Text("  Length: %.2f", dirLength);
-
             if (directionChanged) {
-                // 归一化方向
-                if (dirLength > 0.001f) {
-                    light.direction.x /= dirLength;
-                    light.direction.y /= dirLength;
-                    light.direction.z /= dirLength;
-                }
+                const float yawRadians = DegreesToRadians(yawDegrees);
+                const float pitchRadians = DegreesToRadians(pitchDegrees);
+                const float cosPitch = std::cos(pitchRadians);
+                light.direction.x = std::sin(yawRadians) * cosPitch;
+                light.direction.y = std::sin(pitchRadians);
+                light.direction.z = -std::cos(yawRadians) * cosPitch;
                 m_directionalLightSetter(light);
             }
+
+            ImGui::Text("Direction Vector:");
+            ImGui::Text("  X: %.3f", normalizedDirection.x);
+            ImGui::SameLine();
+            ImGui::Text("Y: %.3f", normalizedDirection.y);
+            ImGui::SameLine();
+            ImGui::Text("Z: %.3f", normalizedDirection.z);
+            ImGui::Text("  Length: %.3f", dirLength);
+            ImGui::Text("  Yaw: %.1f deg  Pitch: %.1f deg", yawDegrees, pitchDegrees);
 
             ImGui::Spacing();
 
