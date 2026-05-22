@@ -1,0 +1,11 @@
+Model Information:
+* title:	Fan
+* source:	https://sketchfab.com/3d-models/fan-185e5d7fc9f24b9c909d5b788c2a00d9
+* author:	Jugan (https://sketchfab.com/Jugan)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Fan" (https://sketchfab.com/3d-models/fan-185e5d7fc9f24b9c909d5b788c2a00d9) by Jugan (https://sketchfab.com/Jugan) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
