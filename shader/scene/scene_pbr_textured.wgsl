@@ -66,6 +66,17 @@ struct VertexOutput {
     @location(5) tangentWS: vec4f,
 };
 
+struct FragmentInput {
+    @builtin(position) position: vec4f,
+    @builtin(front_facing) frontFacing: bool,
+    @location(0) uv0: vec2f,
+    @location(1) uv1: vec2f,
+    @location(2) color: vec4f,
+    @location(3) worldPos: vec3f,
+    @location(4) normalWS: vec3f,
+    @location(5) tangentWS: vec4f,
+};
+
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
 @group(0) @binding(1) var<uniform> uDirectionalShadow: DirectionalShadowUniform;
 @group(0) @binding(2) var uDirectionalShadowMap: texture_depth_2d;
@@ -90,7 +101,11 @@ fn Saturate(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
 
-fn SampleBaseColor(in: VertexOutput) -> vec4f {
+fn ResolveFaceSign(frontFacing: bool) -> f32 {
+    return select(-1.0, 1.0, frontFacing);
+}
+
+fn SampleBaseColor(in: FragmentInput) -> vec4f {
     let baseColorUv = SelectUv(uMaterial.textureCoordSets.x, in.uv0, in.uv1);
     let sampled = textureSample(uBaseColorTexture, uMaterialSampler, baseColorUv);
     var baseColor = sampled * uMaterial.baseColorFactor;
@@ -100,7 +115,7 @@ fn SampleBaseColor(in: VertexOutput) -> vec4f {
     return baseColor;
 }
 
-fn SampleMetallicRoughness(in: VertexOutput) -> vec2f {
+fn SampleMetallicRoughness(in: FragmentInput) -> vec2f {
     let mrUv = SelectUv(uMaterial.textureCoordSets.z, in.uv0, in.uv1);
     let mrSample = textureSample(uMetallicRoughnessTexture, uMaterialSampler, mrUv);
     // glTF 金属粗糙度约定：
@@ -142,8 +157,13 @@ fn BuildCotangentFrame(normalWS: vec3f, worldPos: vec3f, uv: vec2f) -> mat3x3f {
     return mat3x3f(tangent, bitangent, normalWS);
 }
 
-fn SampleNormalWS(in: VertexOutput) -> vec3f {
-    let geometricNormal = normalize(in.normalWS);
+fn ResolveGeometricNormal(in: FragmentInput) -> vec3f {
+    let faceSign = ResolveFaceSign(in.frontFacing);
+    let isDoubleSided = uMaterial.surfaceOptions.w != 0u;
+    return normalize(select(in.normalWS, in.normalWS * faceSign, isDoubleSided));
+}
+
+fn SampleNormalWS(in: FragmentInput, geometricNormal: vec3f) -> vec3f {
     if (uMaterial.surfaceOptions.z == 0u) {
         return geometricNormal;
     }
@@ -159,8 +179,10 @@ fn SampleNormalWS(in: VertexOutput) -> vec3f {
     ));
     var tbn = BuildCotangentFrame(geometricNormal, in.worldPos, normalUv);
     if (length(in.tangentWS.xyz) > 1.0e-5) {
+        let faceSign = ResolveFaceSign(in.frontFacing);
+        let tangentHandedness = select(in.tangentWS.w, in.tangentWS.w * faceSign, uMaterial.surfaceOptions.w != 0u);
         let tangentWS = normalize(in.tangentWS.xyz);
-        let bitangentWS = normalize(cross(geometricNormal, tangentWS) * in.tangentWS.w);
+        let bitangentWS = normalize(cross(geometricNormal, tangentWS) * tangentHandedness);
         tbn = mat3x3f(tangentWS, bitangentWS, geometricNormal);
     }
     return normalize(tbn * normalTS);
@@ -232,13 +254,13 @@ fn GeometrySmith(normal: vec3f, viewDir: vec3f, lightDir: vec3f, roughness: f32)
 }
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     let baseColor = SampleBaseColor(in);
     let metallicRoughness = SampleMetallicRoughness(in);
     let metallic = metallicRoughness.x;
     let roughness = metallicRoughness.y;
-    let geometricNormal = normalize(in.normalWS);
-    let normal = SampleNormalWS(in);
+    let geometricNormal = ResolveGeometricNormal(in);
+    let normal = SampleNormalWS(in, geometricNormal);
     let pbrDebugView = uPbrDebug.options.x;
     if (pbrDebugView == 1u) {
         return vec4f(geometricNormal * 0.5 + vec3f(0.5, 0.5, 0.5), 1.0);

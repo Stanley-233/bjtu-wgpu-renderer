@@ -44,13 +44,22 @@ PbrDebugUniformData BuildPbrDebugUniformData(const PassContext& passCtx) {
 } // namespace
 
 void PBRPass::Initialize(RenderContext& renderCtx, const wgpu::TextureFormat colorTargetFormat) {
-    auto pbrPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(renderCtx, colorTargetFormat);
+    auto pbrPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::Back);
     m_sceneBindGroupLayout = std::move(pbrPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pbrPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(pbrPipeline.materialBindGroupLayout);
     m_debugBindGroupLayout = std::move(pbrPipeline.debugBindGroupLayout);
     m_layout = std::move(pbrPipeline.layout);
-    m_pipeline = std::move(pbrPipeline.pipeline);
+    m_pipelineSingleSided = std::move(pbrPipeline.pipeline);
+
+    auto pbrDoubleSidedPipeline = Scene3DPipelineFactory::CreatePbrForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::None);
+    m_pipelineDoubleSided = std::move(pbrDoubleSidedPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -255,17 +264,18 @@ void PBRPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
     }
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    if (m_sceneResources.sceneBindGroup && m_sceneResources.debugBindGroup && m_pipeline) {
-        renderPass->setPipeline(*m_pipeline);
+    if (m_sceneResources.sceneBindGroup && m_sceneResources.debugBindGroup) {
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
         renderPass->setBindGroup(3, *m_sceneResources.debugBindGroup, 0, nullptr);
         for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
             const PreparedDrawItem& drawItem = passCtx.drawItems[i];
+            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.doubleSided);
             const wgpu::BindGroup objectBindGroup =
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup
                     : nullptr;
-            if (drawItem.shadingModel != EMaterialShadingModel::Pbr
+            if (pipeline == nullptr
+                || drawItem.shadingModel != EMaterialShadingModel::Pbr
                 || objectBindGroup == nullptr
                 || drawItem.pbrMaterialBindGroup == nullptr
                 || drawItem.vertexBuffer == nullptr
@@ -274,6 +284,7 @@ void PBRPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
                 continue;
             }
 
+            renderPass->setPipeline(pipeline);
             renderPass->setBindGroup(1, objectBindGroup, 0, nullptr);
             renderPass->setBindGroup(2, drawItem.pbrMaterialBindGroup, 0, nullptr);
             renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
@@ -286,4 +297,10 @@ void PBRPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
 
 const wgpu::raii::BindGroupLayout& PBRPass::GetMaterialBindGroupLayout() const {
     return m_materialBindGroupLayout;
+}
+
+wgpu::RenderPipeline PBRPass::SelectPipeline(const bool doubleSided) const {
+    return doubleSided
+               ? (m_pipelineDoubleSided ? *m_pipelineDoubleSided : nullptr)
+               : (m_pipelineSingleSided ? *m_pipelineSingleSided : nullptr);
 }

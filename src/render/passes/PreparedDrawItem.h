@@ -11,6 +11,7 @@
 
 struct PreparedDrawItem {
     EMaterialShadingModel shadingModel{EMaterialShadingModel::Unlit};
+    bool                  doubleSided = false;
     glm::mat4             model{1.0f};
     ObjectUniformData     objectUniformData{};
     wgpu::Buffer          vertexBuffer       = nullptr;

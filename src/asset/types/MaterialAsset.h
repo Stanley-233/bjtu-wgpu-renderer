@@ -43,4 +43,5 @@ struct MaterialAsset {
     std::optional<SpecularExtensionAsset> specular{};
     bool                                  isAlphaMasked = false;
     bool                                  useVertexColor = true;
+    bool                                  doubleSided = false;
 };

@@ -41,15 +41,17 @@ private:
 
     void UpdateObjectResources(RenderContext& renderCtx, std::span<const PreparedDrawItem> drawItems);
 
-    [[nodiscard]] wgpu::RenderPipeline SelectPipeline(EMaterialShadingModel shadingModel) const;
+    [[nodiscard]] wgpu::RenderPipeline SelectPipeline(EMaterialShadingModel shadingModel, bool doubleSided) const;
 
     wgpu::raii::PipelineLayout   m_layout;
     wgpu::raii::BindGroupLayout  m_sceneBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_objectBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_materialBindGroupLayout;
     wgpu::raii::Sampler          m_sceneAoSampler;
-    wgpu::raii::RenderPipeline   m_unlitPipeline;
-    wgpu::raii::RenderPipeline   m_lambertPipeline;
+    wgpu::raii::RenderPipeline   m_unlitPipelineSingleSided;
+    wgpu::raii::RenderPipeline   m_unlitPipelineDoubleSided;
+    wgpu::raii::RenderPipeline   m_lambertPipelineSingleSided;
+    wgpu::raii::RenderPipeline   m_lambertPipelineDoubleSided;
     SceneResources               m_sceneResources;
     std::vector<ObjectResources> m_objectResources;
 };

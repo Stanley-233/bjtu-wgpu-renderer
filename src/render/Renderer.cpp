@@ -246,6 +246,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
 
         m_preparedDrawItems.push_back(PreparedDrawItem{
             .shadingModel = object.shadingModel,
+            .doubleSided = object.doubleSided,
             .model = object.worldMatrix,
             .objectUniformData = BuildObjectUniformData(object.worldMatrix),
             .vertexBuffer = *gpuMesh->vertexBuffer,

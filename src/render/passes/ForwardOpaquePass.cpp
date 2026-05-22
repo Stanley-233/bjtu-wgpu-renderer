@@ -31,15 +31,33 @@ static DirectionalShadowUniformData BuildDirectionalShadowUniformData(const Pass
 }
 
 void ForwardOpaquePass::Initialize(RenderContext& renderCtx, const wgpu::TextureFormat colorTargetFormat) {
-    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(renderCtx, colorTargetFormat);
+    auto unlitPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::Back);
     m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
     m_layout = std::move(unlitPipeline.layout);
-    m_unlitPipeline = std::move(unlitPipeline.pipeline);
+    m_unlitPipelineSingleSided = std::move(unlitPipeline.pipeline);
 
-    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(renderCtx, colorTargetFormat);
-    m_lambertPipeline = std::move(lambertPipeline.pipeline);
+    auto unlitDoubleSidedPipeline = Scene3DPipelineFactory::CreateUnlitForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::None);
+    m_unlitPipelineDoubleSided = std::move(unlitDoubleSidedPipeline.pipeline);
+
+    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::Back);
+    m_lambertPipelineSingleSided = std::move(lambertPipeline.pipeline);
+
+    auto lambertDoubleSidedPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(
+        renderCtx,
+        colorTargetFormat,
+        wgpu::CullMode::None);
+    m_lambertPipelineDoubleSided = std::move(lambertDoubleSidedPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -218,7 +236,7 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
         renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
         for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
             const PreparedDrawItem& drawItem = passCtx.drawItems[i];
-            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel);
+            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel, drawItem.doubleSided);
             const wgpu::BindGroup objectBindGroup =
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup
@@ -255,12 +273,16 @@ const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetMaterialBindGroupLayout
     return m_materialBindGroupLayout;
 }
 
-wgpu::RenderPipeline ForwardOpaquePass::SelectPipeline(const EMaterialShadingModel shadingModel) const {
+wgpu::RenderPipeline ForwardOpaquePass::SelectPipeline(const EMaterialShadingModel shadingModel, const bool doubleSided) const {
     switch (shadingModel) {
     case EMaterialShadingModel::Unlit:
-        return m_unlitPipeline ? *m_unlitPipeline : nullptr;
+        return doubleSided
+                   ? (m_unlitPipelineDoubleSided ? *m_unlitPipelineDoubleSided : nullptr)
+                   : (m_unlitPipelineSingleSided ? *m_unlitPipelineSingleSided : nullptr);
     case EMaterialShadingModel::Lambert:
-        return m_lambertPipeline ? *m_lambertPipeline : nullptr;
+        return doubleSided
+                   ? (m_lambertPipelineDoubleSided ? *m_lambertPipelineDoubleSided : nullptr)
+                   : (m_lambertPipelineSingleSided ? *m_lambertPipelineSingleSided : nullptr);
     case EMaterialShadingModel::Pbr:
         return nullptr;
     }

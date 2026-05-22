@@ -75,11 +75,20 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
-    static ForwardPipeline CreateUnlitForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+    static ForwardPipeline CreateUnlitForwardPipeline(
+        RenderContext& renderCtx,
+        wgpu::TextureFormat colorTargetFormat,
+        wgpu::CullMode cullMode = wgpu::CullMode::Back);
 
-    static ForwardPipeline CreateLambertForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+    static ForwardPipeline CreateLambertForwardPipeline(
+        RenderContext& renderCtx,
+        wgpu::TextureFormat colorTargetFormat,
+        wgpu::CullMode cullMode = wgpu::CullMode::Back);
 
-    static PbrPipeline CreatePbrForwardPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+    static PbrPipeline CreatePbrForwardPipeline(
+        RenderContext& renderCtx,
+        wgpu::TextureFormat colorTargetFormat,
+        wgpu::CullMode cullMode = wgpu::CullMode::Back);
 
     static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& renderCtx);
 

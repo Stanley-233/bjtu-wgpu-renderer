@@ -41,13 +41,16 @@ private:
 
     [[nodiscard]] bool HasPbrDrawItems(std::span<const PreparedDrawItem> drawItems) const;
 
+    [[nodiscard]] wgpu::RenderPipeline SelectPipeline(bool doubleSided) const;
+
     wgpu::raii::PipelineLayout   m_layout;
     wgpu::raii::BindGroupLayout  m_sceneBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_objectBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_materialBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_debugBindGroupLayout;
     wgpu::raii::Sampler          m_sceneAoSampler;
-    wgpu::raii::RenderPipeline   m_pipeline;
+    wgpu::raii::RenderPipeline   m_pipelineSingleSided;
+    wgpu::raii::RenderPipeline   m_pipelineDoubleSided;
     SceneResources               m_sceneResources;
     std::vector<ObjectResources> m_objectResources;
 };

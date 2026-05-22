@@ -31,7 +31,7 @@ MaterialUniformData BuildMaterialUniformData(
             static_cast<uint32_t>(shadingModel),
             material.useVertexColor ? 1U : 0U,
             material.normalTexture.has_value() ? 1U : 0U,
-            0U,
+            material.doubleSided ? 1U : 0U,
         },
     };
 }

@@ -334,7 +334,8 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     RenderContext&               renderCtx,
     const std::filesystem::path& shaderPath,
     const char*                  label,
-    const TextureFormat    colorTargetFormat) {
+    const TextureFormat          colorTargetFormat,
+    const WGPUCullMode           cullMode) {
     ShaderModule shaderModule = LoadShaderModule(renderCtx, shaderPath, label);
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
@@ -351,7 +352,7 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
     pipelineDesc.vertex.constants = nullptr;
-    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, cullMode);
 
     DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
     pipelineDesc.depthStencil = &depthStencil;
@@ -404,25 +405,36 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
 }
 
 Scene3DPipelineFactory::ForwardPipeline
-Scene3DPipelineFactory::CreateUnlitForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateUnlitForwardPipeline(
+    RenderContext& renderCtx,
+    const TextureFormat colorTargetFormat,
+    const wgpu::CullMode cullMode) {
     return CreateForwardPipeline(
         renderCtx,
         ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardUnlit",
-        colorTargetFormat);
+        colorTargetFormat,
+        cullMode);
 }
 
 Scene3DPipelineFactory::ForwardPipeline
-Scene3DPipelineFactory::CreateLambertForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreateLambertForwardPipeline(
+    RenderContext& renderCtx,
+    const TextureFormat colorTargetFormat,
+    const wgpu::CullMode cullMode) {
     return CreateForwardPipeline(
         renderCtx,
         ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardLambert",
-        colorTargetFormat);
+        colorTargetFormat,
+        cullMode);
 }
 
 Scene3DPipelineFactory::PbrPipeline
-Scene3DPipelineFactory::CreatePbrForwardPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+Scene3DPipelineFactory::CreatePbrForwardPipeline(
+    RenderContext& renderCtx,
+    const TextureFormat colorTargetFormat,
+    const wgpu::CullMode cullMode) {
     constexpr const char* label = "Scene3DPipelineFactory/ForwardPbr";
     ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_pbr_textured.wgsl"), label);
 
@@ -440,7 +452,7 @@ Scene3DPipelineFactory::CreatePbrForwardPipeline(RenderContext& renderCtx, const
     pipelineDesc.vertex.entryPoint = "vs_main";
     pipelineDesc.vertex.constantCount = 0;
     pipelineDesc.vertex.constants = nullptr;
-    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, cullMode);
 
     DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
     pipelineDesc.depthStencil = &depthStencil;

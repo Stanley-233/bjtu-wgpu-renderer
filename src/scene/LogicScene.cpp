@@ -405,6 +405,7 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
             .meshId = mesh.mesh,
             .materialId = mesh.material,
             .shadingModel = mesh.ResolveShadingModel(materialAsset),
+            .doubleSided = materialAsset != nullptr ? materialAsset->doubleSided : false,
         });
     }
 

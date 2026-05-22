@@ -212,8 +212,6 @@ void LegacyGuiRenderer::DrawDebugPanelContent() {
             ImGui::Text("Y: %.3f", normalizedDirection.y);
             ImGui::SameLine();
             ImGui::Text("Z: %.3f", normalizedDirection.z);
-            ImGui::Text("  Length: %.3f", dirLength);
-            ImGui::Text("  Yaw: %.1f deg  Pitch: %.1f deg", yawDegrees, pitchDegrees);
 
             ImGui::Spacing();
 
@@ -231,22 +229,19 @@ void LegacyGuiRenderer::DrawDebugPanelContent() {
             // 颜色控制
             ImGui::Text("Color:");
             ImGui::PushID("light_color");
-            bool colorChanged = false;
-            colorChanged |= ImGui::SliderFloat("R", &light.color.r, 0.0f, 1.0f, "%.2f");
-            colorChanged |= ImGui::SliderFloat("G", &light.color.g, 0.0f, 1.0f, "%.2f");
-            colorChanged |= ImGui::SliderFloat("B", &light.color.b, 0.0f, 1.0f, "%.2f");
-            ImGui::PopID();
-
+            float color[3] = {light.color.r, light.color.g, light.color.b};
+            bool colorChanged = ImGui::ColorEdit3(
+                "Color",
+                color,
+                ImGuiColorEditFlags_Float | ImGuiColorEditFlags_DisplayRGB
+            );
             if (colorChanged) {
+                light.color.r = color[0];
+                light.color.g = color[1];
+                light.color.b = color[2];
                 m_directionalLightSetter(light);
             }
-
-            ImGui::Spacing();
-
-            // 颜色预览
-            ImGui::ColorButton("Preview", ImVec4(light.color.r, light.color.g, light.color.b, 1.0f));
-            ImGui::SameLine();
-            ImGui::Text("Preview");
+            ImGui::PopID();
         } else {
             ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "No directional light data available");
         }

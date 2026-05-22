@@ -60,6 +60,16 @@ struct VertexOutput {
     @location(4) normalWS: vec3f,
 };
 
+struct FragmentInput {
+    @builtin(position) position: vec4f,
+    @builtin(front_facing) frontFacing: bool,
+    @location(0) uv0: vec2f,
+    @location(1) uv1: vec2f,
+    @location(2) color: vec4f,
+    @location(3) worldPos: vec3f,
+    @location(4) normalWS: vec3f,
+};
+
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
 @group(0) @binding(1) var<uniform> uDirectionalShadow: DirectionalShadowUniform;
 @group(0) @binding(2) var uDirectionalShadowMap: texture_depth_2d;
@@ -77,6 +87,10 @@ fn SelectUv(texCoordSet: u32, uv0: vec2f, uv1: vec2f) -> vec2f {
     return select(uv0, uv1, texCoordSet == 1u);
 }
 
+fn ResolveFaceSign(frontFacing: bool) -> f32 {
+    return select(-1.0, 1.0, frontFacing);
+}
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -91,14 +105,16 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 }
 
 @fragment
-fn fs_main(in: VertexOutput) -> @location(0) vec4f {
+fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     let baseColorUv = SelectUv(uMaterial.textureCoordSets.x, in.uv0, in.uv1);
     let sampled = textureSample(uBaseColorTexture, uMaterialSampler, baseColorUv);
     var baseColor = sampled * uMaterial.baseColorFactor;
     if (uMaterial.surfaceOptions.y != 0u) {
         baseColor *= in.color;
     }
-    let normal = normalize(in.normalWS);
+    let faceSign = ResolveFaceSign(in.frontFacing);
+    let isDoubleSided = uMaterial.surfaceOptions.w != 0u;
+    let normal = normalize(select(in.normalWS, in.normalWS * faceSign, isDoubleSided));
 
     let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
     let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));

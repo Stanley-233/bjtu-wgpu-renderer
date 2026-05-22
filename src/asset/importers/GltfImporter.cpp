@@ -672,6 +672,7 @@ static void LoadNodeRecursive(
                     materialAsset.normalScale = static_cast<float>(material.normalTexture.scale);
                 }
                 materialAsset.specular = ReadSpecularExtension(model, material, assetServer);
+                materialAsset.doubleSided = material.doubleSided;
                 if (material.extensions.contains("KHR_materials_unlit")) {
                     materialAsset.shadingModel = EMaterialShadingModel::Unlit;
                 }

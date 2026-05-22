@@ -13,6 +13,7 @@ struct RenderObject {
     AssetId<MeshAsset>     meshId{};
     AssetId<MaterialAsset> materialId{};
     EMaterialShadingModel  shadingModel{EMaterialShadingModel::Unlit};
+    bool                   doubleSided = false;
     const LegacyMeshData3D* legacyMesh = nullptr;
 };
 
