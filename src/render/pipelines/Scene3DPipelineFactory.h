@@ -34,12 +34,19 @@ public:
     struct SceneNormalPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
+        wgpu::raii::BindGroupLayout materialBindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
 
     struct SsaoPipeline {
         wgpu::raii::BindGroupLayout ssaoBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    struct SsrPipeline {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
@@ -102,6 +109,8 @@ public:
     static SceneNormalPipeline CreateSceneNormalPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static SsaoPipeline CreateSsaoPipeline(RenderContext& renderCtx);
+
+    static SsrPipeline CreateSsrPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static CompositePipeline CreateCompositePipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 

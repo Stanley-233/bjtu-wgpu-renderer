@@ -46,6 +46,7 @@ void GuiInputController::SetEventBus(InputEventBus* eventBus) {
 void GuiInputController::BuildUi(
     const char*            activeSceneName,
     bool*                  ssaoEnabled,
+    SsrSettings*           ssrSettings,
     ToneMapSettings*       toneMapSettings,
     DofSettings*           dofSettings,
     EMaterialShadingModel* litShadingModel,
@@ -112,62 +113,80 @@ void GuiInputController::BuildUi(
     }
 
     if (ImGui::CollapsingHeader("Postprocessing", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ssaoEnabled != nullptr) {
-            ImGui::Checkbox("Enable SSAO", ssaoEnabled);
-        }
-        if (toneMapSettings != nullptr) {
-            int exposureMode = static_cast<int>(toneMapSettings->exposureMode);
-            if (ImGui::BeginCombo("Exposure Mode", ToneMapExposureModeLabel(toneMapSettings->exposureMode))) {
-                constexpr EToneMapExposureMode modes[] = {
-                    EToneMapExposureMode::ManualEv,
-                    EToneMapExposureMode::AutoExposure,
-                };
-                for (const EToneMapExposureMode mode : modes) {
-                    const bool isSelected = toneMapSettings->exposureMode == mode;
-                    if (ImGui::Selectable(ToneMapExposureModeLabel(mode), isSelected)) {
-                        exposureMode = static_cast<int>(mode);
-                    }
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
+        if (ImGui::CollapsingHeader("SSAO", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ssaoEnabled != nullptr) {
+                ImGui::Checkbox("Enable SSAO", ssaoEnabled);
             }
-            toneMapSettings->exposureMode = static_cast<EToneMapExposureMode>(exposureMode);
-
-            ImGui::BeginDisabled(toneMapSettings->exposureMode != EToneMapExposureMode::ManualEv);
-            ImGui::SliderFloat("Exposure EV", &toneMapSettings->exposureEv, -8.0f, 8.0f, "%.2f EV");
-            ImGui::EndDisabled();
         }
-        if (dofSettings != nullptr) {
-            ImGui::SeparatorText("Depth of Field");
-            ImGui::Checkbox("Enable DoF", &dofSettings->enabled);
-            ImGui::SliderFloat("Focus Distance", &dofSettings->focusDistance, 0.1f, 50.0f, "%.2f");
-            ImGui::SliderFloat("Focus Range", &dofSettings->focusRange, 0.01f, 10.0f, "%.2f");
-            ImGui::SliderFloat("Max Blur Radius", &dofSettings->maxBlurRadiusPixels, 0.0f, 32.0f, "%.1f px");
-
-            int debugMode = static_cast<int>(dofSettings->debugMode);
-            if (ImGui::BeginCombo("DoF Debug", DofDebugModeLabel(dofSettings->debugMode))) {
-                constexpr EDoFDebugMode modes[] = {
-                    EDoFDebugMode::Off,
-                    EDoFDebugMode::FocusPlaneTint,
-                };
-                for (const EDoFDebugMode mode : modes) {
-                    const bool isSelected = dofSettings->debugMode == mode;
-                    if (ImGui::Selectable(DofDebugModeLabel(mode), isSelected)) {
-                        debugMode = static_cast<int>(mode);
-                    }
-                    if (isSelected) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-                }
-                ImGui::EndCombo();
+        if (ImGui::CollapsingHeader("SSR", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (ssrSettings != nullptr) {
+                ImGui::Checkbox("Enable SSR", &ssrSettings->enabled);
+                ImGui::SliderFloat("SSR Strength", &ssrSettings->strength, 0.0f, 2.0f, "%.2f");
+                ImGui::SliderFloat("SSR Max Distance", &ssrSettings->maxDistance, 0.1f, 50.0f, "%.2f");
+                ImGui::SliderFloat("SSR Thickness", &ssrSettings->thickness, 0.01f, 1.0f, "%.3f");
             }
-            dofSettings->debugMode = static_cast<EDoFDebugMode>(debugMode);
+        }
+        if (ImGui::CollapsingHeader("EV", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (toneMapSettings != nullptr) {
+                int exposureMode = static_cast<int>(toneMapSettings->exposureMode);
+                if (ImGui::BeginCombo("Exposure Mode", ToneMapExposureModeLabel(toneMapSettings->exposureMode))) {
+                    constexpr EToneMapExposureMode modes[] = {
+                        EToneMapExposureMode::ManualEv,
+                        EToneMapExposureMode::AutoExposure,
+                    };
+                    for (const EToneMapExposureMode mode : modes) {
+                        const bool isSelected = toneMapSettings->exposureMode == mode;
+                        if (ImGui::Selectable(ToneMapExposureModeLabel(mode), isSelected)) {
+                            exposureMode = static_cast<int>(mode);
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                toneMapSettings->exposureMode = static_cast<EToneMapExposureMode>(exposureMode);
 
-            ImGui::BeginDisabled(dofSettings->debugMode != EDoFDebugMode::FocusPlaneTint);
-            ImGui::SliderFloat("Debug Plane Thickness", &dofSettings->debugPlaneHalfThickness, 0.005f, 1.0f, "%.3f");
-            ImGui::EndDisabled();
+                ImGui::BeginDisabled(toneMapSettings->exposureMode != EToneMapExposureMode::ManualEv);
+                ImGui::SliderFloat("Exposure EV", &toneMapSettings->exposureEv, -8.0f, 8.0f, "%.2f EV");
+                ImGui::EndDisabled();
+            }
+        }
+        if (ImGui::CollapsingHeader("DoF", ImGuiTreeNodeFlags_DefaultOpen)) {
+            if (dofSettings != nullptr) {
+                ImGui::Checkbox("Enable DoF", &dofSettings->enabled);
+                ImGui::SliderFloat("Focus Distance", &dofSettings->focusDistance, 0.1f, 50.0f, "%.2f");
+                ImGui::SliderFloat("Focus Range", &dofSettings->focusRange, 0.01f, 10.0f, "%.2f");
+                ImGui::SliderFloat("Max Blur Radius", &dofSettings->maxBlurRadiusPixels, 0.0f, 32.0f, "%.1f px");
+
+                int debugMode = static_cast<int>(dofSettings->debugMode);
+                if (ImGui::BeginCombo("DoF Debug", DofDebugModeLabel(dofSettings->debugMode))) {
+                    constexpr EDoFDebugMode modes[] = {
+                        EDoFDebugMode::Off,
+                        EDoFDebugMode::FocusPlaneTint,
+                    };
+                    for (const EDoFDebugMode mode : modes) {
+                        const bool isSelected = dofSettings->debugMode == mode;
+                        if (ImGui::Selectable(DofDebugModeLabel(mode), isSelected)) {
+                            debugMode = static_cast<int>(mode);
+                        }
+                        if (isSelected) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui::EndCombo();
+                }
+                dofSettings->debugMode = static_cast<EDoFDebugMode>(debugMode);
+
+                ImGui::BeginDisabled(dofSettings->debugMode != EDoFDebugMode::FocusPlaneTint);
+                ImGui::SliderFloat(
+                    "Debug Plane Thickness",
+                    &dofSettings->debugPlaneHalfThickness,
+                    0.005f,
+                    1.0f,
+                    "%.3f");
+                ImGui::EndDisabled();
+            }
         }
     }
 }

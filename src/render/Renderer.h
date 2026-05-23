@@ -12,6 +12,7 @@
 #include "passes/GuiPass.h"
 #include "passes/PBRPass.h"
 #include "passes/PreparedDrawItem.h"
+#include "passes/SSRPass.h"
 #include "passes/SceneNormalPass.h"
 #include "passes/SSAOPass.h"
 #include "passes/SkyboxPass.h"
@@ -38,6 +39,8 @@ public:
 
     void SetDofSettings(const DofSettings& settings);
 
+    void SetSsrSettings(const SsrSettings& settings);
+
     void SetClearColor(double r, double g, double b, double a);
 
     void PrepareSkybox(RenderContext& renderCtx, const HdrImageAsset& hdrImage, uint32_t faceSize);
@@ -47,6 +50,7 @@ private:
 
     struct DrawItemResources {
         wgpu::raii::BindGroup forwardMaterialBindGroup;
+        wgpu::raii::BindGroup sceneNormalMaterialBindGroup;
         wgpu::raii::BindGroup pbrMaterialBindGroup;
     };
 
@@ -68,6 +72,7 @@ private:
     SkyboxPass                      m_skyboxPass;
     ForwardOpaquePass               m_forwardOpaquePass;
     PBRPass                         m_pbrPass;
+    SSRPass                         m_ssrPass;
     DofPass                         m_dofPass;
     ToneMapPass                     m_toneMapPass;
     GuiPass                         m_guiPass;
@@ -79,12 +84,16 @@ private:
     wgpu::raii::TextureView         m_sceneColorView;
     wgpu::raii::Texture             m_sceneNormalTexture;
     wgpu::raii::TextureView         m_sceneNormalView;
+    wgpu::raii::Texture             m_sceneReflectivityTexture;
+    wgpu::raii::TextureView         m_sceneReflectivityView;
     wgpu::raii::Texture             m_sceneCocTexture;
     wgpu::raii::TextureView         m_sceneCocView;
     wgpu::raii::Texture             m_sceneDofPingTexture;
     wgpu::raii::TextureView         m_sceneDofPingView;
     wgpu::raii::Texture             m_sceneDofColorTexture;
     wgpu::raii::TextureView         m_sceneDofColorView;
+    wgpu::raii::Texture             m_sceneSsrColorTexture;
+    wgpu::raii::TextureView         m_sceneSsrColorView;
     wgpu::raii::Texture             m_directionalShadowTexture;
     wgpu::raii::TextureView         m_directionalShadowView;
     wgpu::raii::Sampler             m_directionalShadowSampler;
@@ -99,6 +108,7 @@ private:
     std::vector<PreparedDrawItem>   m_preparedDrawItems;
     wgpu::Color                     m_clearColor{0.08, 0.09, 0.12, 1.0};
     bool                            m_ssaoEnabled = true;
+    SsrSettings                     m_ssrSettings{};
 };
 
 #endif // BJTU_WGPU_RENDERER_RENDERER_H

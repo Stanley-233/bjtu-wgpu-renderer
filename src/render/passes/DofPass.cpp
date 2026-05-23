@@ -8,9 +8,7 @@
 #include "render/frame/RenderFrame.h"
 #include "render/pipelines/Scene3DPipelineFactory.h"
 
-namespace {
-
-DofUniformData BuildDofUniformData(const PassContext& passCtx, const DofSettings& settings, const glm::vec2 blurDirection) {
+static DofUniformData BuildDofUniformData(const PassContext& passCtx, const DofSettings& settings, const glm::vec2 blurDirection) {
     DofUniformData uniformData{};
     if (!passCtx.camera.has_value()) {
         return uniformData;
@@ -29,7 +27,7 @@ DofUniformData BuildDofUniformData(const PassContext& passCtx, const DofSettings
     return uniformData;
 }
 
-wgpu::raii::BindGroup CreateCocBindGroup(
+static wgpu::raii::BindGroup CreateCocBindGroup(
     RenderContext& renderCtx,
     const wgpu::BindGroupLayout layout,
     const wgpu::TextureView depthView,
@@ -49,7 +47,7 @@ wgpu::raii::BindGroup CreateCocBindGroup(
     return renderCtx.GetDevice()->createBindGroup(desc);
 }
 
-wgpu::raii::BindGroup CreateBlurBindGroup(
+static wgpu::raii::BindGroup CreateBlurBindGroup(
     RenderContext& renderCtx,
     const wgpu::BindGroupLayout layout,
     const wgpu::TextureView sceneColorView,
@@ -81,14 +79,12 @@ wgpu::raii::BindGroup CreateBlurBindGroup(
     return renderCtx.GetDevice()->createBindGroup(desc);
 }
 
-void WriteUniform(wgpu::Queue* queue, const DofUniformData& uniformData, const wgpu::Buffer buffer) {
+static void WriteUniform(wgpu::Queue* queue, const DofUniformData& uniformData, const wgpu::Buffer buffer) {
     if (queue == nullptr) {
         return;
     }
     queue->writeBuffer(buffer, 0, &uniformData, sizeof(uniformData));
 }
-
-} // namespace
 
 void DofPass::Initialize(RenderContext& renderCtx, const wgpu::TextureFormat colorTargetFormat) {
     auto cocPipeline = Scene3DPipelineFactory::CreateDofCocPipeline(renderCtx);
@@ -125,13 +121,12 @@ void DofPass::SetSettings(const DofSettings& settings) {
 
 void DofPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
     if (!m_settings.enabled) {
-        frame.postProcessColorView = frame.sceneColorView;
         return;
     }
 
     if (!frame.encoder
         || frame.sceneDepthView == nullptr
-        || frame.sceneColorView == nullptr
+        || frame.postProcessColorView == nullptr
         || frame.sceneCocView == nullptr
         || frame.sceneDofPingView == nullptr
         || frame.sceneDofColorView == nullptr
@@ -144,7 +139,6 @@ void DofPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
         || !m_uniformBuffer
         || passCtx.queue == nullptr
         || !passCtx.camera.has_value()) {
-        frame.postProcessColorView = frame.sceneColorView;
         return;
     }
 
@@ -186,7 +180,7 @@ void DofPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassCon
         wgpu::raii::BindGroup blurBindGroup = CreateBlurBindGroup(
             renderCtx,
             *m_blurBindGroupLayout,
-            frame.sceneColorView,
+            frame.postProcessColorView,
             frame.sceneCocView,
             frame.sceneDepthView,
             *m_colorSampler,

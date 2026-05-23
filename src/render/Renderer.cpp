@@ -21,6 +21,7 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_skyboxPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_pbrPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_ssrPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_dofPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_toneMapPass.Initialize(renderCtx);
     EnsureFallbackShadowResources(renderCtx);
@@ -39,6 +40,11 @@ void Renderer::SetDofSettings(const DofSettings& settings) {
     m_dofPass.SetSettings(settings);
 }
 
+void Renderer::SetSsrSettings(const SsrSettings& settings) {
+    m_ssrSettings = settings;
+    m_ssrPass.SetSettings(settings);
+}
+
 void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
@@ -47,9 +53,11 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
         && m_sceneAoTexture
         && m_sceneColorTexture
         && m_sceneNormalTexture
+        && m_sceneReflectivityTexture
         && m_sceneCocTexture
         && m_sceneDofPingTexture
         && m_sceneDofColorTexture
+        && m_sceneSsrColorTexture
         && m_frameResourceWidth == width
         && m_frameResourceHeight == height) {
         return;
@@ -103,6 +111,10 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
     m_sceneNormalTexture = renderCtx.GetDevice()->createTexture(sceneNormalDesc);
     m_sceneNormalView = m_sceneNormalTexture->createView();
 
+    wgpu::TextureDescriptor sceneReflectivityDesc = sceneNormalDesc;
+    m_sceneReflectivityTexture = renderCtx.GetDevice()->createTexture(sceneReflectivityDesc);
+    m_sceneReflectivityView = m_sceneReflectivityTexture->createView();
+
     wgpu::TextureDescriptor sceneCocDesc{};
     sceneCocDesc.dimension = wgpu::TextureDimension::_2D;
     sceneCocDesc.size.width = static_cast<uint32_t>(width);
@@ -128,6 +140,8 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
     m_sceneDofPingView = m_sceneDofPingTexture->createView();
     m_sceneDofColorTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
     m_sceneDofColorView = m_sceneDofColorTexture->createView();
+    m_sceneSsrColorTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneSsrColorView = m_sceneSsrColorTexture->createView();
 
     m_frameResourceWidth = width;
     m_frameResourceHeight = height;
@@ -232,6 +246,9 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     if (m_sceneNormalView) {
         frame.sceneNormalView = *m_sceneNormalView;
     }
+    if (m_sceneReflectivityView) {
+        frame.sceneReflectivityView = *m_sceneReflectivityView;
+    }
     if (m_sceneCocView) {
         frame.sceneCocView = *m_sceneCocView;
     }
@@ -240,6 +257,9 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     }
     if (m_sceneDofColorView) {
         frame.sceneDofColorView = *m_sceneDofColorView;
+    }
+    if (m_sceneSsrColorView) {
+        frame.sceneSsrColorView = *m_sceneSsrColorView;
     }
     frame.postProcessColorView = frame.sceneColorView;
     return frame;
@@ -259,7 +279,9 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             continue;
         }
 
-        if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()) {
+        if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()
+            || !m_sceneNormalPass.GetMaterialBindGroupLayout()
+            || !m_pbrPass.GetMaterialBindGroupLayout()) {
             continue;
         }
 
@@ -286,8 +308,14 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
         pbrMaterialBindGroupDesc.layout = *m_pbrPass.GetMaterialBindGroupLayout();
         pbrMaterialBindGroupDesc.entryCount = 5;
         pbrMaterialBindGroupDesc.entries = materialBindings;
+
+        wgpu::BindGroupDescriptor sceneNormalMaterialBindGroupDesc{};
+        sceneNormalMaterialBindGroupDesc.layout = *m_sceneNormalPass.GetMaterialBindGroupLayout();
+        sceneNormalMaterialBindGroupDesc.entryCount = 5;
+        sceneNormalMaterialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
             .forwardMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(forwardMaterialBindGroupDesc),
+            .sceneNormalMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(sceneNormalMaterialBindGroupDesc),
             .pbrMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(pbrMaterialBindGroupDesc),
         });
         const DrawItemResources& resources = m_drawItemResources.back();
@@ -300,6 +328,8 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
             .forwardMaterialBindGroup = resources.forwardMaterialBindGroup ? *resources.forwardMaterialBindGroup : nullptr,
+            .sceneNormalMaterialBindGroup =
+                resources.sceneNormalMaterialBindGroup ? *resources.sceneNormalMaterialBindGroup : nullptr,
             .pbrMaterialBindGroup = resources.pbrMaterialBindGroup ? *resources.pbrMaterialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
@@ -359,6 +389,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         .sceneAoView = frame.sceneAoView,
         .sceneColorView = frame.sceneColorView,
         .sceneNormalView = frame.sceneNormalView,
+        .sceneReflectivityView = frame.sceneReflectivityView,
         .viewportWidth = frame.surfaceFrame.surfaceWidth,
         .viewportHeight = frame.surfaceFrame.surfaceHeight,
     };
@@ -369,6 +400,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     m_skyboxPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
     m_pbrPass.Render(renderCtx, frame, passCtx);
+    m_ssrPass.Render(renderCtx, frame, passCtx);
     m_dofPass.Render(renderCtx, frame, passCtx);
     m_toneMapPass.Render(renderCtx, frame, passCtx);
     m_guiPass.Render(renderCtx, frame, passCtx);

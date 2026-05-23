@@ -15,6 +15,7 @@ public:
     void BuildUi(
         const char* activeSceneName,
         bool* ssaoEnabled,
+        SsrSettings* ssrSettings,
         ToneMapSettings* toneMapSettings,
         DofSettings* dofSettings,
         EMaterialShadingModel* litShadingModel,

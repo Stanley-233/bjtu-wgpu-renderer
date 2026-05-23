@@ -71,6 +71,7 @@ private:
     bool                      m_applicationDebugEnabled = false;
     bool                      m_inputDebugEnabled       = false;
     bool                      m_ssaoEnabled             = true;
+    SsrSettings               m_ssrSettings{};
     ToneMapSettings           m_toneMapSettings{};
     DofSettings               m_dofSettings{};
     EMaterialShadingModel     m_litShadingModel         = EMaterialShadingModel::Lambert;

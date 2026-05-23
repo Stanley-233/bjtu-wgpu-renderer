@@ -18,6 +18,7 @@ void SceneNormalPass::Initialize(RenderContext& renderCtx) {
     auto pipeline = Scene3DPipelineFactory::CreateSceneNormalPipeline(renderCtx, wgpu::TextureFormat::RGBA16Float);
     m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
+    m_materialBindGroupLayout = std::move(pipeline.materialBindGroupLayout);
     m_layout = std::move(pipeline.layout);
     m_pipeline = std::move(pipeline.pipeline);
 }
@@ -107,7 +108,11 @@ void SceneNormalPass::UpdateObjectResources(RenderContext& renderCtx, const std:
 }
 
 void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
-    if (!frame.encoder || frame.sceneDepthView == nullptr || frame.sceneNormalView == nullptr || !m_pipeline) {
+    if (!frame.encoder
+        || frame.sceneDepthView == nullptr
+        || frame.sceneNormalView == nullptr
+        || frame.sceneReflectivityView == nullptr
+        || !m_pipeline) {
         return;
     }
 
@@ -126,6 +131,16 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
     colorAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
 #endif
 
+    wgpu::RenderPassColorAttachment reflectivityAttachment{};
+    reflectivityAttachment.view = frame.sceneReflectivityView;
+    reflectivityAttachment.resolveTarget = nullptr;
+    reflectivityAttachment.loadOp = wgpu::LoadOp::Clear;
+    reflectivityAttachment.storeOp = wgpu::StoreOp::Store;
+    reflectivityAttachment.clearValue = wgpu::Color{0.0, 0.0, 0.0, 1.0};
+#ifndef WEBGPU_BACKEND_WGPU
+    reflectivityAttachment.depthSlice = WGPU_DEPTH_SLICE_UNDEFINED;
+#endif
+
     wgpu::RenderPassDepthStencilAttachment depthAttachment{};
     depthAttachment.view = frame.sceneDepthView;
     depthAttachment.depthClearValue = 1.0f;
@@ -135,8 +150,9 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
     depthAttachment.stencilReadOnly = true;
 
     wgpu::RenderPassDescriptor renderPassDesc{};
-    renderPassDesc.colorAttachmentCount = 1;
-    renderPassDesc.colorAttachments = &colorAttachment;
+    wgpu::RenderPassColorAttachment colorAttachments[2]{colorAttachment, reflectivityAttachment};
+    renderPassDesc.colorAttachmentCount = 2;
+    renderPassDesc.colorAttachments = colorAttachments;
     renderPassDesc.depthStencilAttachment = &depthAttachment;
     renderPassDesc.timestampWrites = nullptr;
 
@@ -150,7 +166,9 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup
                     : nullptr;
+            const wgpu::BindGroup materialBindGroup = drawItem.sceneNormalMaterialBindGroup;
             if (objectBindGroup == nullptr
+                || materialBindGroup == nullptr
                 || drawItem.vertexBuffer == nullptr
                 || drawItem.indexBuffer == nullptr
                 || drawItem.indexCount == 0) {
@@ -158,10 +176,15 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
             }
 
             renderPass->setBindGroup(1, objectBindGroup, 0, nullptr);
+            renderPass->setBindGroup(2, materialBindGroup, 0, nullptr);
             renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
             renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
             renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
         }
     }
     renderPass->end();
+}
+
+const wgpu::raii::BindGroupLayout& SceneNormalPass::GetMaterialBindGroupLayout() const {
+    return m_materialBindGroupLayout;
 }

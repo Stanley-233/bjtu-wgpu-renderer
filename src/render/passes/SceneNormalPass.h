@@ -14,6 +14,8 @@ public:
 
     void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) override;
 
+    [[nodiscard]] const wgpu::raii::BindGroupLayout& GetMaterialBindGroupLayout() const;
+
 private:
     struct SceneResources {
         wgpu::raii::Buffer    sceneUniformBuffer;
@@ -36,6 +38,7 @@ private:
     wgpu::raii::PipelineLayout   m_layout;
     wgpu::raii::BindGroupLayout  m_sceneBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_objectBindGroupLayout;
+    wgpu::raii::BindGroupLayout  m_materialBindGroupLayout;
     wgpu::raii::RenderPipeline   m_pipeline;
     SceneResources               m_sceneResources;
     std::vector<ObjectResources> m_objectResources;

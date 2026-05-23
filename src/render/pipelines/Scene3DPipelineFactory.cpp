@@ -236,6 +236,39 @@ static raii::BindGroupLayout CreateSsaoBindGroupLayout(RenderContext& renderCtx)
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
+static raii::BindGroupLayout CreateSsrBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 6> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].texture.sampleType = TextureSampleType::Depth;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].texture.sampleType = TextureSampleType::Float;
+    bindings[1].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].texture.sampleType = TextureSampleType::Float;
+    bindings[2].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[3].binding = 3;
+    bindings[3].visibility = ShaderStage::Fragment;
+    bindings[3].texture.sampleType = TextureSampleType::Float;
+    bindings[3].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[4].binding = 4;
+    bindings[4].visibility = ShaderStage::Fragment;
+    bindings[4].sampler.type = SamplerBindingType::Filtering;
+    bindings[5].binding = 5;
+    bindings[5].visibility = ShaderStage::Fragment;
+    bindings[5].buffer.type = BufferBindingType::Uniform;
+    bindings[5].buffer.minBindingSize = sizeof(SsrUniformData);
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/SsrBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
 static raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 2> bindings{};
     bindings[0].binding = 0;
@@ -363,11 +396,11 @@ static raii::BindGroupLayout CreateEquirectToCubemapBindGroupLayout(RenderContex
 static void SetCommonPrimitiveState(
     RenderPipelineDescriptor& pipelineDesc,
     const WGPUPrimitiveTopology topology,
-    const WGPUCullMode          cullMode) {
+    wgpu::CullMode              cullMode) {
     pipelineDesc.primitive.topology = topology;
     pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
     pipelineDesc.primitive.frontFace = FrontFace::CCW;
-    pipelineDesc.primitive.cullMode = cullMode;
+    pipelineDesc.primitive.cullMode = static_cast<WGPUCullMode>(cullMode);
     pipelineDesc.multisample.count = 1;
     pipelineDesc.multisample.mask = ~0u;
     pipelineDesc.multisample.alphaToCoverageEnabled = false;
@@ -399,7 +432,7 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     const std::filesystem::path& shaderPath,
     const char*                  label,
     const TextureFormat          colorTargetFormat,
-    const WGPUCullMode           cullMode) {
+    wgpu::CullMode               cullMode) {
     ShaderModule shaderModule = LoadShaderModule(renderCtx, shaderPath, label);
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
@@ -641,27 +674,32 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, cons
     DepthStencilState depthStencil = BuildDepthStencilState(false, CompareFunction::LessEqual);
     pipelineDesc.depthStencil = &depthStencil;
 
-    ColorTargetState colorTarget{};
-    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
-    colorTarget.blend = nullptr;
-    colorTarget.writeMask = ColorWriteMask::All;
+    std::array<ColorTargetState, 2> colorTargets{};
+    colorTargets[0].format = ToNativeTextureFormat(colorTargetFormat);
+    colorTargets[0].blend = nullptr;
+    colorTargets[0].writeMask = ColorWriteMask::All;
+    colorTargets[1].format = TextureFormat::RGBA16Float;
+    colorTargets[1].blend = nullptr;
+    colorTargets[1].writeMask = ColorWriteMask::All;
 
     FragmentState fragmentState{};
     fragmentState.module = shaderModule;
     fragmentState.entryPoint = "fs_main";
     fragmentState.constantCount = 0;
     fragmentState.constants = nullptr;
-    fragmentState.targetCount = 1;
-    fragmentState.targets = &colorTarget;
+    fragmentState.targetCount = static_cast<uint32_t>(colorTargets.size());
+    fragmentState.targets = colorTargets.data();
     pipelineDesc.fragment = &fragmentState;
 
     SceneNormalPipeline result;
     result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(renderCtx);
     result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
+    result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
 
-    std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
+    std::array<WGPUBindGroupLayout, 3> bindGroupLayouts{
         *result.sceneBindGroupLayout,
         *result.objectBindGroupLayout,
+        *result.materialBindGroupLayout,
     };
 
     PipelineLayoutDescriptor layoutDesc{};
@@ -717,6 +755,59 @@ Scene3DPipelineFactory::SsaoPipeline Scene3DPipelineFactory::CreateSsaoPipeline(
 
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.label = "Scene3D/SsaoPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::SsrPipeline
+Scene3DPipelineFactory::CreateSsrPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/SSR";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_ssr.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    SsrPipeline result;
+    result.bindGroupLayout = CreateSsrBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.bindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/SsrPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
     result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);

@@ -42,6 +42,13 @@ struct DofSettings {
     EDoFDebugMode  debugMode               = EDoFDebugMode::Off;
 };
 
+struct SsrSettings {
+    bool   enabled     = true;
+    float  strength    = 1.60f;
+    float  maxDistance = 8.0f;
+    float  thickness   = 0.65f;
+};
+
 struct alignas(16) SceneUniformData {
     glm::mat4 view{1.0f};
     glm::mat4 projection{1.0f};
@@ -79,6 +86,15 @@ struct alignas(16) DofUniformData {
     glm::vec4 focusParams{3.1f, 5.0f, 0.08f, 0.0f};
     // x=blurDirX, y=blurDirY, zw=reserved
     glm::vec4 blurDirection{1.0f, 0.0f, 0.0f, 0.0f};
+};
+
+struct alignas(16) SsrUniformData {
+    glm::mat4 projection{1.0f};
+    glm::mat4 invProjection{1.0f};
+    // x=viewportWidth, y=viewportHeight, zw=reserved
+    glm::vec4 viewport{1.0f, 1.0f, 0.0f, 0.0f};
+    // x=strength, y=maxDistance, z=thickness, w=stepCount
+    glm::vec4 params{1.40f, 8.0f, 0.18f, 32.0f};
 };
 
 struct alignas(16) ObjectUniformData {

@@ -31,7 +31,7 @@ fn clampUv(uv: vec2f) -> vec2f {
 }
 
 fn sampleSignedCoc(uv: vec2f) -> f32 {
-    return textureSample(uSceneCoc, uSceneCocSampler, clampUv(uv)).r;
+    return textureSampleLevel(uSceneCoc, uSceneCocSampler, clampUv(uv), 0.0).r;
 }
 
 fn reconstructViewPosition(uv: vec2f, depth: f32, invProjection: mat4x4f) -> vec3f {
@@ -58,7 +58,7 @@ fn accumulateTap(
         return;
     }
 
-    let color = textureSample(uSceneColor, uSceneColorSampler, uv).rgb;
+    let color = textureSampleLevel(uSceneColor, uSceneColorSampler, uv, 0.0).rgb;
     let cocWeight = clamp(abs(coc), 0.15, 1.0);
     *accumColor += color * weightBase * cocWeight;
     *accumWeight += weightBase * cocWeight;
@@ -98,7 +98,7 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     let texelSize = 1.0 / max(uDof.viewportAndBlur.xy, vec2f(1.0));
-    let centerColor = textureSample(uSceneColor, uSceneColorSampler, in.uv);
+    let centerColor = textureSampleLevel(uSceneColor, uSceneColorSampler, in.uv, 0.0);
     let centerCoc = sampleSignedCoc(in.uv);
     let centerRadiusPx = absCoCToRadiusPx(abs(centerCoc), uDof.viewportAndBlur.z);
 
