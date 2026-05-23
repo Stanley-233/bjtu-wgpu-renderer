@@ -15,8 +15,6 @@ public:
 
     void Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) override;
 
-    [[nodiscard]] const wgpu::raii::BindGroupLayout& GetSceneBindGroupLayout() const;
-
     [[nodiscard]] const wgpu::raii::BindGroupLayout& GetObjectBindGroupLayout() const;
 
     [[nodiscard]] const wgpu::raii::BindGroupLayout& GetMaterialBindGroupLayout() const;
@@ -25,7 +23,8 @@ private:
     struct SceneResources {
         wgpu::raii::Buffer    sceneUniformBuffer;
         wgpu::raii::Buffer    directionalShadowUniformBuffer;
-        wgpu::raii::BindGroup sceneBindGroup;
+        wgpu::raii::BindGroup unlitSceneBindGroup;
+        wgpu::raii::BindGroup litSceneBindGroup;
     };
 
     struct ObjectResources {
@@ -41,10 +40,13 @@ private:
 
     void UpdateObjectResources(RenderContext& renderCtx, std::span<const PreparedDrawItem> drawItems);
 
+    [[nodiscard]] wgpu::BindGroup SelectSceneBindGroup(EMaterialShadingModel shadingModel) const;
+
     [[nodiscard]] wgpu::RenderPipeline SelectPipeline(EMaterialShadingModel shadingModel, bool doubleSided) const;
 
     wgpu::raii::PipelineLayout   m_layout;
-    wgpu::raii::BindGroupLayout  m_sceneBindGroupLayout;
+    wgpu::raii::BindGroupLayout  m_unlitSceneBindGroupLayout;
+    wgpu::raii::BindGroupLayout  m_litSceneBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_objectBindGroupLayout;
     wgpu::raii::BindGroupLayout  m_materialBindGroupLayout;
     wgpu::raii::Sampler          m_sceneAoSampler;

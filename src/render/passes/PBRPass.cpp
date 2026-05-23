@@ -114,22 +114,17 @@ void PBRPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t 
 }
 
 void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
-    const wgpu::TextureView shadowMapView = passCtx.directionalShadow.has_value()
-                                                ? passCtx.directionalShadow->shadowMapView
-                                                : passCtx.fallbackShadowMapView;
-    const wgpu::Sampler shadowSampler = passCtx.directionalShadow.has_value()
-                                            ? passCtx.directionalShadow->shadowSampler
-                                            : passCtx.fallbackShadowSampler;
     if (!m_sceneResources.sceneUniformBuffer
         || !m_sceneResources.directionalShadowUniformBuffer
         || !m_sceneResources.debugUniformBuffer
         || !m_sceneBindGroupLayout
         || !m_debugBindGroupLayout
         || passCtx.queue == nullptr
+        || !passCtx.directionalShadow.has_value()
         || !m_sceneAoSampler
         || passCtx.sceneAoView == nullptr
-        || shadowMapView == nullptr
-        || shadowSampler == nullptr) {
+        || passCtx.directionalShadow->shadowMapView == nullptr
+        || passCtx.directionalShadow->shadowSampler == nullptr) {
         return;
     }
 
@@ -158,9 +153,9 @@ void PBRPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& 
     bindings[1].offset = 0;
     bindings[1].size = sizeof(DirectionalShadowUniformData);
     bindings[2].binding = 2;
-    bindings[2].textureView = shadowMapView;
+    bindings[2].textureView = passCtx.directionalShadow->shadowMapView;
     bindings[3].binding = 3;
-    bindings[3].sampler = shadowSampler;
+    bindings[3].sampler = passCtx.directionalShadow->shadowSampler;
     bindings[4].binding = 4;
     bindings[4].textureView = passCtx.sceneAoView;
     bindings[5].binding = 5;

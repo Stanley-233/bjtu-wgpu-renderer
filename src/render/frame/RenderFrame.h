@@ -8,9 +8,15 @@ struct RenderFrame {
     SurfaceFrame                surfaceFrame{};
     wgpu::raii::CommandEncoder  encoder{};
     wgpu::TextureView           sceneDepthView = nullptr;
-    wgpu::TextureView           sceneAoView    = nullptr;
+    wgpu::TextureView           sceneAoView = nullptr;
     wgpu::TextureView           sceneColorView = nullptr;
     wgpu::TextureView           sceneNormalView = nullptr;
+    wgpu::TextureView           sceneReflectivityView = nullptr;
+    wgpu::TextureView           sceneCocView = nullptr;
+    wgpu::TextureView           sceneDofPingView = nullptr;
+    wgpu::TextureView           sceneDofColorView = nullptr;
+    wgpu::TextureView           sceneSsrColorView = nullptr;
+    wgpu::TextureView           postProcessColorView = nullptr;
     wgpu::Color                 clearColor{0.08, 0.09, 0.12, 1.0};
 };
 

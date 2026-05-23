@@ -36,6 +36,12 @@ public:
 
     void SetSsaoEnabled(bool enabled);
 
+    void SetToneMapSettings(const ToneMapSettings& settings);
+
+    void SetDofSettings(const DofSettings& settings);
+
+    void SetSsrSettings(const SsrSettings& settings);
+
     void SetLitShadingModelOverride(EMaterialShadingModel shadingModel);
 
     void SetPbrDebugView(EPbrDebugView debugView);

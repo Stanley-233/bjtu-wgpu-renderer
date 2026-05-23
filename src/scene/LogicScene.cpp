@@ -1,15 +1,19 @@
 #include "LogicScene.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/common.hpp>
 #include <glm/geometric.hpp>
 
 #include "asset/AssetPaths.h"
@@ -109,13 +113,95 @@ glm::vec3 ExtractWorldPosition(const glm::mat4& worldMatrix) {
     return glm::vec3(worldMatrix[3]);
 }
 
-DirectionalShadowSceneData BuildDirectionalShadowSceneData(const glm::vec3& lightDirection) {
+struct SceneBounds {
+    glm::vec3 min{0.0f};
+    glm::vec3 max{0.0f};
+    bool      valid = false;
+};
+
+void IncludePoint(SceneBounds& bounds, const glm::vec3& point) {
+    if (!bounds.valid) {
+        bounds.min = point;
+        bounds.max = point;
+        bounds.valid = true;
+        return;
+    }
+    bounds.min = glm::min(bounds.min, point);
+    bounds.max = glm::max(bounds.max, point);
+}
+
+std::array<glm::vec3, 8> BuildBoundsCorners(const glm::vec3& minPoint, const glm::vec3& maxPoint) {
+    return {
+        glm::vec3{minPoint.x, minPoint.y, minPoint.z},
+        glm::vec3{maxPoint.x, minPoint.y, minPoint.z},
+        glm::vec3{minPoint.x, maxPoint.y, minPoint.z},
+        glm::vec3{maxPoint.x, maxPoint.y, minPoint.z},
+        glm::vec3{minPoint.x, minPoint.y, maxPoint.z},
+        glm::vec3{maxPoint.x, minPoint.y, maxPoint.z},
+        glm::vec3{minPoint.x, maxPoint.y, maxPoint.z},
+        glm::vec3{maxPoint.x, maxPoint.y, maxPoint.z},
+    };
+}
+
+SceneBounds BuildSceneWorldBounds(const std::vector<RenderObject>& objects, const AssetServer& assetServer) {
+    SceneBounds bounds{};
+    for (const RenderObject& object : objects) {
+        const MeshAsset* mesh = assetServer.Get(object.meshId);
+        if (mesh == nullptr || mesh->vertices.empty()) {
+            continue;
+        }
+
+        for (const AssetVertex3D& vertex : mesh->vertices) {
+            const glm::vec4 worldPosition = object.worldMatrix * glm::vec4{vertex.position, 1.0f};
+            IncludePoint(bounds, glm::vec3{worldPosition});
+        }
+    }
+    return bounds;
+}
+
+DirectionalShadowSceneData BuildDirectionalShadowSceneData(
+    const glm::vec3&                 lightDirection,
+    const std::vector<RenderObject>& objects,
+    const AssetServer&               assetServer) {
     DirectionalShadowSceneData shadowData{};
-    (void)lightDirection;
-    //TODO: [Shadow] 先根据 Directional Light 的方向构造 light view matrix
-    //TODO: [Shadow] 再根据主相机可见范围或场景包围盒构造正交投影矩阵
-    //TODO: [Shadow] 最后把 lightProjection * lightView 写入 shadowData.uniformData.lightViewProjection
-    //TODO: [Shadow] 当 lightViewProjection 准备好后，再把 shadowData.uniformData.shadowParams.x 设为 1，表示启用阴影
+    const glm::vec3 direction = NormalizeDirectionOrDefault(lightDirection);
+
+    SceneBounds bounds = BuildSceneWorldBounds(objects, assetServer);
+    if (!bounds.valid) {
+        bounds.min = glm::vec3{-10.0f, -10.0f, -10.0f};
+        bounds.max = glm::vec3{10.0f, 10.0f, 10.0f};
+        bounds.valid = true;
+    }
+
+    const glm::vec3 center = (bounds.min + bounds.max) * 0.5f;
+    const float     radius = std::max(glm::length(bounds.max - center), 1.0f);
+    const glm::vec3 eye    = center - direction * radius * 2.0f;
+    const glm::vec3 up     = std::abs(glm::dot(direction, glm::vec3{0.0f, 1.0f, 0.0f})) > 0.95f
+                                 ? glm::vec3{0.0f, 0.0f, 1.0f}
+                                 : glm::vec3{0.0f, 1.0f, 0.0f};
+    const glm::mat4 lightView = glm::lookAtRH(eye, center, up);
+
+    glm::vec3 lightMin{std::numeric_limits<float>::max()};
+    glm::vec3 lightMax{std::numeric_limits<float>::lowest()};
+    for (const glm::vec3& corner : BuildBoundsCorners(bounds.min, bounds.max)) {
+        const glm::vec3 lightSpace = glm::vec3{lightView * glm::vec4{corner, 1.0f}};
+        lightMin = glm::min(lightMin, lightSpace);
+        lightMax = glm::max(lightMax, lightSpace);
+    }
+
+    const float xyPadding = std::max(radius * 0.05f, 1.0f);
+    const float zPadding  = std::max(radius * 0.25f, 5.0f);
+    const float left      = lightMin.x - xyPadding;
+    const float right     = lightMax.x + xyPadding;
+    const float bottom    = lightMin.y - xyPadding;
+    const float top       = lightMax.y + xyPadding;
+    const float nearPlane = std::max(0.1f, -lightMax.z - zPadding);
+    const float farPlane  = std::max(nearPlane + 1.0f, -lightMin.z + zPadding);
+
+    const glm::mat4 lightProjection = glm::orthoRH_ZO(left, right, bottom, top, nearPlane, farPlane);
+    shadowData.uniformData.lightViewProjection = lightProjection * lightView;
+    // x=enabled, y=shader compare bias, z/w=reserved
+    shadowData.uniformData.shadowParams = glm::vec4{1.0f, 0.0015f, 0.0f, 0.0f};
     return shadowData;
 }
 
@@ -201,6 +287,18 @@ void LogicScene::Render(RenderContext& renderCtx, LegacyGuiRenderer& guiRenderer
 
 void LogicScene::SetSsaoEnabled(const bool enabled) {
     m_renderer.SetSsaoEnabled(enabled);
+}
+
+void LogicScene::SetToneMapSettings(const ToneMapSettings& settings) {
+    m_renderer.SetToneMapSettings(settings);
+}
+
+void LogicScene::SetDofSettings(const DofSettings& settings) {
+    m_renderer.SetDofSettings(settings);
+}
+
+void LogicScene::SetSsrSettings(const SsrSettings& settings) {
+    m_renderer.SetSsrSettings(settings);
 }
 
 void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingModel) {
@@ -395,9 +493,6 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
     }
     renderScene.lights = BuildRenderLightSet();
     renderScene.pbrDebugView = m_pbrDebugView;
-    if (renderScene.lights.directionalLightCount > 0) {
-        renderScene.directionalShadow = BuildDirectionalShadowSceneData(glm::vec3{renderScene.lights.directionalLight.direction});
-    }
 
     int surfaceWidth = 0;
     int surfaceHeight = 0;
@@ -429,6 +524,13 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
             .shadingModel = mesh.ResolveShadingModel(materialAsset),
             .doubleSided = materialAsset != nullptr ? materialAsset->doubleSided : false,
         });
+    }
+
+    if (renderScene.lights.directionalLightCount > 0) {
+        renderScene.directionalShadow = BuildDirectionalShadowSceneData(
+            glm::vec3{renderScene.lights.directionalLight.direction},
+            renderScene.objects,
+            m_assetServer);
     }
 
     return renderScene;

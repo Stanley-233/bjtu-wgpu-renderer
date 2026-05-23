@@ -21,13 +21,27 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_skyboxPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_pbrPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_ssrPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_dofPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_toneMapPass.Initialize(renderCtx);
-    EnsureFallbackShadowResources(renderCtx);
 }
 
 void Renderer::SetSsaoEnabled(const bool enabled) {
     m_ssaoEnabled = enabled;
     m_ssaoPass.SetEnabled(enabled);
+}
+
+void Renderer::SetToneMapSettings(const ToneMapSettings& settings) {
+    m_toneMapPass.SetSettings(settings);
+}
+
+void Renderer::SetDofSettings(const DofSettings& settings) {
+    m_dofPass.SetSettings(settings);
+}
+
+void Renderer::SetSsrSettings(const SsrSettings& settings) {
+    m_ssrSettings = settings;
+    m_ssrPass.SetSettings(settings);
 }
 
 void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
@@ -38,6 +52,11 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
         && m_sceneAoTexture
         && m_sceneColorTexture
         && m_sceneNormalTexture
+        && m_sceneReflectivityTexture
+        && m_sceneCocTexture
+        && m_sceneDofPingTexture
+        && m_sceneDofColorTexture
+        && m_sceneSsrColorTexture
         && m_frameResourceWidth == width
         && m_frameResourceHeight == height) {
         return;
@@ -91,6 +110,38 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
     m_sceneNormalTexture = renderCtx.GetDevice()->createTexture(sceneNormalDesc);
     m_sceneNormalView = m_sceneNormalTexture->createView();
 
+    wgpu::TextureDescriptor sceneReflectivityDesc = sceneNormalDesc;
+    m_sceneReflectivityTexture = renderCtx.GetDevice()->createTexture(sceneReflectivityDesc);
+    m_sceneReflectivityView = m_sceneReflectivityTexture->createView();
+
+    wgpu::TextureDescriptor sceneCocDesc{};
+    sceneCocDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneCocDesc.size.width = static_cast<uint32_t>(width);
+    sceneCocDesc.size.height = static_cast<uint32_t>(height);
+    sceneCocDesc.size.depthOrArrayLayers = 1;
+    sceneCocDesc.sampleCount = 1;
+    sceneCocDesc.mipLevelCount = 1;
+    sceneCocDesc.format = wgpu::TextureFormat::R16Float;
+    sceneCocDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneCocTexture = renderCtx.GetDevice()->createTexture(sceneCocDesc);
+    m_sceneCocView = m_sceneCocTexture->createView();
+
+    wgpu::TextureDescriptor sceneDofDesc{};
+    sceneDofDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneDofDesc.size.width = static_cast<uint32_t>(width);
+    sceneDofDesc.size.height = static_cast<uint32_t>(height);
+    sceneDofDesc.size.depthOrArrayLayers = 1;
+    sceneDofDesc.sampleCount = 1;
+    sceneDofDesc.mipLevelCount = 1;
+    sceneDofDesc.format = kHdrSceneColorFormat;
+    sceneDofDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneDofPingTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneDofPingView = m_sceneDofPingTexture->createView();
+    m_sceneDofColorTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneDofColorView = m_sceneDofColorTexture->createView();
+    m_sceneSsrColorTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneSsrColorView = m_sceneSsrColorTexture->createView();
+
     m_frameResourceWidth = width;
     m_frameResourceHeight = height;
 }
@@ -136,38 +187,6 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& renderCtx, const 
     m_directionalShadowHeight = height;
 }
 
-void Renderer::EnsureFallbackShadowResources(RenderContext& renderCtx) {
-    if (m_fallbackShadowTexture && m_fallbackShadowView && m_fallbackShadowSampler) {
-        return;
-    }
-
-    // TODO: [Shadow] 接入真实的可选 shadow 资源绑定路径后，删除这套 fallback shadow texture/sampler 逻辑。
-    wgpu::TextureDescriptor shadowDesc{};
-    shadowDesc.dimension = wgpu::TextureDimension::_2D;
-    shadowDesc.size.width = 1;
-    shadowDesc.size.height = 1;
-    shadowDesc.size.depthOrArrayLayers = 1;
-    shadowDesc.sampleCount = 1;
-    shadowDesc.mipLevelCount = 1;
-    shadowDesc.format = wgpu::TextureFormat::Depth24Plus;
-    shadowDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_fallbackShadowTexture = renderCtx.GetDevice()->createTexture(shadowDesc);
-    m_fallbackShadowView = m_fallbackShadowTexture->createView();
-
-    wgpu::SamplerDescriptor samplerDesc{};
-    samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.magFilter = wgpu::FilterMode::Linear;
-    samplerDesc.minFilter = wgpu::FilterMode::Linear;
-    samplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Nearest;
-    samplerDesc.compare = wgpu::CompareFunction::LessEqual;
-    samplerDesc.lodMinClamp = 0.0f;
-    samplerDesc.lodMaxClamp = 1.0f;
-    samplerDesc.maxAnisotropy = 1;
-    m_fallbackShadowSampler = renderCtx.GetDevice()->createSampler(samplerDesc);
-}
-
 RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     RenderFrame frame{};
     frame.clearColor = m_clearColor;
@@ -194,6 +213,22 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     if (m_sceneNormalView) {
         frame.sceneNormalView = *m_sceneNormalView;
     }
+    if (m_sceneReflectivityView) {
+        frame.sceneReflectivityView = *m_sceneReflectivityView;
+    }
+    if (m_sceneCocView) {
+        frame.sceneCocView = *m_sceneCocView;
+    }
+    if (m_sceneDofPingView) {
+        frame.sceneDofPingView = *m_sceneDofPingView;
+    }
+    if (m_sceneDofColorView) {
+        frame.sceneDofColorView = *m_sceneDofColorView;
+    }
+    if (m_sceneSsrColorView) {
+        frame.sceneSsrColorView = *m_sceneSsrColorView;
+    }
+    frame.postProcessColorView = frame.sceneColorView;
     return frame;
 }
 
@@ -211,7 +246,9 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             continue;
         }
 
-        if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()) {
+        if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()
+            || !m_sceneNormalPass.GetMaterialBindGroupLayout()
+            || !m_pbrPass.GetMaterialBindGroupLayout()) {
             continue;
         }
 
@@ -238,8 +275,14 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
         pbrMaterialBindGroupDesc.layout = *m_pbrPass.GetMaterialBindGroupLayout();
         pbrMaterialBindGroupDesc.entryCount = 5;
         pbrMaterialBindGroupDesc.entries = materialBindings;
+
+        wgpu::BindGroupDescriptor sceneNormalMaterialBindGroupDesc{};
+        sceneNormalMaterialBindGroupDesc.layout = *m_sceneNormalPass.GetMaterialBindGroupLayout();
+        sceneNormalMaterialBindGroupDesc.entryCount = 5;
+        sceneNormalMaterialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
             .forwardMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(forwardMaterialBindGroupDesc),
+            .sceneNormalMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(sceneNormalMaterialBindGroupDesc),
             .pbrMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(pbrMaterialBindGroupDesc),
         });
         const DrawItemResources& resources = m_drawItemResources.back();
@@ -252,6 +295,8 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
             .forwardMaterialBindGroup = resources.forwardMaterialBindGroup ? *resources.forwardMaterialBindGroup : nullptr,
+            .sceneNormalMaterialBindGroup =
+                resources.sceneNormalMaterialBindGroup ? *resources.sceneNormalMaterialBindGroup : nullptr,
             .pbrMaterialBindGroup = resources.pbrMaterialBindGroup ? *resources.pbrMaterialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
@@ -266,20 +311,18 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         return;
     }
 
-    EnsureFallbackShadowResources(renderCtx);
-    if (scene.directionalShadow.has_value()) {
-        EnsureDirectionalShadowResources(
-            renderCtx,
-            kDirectionalShadowMapResolution,
-            kDirectionalShadowMapResolution);
-    }
+    EnsureDirectionalShadowResources(
+        renderCtx,
+        kDirectionalShadowMapResolution,
+        kDirectionalShadowMapResolution);
 
     BuildPreparedDrawItems(renderCtx, scene);
 
     std::optional<DirectionalShadowPassData> directionalShadow;
-    if (scene.directionalShadow.has_value() && m_directionalShadowView && m_directionalShadowSampler) {
+    if (m_directionalShadowView && m_directionalShadowSampler) {
         directionalShadow = DirectionalShadowPassData{
-            .uniformData = scene.directionalShadow->uniformData,
+            .uniformData = scene.directionalShadow.has_value() ? scene.directionalShadow->uniformData
+                                                               : DirectionalShadowUniformData{},
             .shadowMapView = *m_directionalShadowView,
             .shadowSampler = *m_directionalShadowSampler,
         };
@@ -305,12 +348,11 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         .guiRenderer = &guiRenderer,
         .queue = &*renderCtx.GetQueue(),
         .skybox = skyboxResources,
-        .fallbackShadowMapView = m_fallbackShadowView ? *m_fallbackShadowView : nullptr,
-        .fallbackShadowSampler = m_fallbackShadowSampler ? *m_fallbackShadowSampler : nullptr,
         .sceneDepthView = frame.sceneDepthView,
         .sceneAoView = frame.sceneAoView,
         .sceneColorView = frame.sceneColorView,
         .sceneNormalView = frame.sceneNormalView,
+        .sceneReflectivityView = frame.sceneReflectivityView,
         .viewportWidth = frame.surfaceFrame.surfaceWidth,
         .viewportHeight = frame.surfaceFrame.surfaceHeight,
     };
@@ -321,6 +363,8 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     m_skyboxPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
     m_pbrPass.Render(renderCtx, frame, passCtx);
+    m_ssrPass.Render(renderCtx, frame, passCtx);
+    m_dofPass.Render(renderCtx, frame, passCtx);
     m_toneMapPass.Render(renderCtx, frame, passCtx);
     m_guiPass.Render(renderCtx, frame, passCtx);
     renderCtx.Submit(frame.encoder);

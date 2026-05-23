@@ -17,6 +17,7 @@ struct PreparedDrawItem {
     wgpu::Buffer          vertexBuffer       = nullptr;
     wgpu::Buffer          indexBuffer        = nullptr;
     wgpu::BindGroup       forwardMaterialBindGroup  = nullptr;
+    wgpu::BindGroup       sceneNormalMaterialBindGroup = nullptr;
     wgpu::BindGroup       pbrMaterialBindGroup      = nullptr;
     uint64_t              vertexBufferSize   = 0;
     uint64_t              indexBufferSize    = 0;
