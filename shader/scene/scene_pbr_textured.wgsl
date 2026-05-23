@@ -105,6 +105,40 @@ fn ResolveFaceSign(frontFacing: bool) -> f32 {
     return select(-1.0, 1.0, frontFacing);
 }
 
+fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
+    let lightSpace = uDirectionalShadow.lightViewProjection * vec4f(worldPos, 1.0);
+    if (lightSpace.w <= 0.0) {
+        return 1.0;
+    }
+
+    let projected = lightSpace.xyz / lightSpace.w;
+    if (projected.x < -1.0 || projected.x > 1.0 ||
+        projected.y < -1.0 || projected.y > 1.0 ||
+        projected.z < 0.0 || projected.z > 1.0) {
+        return 1.0;
+    }
+
+    let shadowUv = vec2f(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
+    let lightDir = normalize(-uScene.directionalLight.direction.xyz);
+    let ndotl = max(dot(normal, lightDir), 0.0);
+    let bias = max(uDirectionalShadow.shadowParams.y * (1.0 - ndotl), uDirectionalShadow.shadowParams.y * 0.25);
+    let compareDepth = clamp(projected.z - bias, 0.0, 1.0);
+    let shadowMapSize = textureDimensions(uDirectionalShadowMap);
+    let texelSize = 1.0 / vec2f(f32(shadowMapSize.x), f32(shadowMapSize.y));
+
+    var visibility = 0.0;
+    for (var y = -1; y <= 1; y = y + 1) {
+        for (var x = -1; x <= 1; x = x + 1) {
+            visibility += textureSampleCompare(
+                uDirectionalShadowMap,
+                uDirectionalShadowSampler,
+                shadowUv + vec2f(f32(x), f32(y)) * texelSize,
+                compareDepth);
+        }
+    }
+    return visibility / 9.0;
+}
+
 fn SampleBaseColor(in: FragmentInput) -> vec4f {
     let baseColorUv = SelectUv(uMaterial.textureCoordSets.x, in.uv0, in.uv1);
     let sampled = textureSample(uBaseColorTexture, uMaterialSampler, baseColorUv);
@@ -317,9 +351,13 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
             let diffuse = kD * baseColor.rgb / PI;
 
             let radiance = uScene.directionalLight.color.rgb;
+            var shadowFactor = 1.0;
+            if (uDirectionalShadow.shadowParams.x > 0.0) {
+                shadowFactor = SampleDirectionalShadow(in.worldPos, geometricNormal);
+            }
             // 直接光照：
             // Lo = (diffuse + specular) * radiance * NdotL
-            let direct = (diffuse + specular) * radiance * ndotl;
+            let direct = (diffuse + specular) * radiance * ndotl * shadowFactor;
             lighting += direct;
         }
     }

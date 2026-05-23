@@ -882,6 +882,8 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
     SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
 
     DepthStencilState depthStencil = BuildDepthStencilState(true, CompareFunction::Less);
+    depthStencil.depthBias = 2;
+    depthStencil.depthBiasSlopeScale = 2.0f;
     pipelineDesc.depthStencil = &depthStencil;
 
     ShadowPipeline result;

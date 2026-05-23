@@ -20,7 +20,5 @@ struct ShadowObjectUniform {
 @vertex
 fn vs_main(in: VertexInput) -> @builtin(position) vec4f {
     let worldPosition = uObject.model * vec4f(in.position, 1.0);
-    // TODO: [Shadow] 接入 depth bias 配置，降低 shadow acne
-    // 当前只按普通静态网格处理阴影投射
     return uDirectionalShadow.lightViewProjection * worldPosition;
 }
