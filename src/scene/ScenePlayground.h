@@ -34,9 +34,6 @@ private:
     Entity    m_bluePointLight{};
     bool      m_magentaPointLightEnabled = true;
     bool      m_bluePointLightEnabled = true;
-    Entity    m_fanRotor{};
-    glm::mat4 m_fanRotorBaseMatrix{1.0f};
-    float     m_fanRotationRadians = 0.0f;
 };
 
 #endif // BJTU_WGPU_RENDERER_SCENEPLAYGROUND_H

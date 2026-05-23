@@ -1,5 +1,6 @@
 #include "SceneRoom.h"
 
+#include <glm/ext/matrix_transform.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 
@@ -18,10 +19,28 @@ constexpr float kRoomSpotLightIntensity = 8.0f;
 constexpr float kRoomSpotLightRange = 4.8f;
 constexpr float kRoomSpotLightInnerConeAngle = 0.28f;
 constexpr float kRoomSpotLightOuterConeAngle = 0.46f;
+constexpr glm::vec3 kFanTranslation{0.22f, 3.5f, -1.8f};
+constexpr glm::vec3 kFanScale{0.045f, 0.045f, 0.045f};
+constexpr float kFanRotationSpeed = 12.0f;
 } // namespace
 
 const char* SceneRoom::Name() const {
     return "SceneRoom";
+}
+
+void SceneRoom::Update(const float dt) {
+    LogicScene::Update(dt);
+
+    if (!m_fanRotor || !m_fanRotor.HasComponent<TransformComponent>()) {
+        return;
+    }
+
+    m_fanRotationRadians += dt * kFanRotationSpeed;
+
+    auto& transform = m_fanRotor.GetComponent<TransformComponent>().transform;
+    transform.SetMatrix(
+        m_fanRotorBaseMatrix
+        * glm::rotate(glm::mat4(1.0f), m_fanRotationRadians, glm::vec3{0.0f, 1.0f, 0.0f}));
 }
 
 bool SceneRoom::IsSpotLightEnabled() const {
@@ -58,6 +77,32 @@ bool SceneRoom::BuildSceneContent() {
     spotLightComponent.innerConeAngle = kRoomSpotLightInnerConeAngle;
     spotLightComponent.outerConeAngle = kRoomSpotLightOuterConeAngle;
     ApplySpotLightEnabledState();
+
+    Entity fanRoot = LoadModelRoot("fan/scene.gltf", "fan");
+    if (!fanRoot) {
+        return false;
+    }
+
+    auto& fanRootTransform = fanRoot.GetComponent<TransformComponent>().transform;
+    fanRootTransform = Transform3D::Scale(kFanScale.x, kFanScale.y, kFanScale.z);
+    fanRootTransform.Combine(Transform3D::Translation(
+        kFanTranslation.x,
+        kFanTranslation.y,
+        kFanTranslation.z));
+
+    m_fanRotor = GetWorld().CreateEntity("fan rotor");
+    auto& fanRotorTransform = m_fanRotor.AddComponent<TransformComponent>().transform;
+    fanRotorTransform = Transform3D::Identity();
+    m_fanRotor.SetParent(fanRoot);
+
+    const auto fanMeshes = fanRoot.GetChildren();
+    for (const Entity fanMesh : fanMeshes) {
+        if (fanMesh == m_fanRotor) {
+            continue;
+        }
+        fanMesh.SetParent(m_fanRotor);
+    }
+    m_fanRotorBaseMatrix = fanRotorTransform.Matrix();
 
     return true;
 }
