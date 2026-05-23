@@ -22,7 +22,6 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_pbrPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_toneMapPass.Initialize(renderCtx);
-    EnsureFallbackShadowResources(renderCtx);
 }
 
 void Renderer::SetSsaoEnabled(const bool enabled) {
@@ -136,38 +135,6 @@ void Renderer::EnsureDirectionalShadowResources(RenderContext& renderCtx, const 
     m_directionalShadowHeight = height;
 }
 
-void Renderer::EnsureFallbackShadowResources(RenderContext& renderCtx) {
-    if (m_fallbackShadowTexture && m_fallbackShadowView && m_fallbackShadowSampler) {
-        return;
-    }
-
-    // TODO: [Shadow] 接入真实的可选 shadow 资源绑定路径后，删除这套 fallback shadow texture/sampler 逻辑。
-    wgpu::TextureDescriptor shadowDesc{};
-    shadowDesc.dimension = wgpu::TextureDimension::_2D;
-    shadowDesc.size.width = 1;
-    shadowDesc.size.height = 1;
-    shadowDesc.size.depthOrArrayLayers = 1;
-    shadowDesc.sampleCount = 1;
-    shadowDesc.mipLevelCount = 1;
-    shadowDesc.format = wgpu::TextureFormat::Depth24Plus;
-    shadowDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
-    m_fallbackShadowTexture = renderCtx.GetDevice()->createTexture(shadowDesc);
-    m_fallbackShadowView = m_fallbackShadowTexture->createView();
-
-    wgpu::SamplerDescriptor samplerDesc{};
-    samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.addressModeV = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.addressModeW = wgpu::AddressMode::ClampToEdge;
-    samplerDesc.magFilter = wgpu::FilterMode::Linear;
-    samplerDesc.minFilter = wgpu::FilterMode::Linear;
-    samplerDesc.mipmapFilter = wgpu::MipmapFilterMode::Nearest;
-    samplerDesc.compare = wgpu::CompareFunction::LessEqual;
-    samplerDesc.lodMinClamp = 0.0f;
-    samplerDesc.lodMaxClamp = 1.0f;
-    samplerDesc.maxAnisotropy = 1;
-    m_fallbackShadowSampler = renderCtx.GetDevice()->createSampler(samplerDesc);
-}
-
 RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     RenderFrame frame{};
     frame.clearColor = m_clearColor;
@@ -266,20 +233,18 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         return;
     }
 
-    EnsureFallbackShadowResources(renderCtx);
-    if (scene.directionalShadow.has_value()) {
-        EnsureDirectionalShadowResources(
-            renderCtx,
-            kDirectionalShadowMapResolution,
-            kDirectionalShadowMapResolution);
-    }
+    EnsureDirectionalShadowResources(
+        renderCtx,
+        kDirectionalShadowMapResolution,
+        kDirectionalShadowMapResolution);
 
     BuildPreparedDrawItems(renderCtx, scene);
 
     std::optional<DirectionalShadowPassData> directionalShadow;
-    if (scene.directionalShadow.has_value() && m_directionalShadowView && m_directionalShadowSampler) {
+    if (m_directionalShadowView && m_directionalShadowSampler) {
         directionalShadow = DirectionalShadowPassData{
-            .uniformData = scene.directionalShadow->uniformData,
+            .uniformData = scene.directionalShadow.has_value() ? scene.directionalShadow->uniformData
+                                                               : DirectionalShadowUniformData{},
             .shadowMapView = *m_directionalShadowView,
             .shadowSampler = *m_directionalShadowSampler,
         };
@@ -305,8 +270,6 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
         .guiRenderer = &guiRenderer,
         .queue = &*renderCtx.GetQueue(),
         .skybox = skyboxResources,
-        .fallbackShadowMapView = m_fallbackShadowView ? *m_fallbackShadowView : nullptr,
-        .fallbackShadowSampler = m_fallbackShadowSampler ? *m_fallbackShadowSampler : nullptr,
         .sceneDepthView = frame.sceneDepthView,
         .sceneAoView = frame.sceneAoView,
         .sceneColorView = frame.sceneColorView,

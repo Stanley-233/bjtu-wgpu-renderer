@@ -91,6 +91,37 @@ fn ResolveFaceSign(frontFacing: bool) -> f32 {
     return select(-1.0, 1.0, frontFacing);
 }
 
+fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
+    let lightSpace = uDirectionalShadow.lightViewProjection * vec4f(worldPos, 1.0);
+    let projected = lightSpace.xyz / max(lightSpace.w, 1e-6);
+    let inShadowFrustum = lightSpace.w > 0.0 &&
+        projected.x >= -1.0 && projected.x <= 1.0 &&
+        projected.y >= -1.0 && projected.y <= 1.0 &&
+        projected.z >= 0.0 && projected.z <= 1.0;
+    let shadowUv = clamp(
+        vec2f(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5),
+        vec2f(0.0),
+        vec2f(1.0));
+    let lightDir = normalize(-uScene.directionalLight.direction.xyz);
+    let ndotl = max(dot(normal, lightDir), 0.0);
+    let bias = max(uDirectionalShadow.shadowParams.y * (1.0 - ndotl), uDirectionalShadow.shadowParams.y * 0.25);
+    let compareDepth = clamp(projected.z - bias, 0.0, 1.0);
+    let shadowMapSize = textureDimensions(uDirectionalShadowMap);
+    let texelSize = 1.0 / vec2f(f32(shadowMapSize.x), f32(shadowMapSize.y));
+
+    var visibility = 0.0;
+    for (var y = -1; y <= 1; y = y + 1) {
+        for (var x = -1; x <= 1; x = x + 1) {
+            visibility += textureSampleCompare(
+                uDirectionalShadowMap,
+                uDirectionalShadowSampler,
+                shadowUv + vec2f(f32(x), f32(y)) * texelSize,
+                compareDepth);
+        }
+    }
+    return select(1.0, visibility / 9.0, inShadowFrustum);
+}
+
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -122,9 +153,7 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
 
     var shadowFactor = 1.0;
     if (uDirectionalShadow.shadowParams.x > 0.0) {
-        // TODO: [Shadow] 将 worldPos 变换到 light space，并结合 uDirectionalShadowMap / uDirectionalShadowSampler 计算 shadow factor。
-        let shadowCoord = uDirectionalShadow.lightViewProjection * vec4f(in.worldPos, 1.0);
-        shadowFactor *= 1.0 + 0.0 * shadowCoord.x;
+        shadowFactor = SampleDirectionalShadow(in.worldPos, normal);
     }
     var lighting = vec3f(0.25) * ambientOcclusion;
     if (uScene.lightCounts.x > 0u) {

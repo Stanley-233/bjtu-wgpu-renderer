@@ -32,8 +32,6 @@ struct PassContext {
     LegacyGuiRenderer*                        guiRenderer = nullptr;
     wgpu::Queue*                              queue = nullptr;
     const EnvironmentMapGpuResources*         skybox = nullptr;
-    wgpu::TextureView                         fallbackShadowMapView = nullptr;
-    wgpu::Sampler                             fallbackShadowSampler = nullptr;
     wgpu::TextureView                         sceneDepthView = nullptr;
     wgpu::TextureView                         sceneAoView = nullptr;
     wgpu::TextureView                         sceneColorView = nullptr;

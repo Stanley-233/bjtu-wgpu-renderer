@@ -89,7 +89,7 @@ static void BuildMeshVertexState(
     layout.stepMode = VertexStepMode::Vertex;
 }
 
-static raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderContext& renderCtx) {
+static raii::BindGroupLayout CreateSceneForwardLitBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 6> bindings{};
     bindings[0].binding = 0;
     bindings[0].visibility = ShaderStage::Vertex | ShaderStage::Fragment;
@@ -115,7 +115,7 @@ static raii::BindGroupLayout CreateSceneForwardBindGroupLayout(RenderContext& re
     bindings[5].sampler.type = SamplerBindingType::Filtering;
 
     BindGroupLayoutDescriptor desc{};
-    desc.label = "Scene3D/ForwardSceneBindGroupLayout";
+    desc.label = "Scene3D/ForwardLitSceneBindGroupLayout";
     desc.entryCount = static_cast<uint32_t>(bindings.size());
     desc.entries = bindings.data();
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
@@ -335,7 +335,8 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     const std::filesystem::path& shaderPath,
     const char*                  label,
     const TextureFormat          colorTargetFormat,
-    const WGPUCullMode           cullMode) {
+    const WGPUCullMode           cullMode,
+    const bool                   usesLitSceneBindings) {
     ShaderModule shaderModule = LoadShaderModule(renderCtx, shaderPath, label);
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
@@ -380,7 +381,9 @@ static Scene3DPipelineFactory::ForwardPipeline CreateForwardPipeline(
     pipelineDesc.fragment = &fragmentState;
 
     Scene3DPipelineFactory::ForwardPipeline result;
-    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(renderCtx);
+    result.sceneBindGroupLayout = usesLitSceneBindings
+                                      ? CreateSceneForwardLitBindGroupLayout(renderCtx)
+                                      : CreateSceneUniformBindGroupLayout(renderCtx);
     result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
     result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
 
@@ -414,7 +417,8 @@ Scene3DPipelineFactory::CreateUnlitForwardPipeline(
         ShaderPaths::Resolve("scene/scene_unlit_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardUnlit",
         colorTargetFormat,
-        cullMode);
+        cullMode,
+        false);
 }
 
 Scene3DPipelineFactory::ForwardPipeline
@@ -427,7 +431,8 @@ Scene3DPipelineFactory::CreateLambertForwardPipeline(
         ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
         "Scene3DPipelineFactory/ForwardLambert",
         colorTargetFormat,
-        cullMode);
+        cullMode,
+        true);
 }
 
 Scene3DPipelineFactory::PbrPipeline
@@ -480,7 +485,7 @@ Scene3DPipelineFactory::CreatePbrForwardPipeline(
     pipelineDesc.fragment = &fragmentState;
 
     PbrPipeline result;
-    result.sceneBindGroupLayout = CreateSceneForwardBindGroupLayout(renderCtx);
+    result.sceneBindGroupLayout = CreateSceneForwardLitBindGroupLayout(renderCtx);
     result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
     result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
     result.debugBindGroupLayout = CreatePbrDebugBindGroupLayout(renderCtx);
@@ -882,6 +887,8 @@ Scene3DPipelineFactory::ShadowPipeline Scene3DPipelineFactory::CreateDirectional
     SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
 
     DepthStencilState depthStencil = BuildDepthStencilState(true, CompareFunction::Less);
+    depthStencil.depthBias = 2;
+    depthStencil.depthBiasSlopeScale = 2.0f;
     pipelineDesc.depthStencil = &depthStencil;
 
     ShadowPipeline result;
