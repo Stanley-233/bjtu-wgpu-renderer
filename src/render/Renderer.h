@@ -51,8 +51,6 @@ private:
 
     void EnsureDirectionalShadowResources(RenderContext& renderCtx, uint32_t width, uint32_t height);
 
-    void EnsureFallbackShadowResources(RenderContext& renderCtx);
-
     void BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScene& scene);
 
     GpuResourceCache                m_resourceCache;
@@ -76,9 +74,6 @@ private:
     wgpu::raii::Texture             m_directionalShadowTexture;
     wgpu::raii::TextureView         m_directionalShadowView;
     wgpu::raii::Sampler             m_directionalShadowSampler;
-    wgpu::raii::Texture             m_fallbackShadowTexture;
-    wgpu::raii::TextureView         m_fallbackShadowView;
-    wgpu::raii::Sampler             m_fallbackShadowSampler;
     int                             m_frameResourceWidth  = 0;
     int                             m_frameResourceHeight = 0;
     uint32_t                        m_directionalShadowWidth  = 0;

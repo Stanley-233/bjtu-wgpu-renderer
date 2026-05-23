@@ -35,7 +35,7 @@ void ForwardOpaquePass::Initialize(RenderContext& renderCtx, const wgpu::Texture
         renderCtx,
         colorTargetFormat,
         wgpu::CullMode::Back);
-    m_sceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
+    m_unlitSceneBindGroupLayout = std::move(unlitPipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(unlitPipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(unlitPipeline.materialBindGroupLayout);
     m_layout = std::move(unlitPipeline.layout);
@@ -51,6 +51,7 @@ void ForwardOpaquePass::Initialize(RenderContext& renderCtx, const wgpu::Texture
         renderCtx,
         colorTargetFormat,
         wgpu::CullMode::Back);
+    m_litSceneBindGroupLayout = std::move(lambertPipeline.sceneBindGroupLayout);
     m_lambertPipelineSingleSided = std::move(lambertPipeline.pipeline);
 
     auto lambertDoubleSidedPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(
@@ -105,31 +106,43 @@ void ForwardOpaquePass::EnsureObjectResources(RenderContext& renderCtx, const st
 }
 
 void ForwardOpaquePass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
-    const wgpu::TextureView shadowMapView = passCtx.directionalShadow.has_value() ?
-                                                passCtx.directionalShadow->shadowMapView :
-                                                passCtx.fallbackShadowMapView;
-    const wgpu::Sampler shadowSampler = passCtx.directionalShadow.has_value() ?
-                                            passCtx.directionalShadow->shadowSampler :
-                                            passCtx.fallbackShadowSampler;
     if (!m_sceneResources.sceneUniformBuffer
-        || !m_sceneResources.directionalShadowUniformBuffer
-        || !m_sceneBindGroupLayout
-        || passCtx.queue == nullptr
-        || !m_sceneAoSampler
-        || passCtx.sceneAoView == nullptr
-        || shadowMapView == nullptr
-        || shadowSampler == nullptr) {
+        || !m_unlitSceneBindGroupLayout
+        || passCtx.queue == nullptr) {
         return;
     }
 
     const SceneUniformData uniformData = BuildSceneUniformData(passCtx);
-    const DirectionalShadowUniformData directionalShadowUniformData =
-        BuildDirectionalShadowUniformData(passCtx);
     passCtx.queue->writeBuffer(
         *m_sceneResources.sceneUniformBuffer,
         0,
         &uniformData,
         sizeof(SceneUniformData));
+
+    wgpu::BindGroupEntry unlitBinding{};
+    unlitBinding.binding = 0;
+    unlitBinding.buffer = *m_sceneResources.sceneUniformBuffer;
+    unlitBinding.offset = 0;
+    unlitBinding.size = sizeof(SceneUniformData);
+
+    wgpu::BindGroupDescriptor unlitBindGroupDesc{};
+    unlitBindGroupDesc.layout = *m_unlitSceneBindGroupLayout;
+    unlitBindGroupDesc.entryCount = 1;
+    unlitBindGroupDesc.entries = &unlitBinding;
+    m_sceneResources.unlitSceneBindGroup = renderCtx.GetDevice()->createBindGroup(unlitBindGroupDesc);
+
+    if (!m_sceneResources.directionalShadowUniformBuffer
+        || !m_litSceneBindGroupLayout
+        || !passCtx.directionalShadow.has_value()
+        || !m_sceneAoSampler
+        || passCtx.sceneAoView == nullptr
+        || passCtx.directionalShadow->shadowMapView == nullptr
+        || passCtx.directionalShadow->shadowSampler == nullptr) {
+        m_sceneResources.litSceneBindGroup = {};
+        return;
+    }
+
+    const DirectionalShadowUniformData directionalShadowUniformData = BuildDirectionalShadowUniformData(passCtx);
     passCtx.queue->writeBuffer(
         *m_sceneResources.directionalShadowUniformBuffer,
         0,
@@ -146,19 +159,19 @@ void ForwardOpaquePass::UpdateSceneResources(RenderContext& renderCtx, const Pas
     bindings[1].offset = 0;
     bindings[1].size = sizeof(DirectionalShadowUniformData);
     bindings[2].binding = 2;
-    bindings[2].textureView = shadowMapView;
+    bindings[2].textureView = passCtx.directionalShadow->shadowMapView;
     bindings[3].binding = 3;
-    bindings[3].sampler = shadowSampler;
+    bindings[3].sampler = passCtx.directionalShadow->shadowSampler;
     bindings[4].binding = 4;
     bindings[4].textureView = passCtx.sceneAoView;
     bindings[5].binding = 5;
     bindings[5].sampler = *m_sceneAoSampler;
 
     wgpu::BindGroupDescriptor bindGroupDesc{};
-    bindGroupDesc.layout = *m_sceneBindGroupLayout;
+    bindGroupDesc.layout = *m_litSceneBindGroupLayout;
     bindGroupDesc.entryCount = 6;
     bindGroupDesc.entries = bindings;
-    m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
+    m_sceneResources.litSceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
 void ForwardOpaquePass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
@@ -232,37 +245,33 @@ void ForwardOpaquePass::Render(RenderContext& renderCtx, RenderFrame& frame, con
     }
 
     wgpu::raii::RenderPassEncoder renderPass = frame.encoder->beginRenderPass(renderPassDesc);
-    if (m_sceneResources.sceneBindGroup) {
-        renderPass->setBindGroup(0, *m_sceneResources.sceneBindGroup, 0, nullptr);
-        for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
-            const PreparedDrawItem& drawItem = passCtx.drawItems[i];
-            const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel, drawItem.doubleSided);
-            const wgpu::BindGroup objectBindGroup =
-                i < m_objectResources.size() && m_objectResources[i].objectBindGroup
-                    ? *m_objectResources[i].objectBindGroup
-                    : nullptr;
-            if (pipeline == nullptr
-                || objectBindGroup == nullptr
-                || drawItem.forwardMaterialBindGroup == nullptr
-                || drawItem.vertexBuffer == nullptr
-                || drawItem.indexBuffer == nullptr
-                || drawItem.indexCount == 0) {
-                continue;
-            }
-
-            renderPass->setPipeline(pipeline);
-            renderPass->setBindGroup(1, objectBindGroup, 0, nullptr);
-            renderPass->setBindGroup(2, drawItem.forwardMaterialBindGroup, 0, nullptr);
-            renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
-            renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
-            renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
+    for (std::size_t i = 0; i < passCtx.drawItems.size(); ++i) {
+        const PreparedDrawItem& drawItem = passCtx.drawItems[i];
+        const wgpu::RenderPipeline pipeline = SelectPipeline(drawItem.shadingModel, drawItem.doubleSided);
+        const wgpu::BindGroup sceneBindGroup = SelectSceneBindGroup(drawItem.shadingModel);
+        const wgpu::BindGroup objectBindGroup =
+            i < m_objectResources.size() && m_objectResources[i].objectBindGroup
+                ? *m_objectResources[i].objectBindGroup
+                : nullptr;
+        if (pipeline == nullptr
+            || sceneBindGroup == nullptr
+            || objectBindGroup == nullptr
+            || drawItem.forwardMaterialBindGroup == nullptr
+            || drawItem.vertexBuffer == nullptr
+            || drawItem.indexBuffer == nullptr
+            || drawItem.indexCount == 0) {
+            continue;
         }
+
+        renderPass->setPipeline(pipeline);
+        renderPass->setBindGroup(0, sceneBindGroup, 0, nullptr);
+        renderPass->setBindGroup(1, objectBindGroup, 0, nullptr);
+        renderPass->setBindGroup(2, drawItem.forwardMaterialBindGroup, 0, nullptr);
+        renderPass->setVertexBuffer(0, drawItem.vertexBuffer, 0, drawItem.vertexBufferSize);
+        renderPass->setIndexBuffer(drawItem.indexBuffer, wgpu::IndexFormat::Uint16, 0, drawItem.indexBufferSize);
+        renderPass->drawIndexed(drawItem.indexCount, 1, 0, 0, 0);
     }
     renderPass->end();
-}
-
-const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetSceneBindGroupLayout() const {
-    return m_sceneBindGroupLayout;
 }
 
 const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetObjectBindGroupLayout() const {
@@ -271,6 +280,18 @@ const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetObjectBindGroupLayout()
 
 const wgpu::raii::BindGroupLayout& ForwardOpaquePass::GetMaterialBindGroupLayout() const {
     return m_materialBindGroupLayout;
+}
+
+wgpu::BindGroup ForwardOpaquePass::SelectSceneBindGroup(const EMaterialShadingModel shadingModel) const {
+    switch (shadingModel) {
+    case EMaterialShadingModel::Unlit:
+        return m_sceneResources.unlitSceneBindGroup ? *m_sceneResources.unlitSceneBindGroup : nullptr;
+    case EMaterialShadingModel::Lambert:
+        return m_sceneResources.litSceneBindGroup ? *m_sceneResources.litSceneBindGroup : nullptr;
+    case EMaterialShadingModel::Pbr:
+        return nullptr;
+    }
+    return nullptr;
 }
 
 wgpu::RenderPipeline ForwardOpaquePass::SelectPipeline(const EMaterialShadingModel shadingModel, const bool doubleSided) const {

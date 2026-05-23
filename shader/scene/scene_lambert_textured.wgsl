@@ -93,18 +93,15 @@ fn ResolveFaceSign(frontFacing: bool) -> f32 {
 
 fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
     let lightSpace = uDirectionalShadow.lightViewProjection * vec4f(worldPos, 1.0);
-    if (lightSpace.w <= 0.0) {
-        return 1.0;
-    }
-
-    let projected = lightSpace.xyz / lightSpace.w;
-    if (projected.x < -1.0 || projected.x > 1.0 ||
-        projected.y < -1.0 || projected.y > 1.0 ||
-        projected.z < 0.0 || projected.z > 1.0) {
-        return 1.0;
-    }
-
-    let shadowUv = vec2f(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
+    let projected = lightSpace.xyz / max(lightSpace.w, 1e-6);
+    let inShadowFrustum = lightSpace.w > 0.0 &&
+        projected.x >= -1.0 && projected.x <= 1.0 &&
+        projected.y >= -1.0 && projected.y <= 1.0 &&
+        projected.z >= 0.0 && projected.z <= 1.0;
+    let shadowUv = clamp(
+        vec2f(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5),
+        vec2f(0.0),
+        vec2f(1.0));
     let lightDir = normalize(-uScene.directionalLight.direction.xyz);
     let ndotl = max(dot(normal, lightDir), 0.0);
     let bias = max(uDirectionalShadow.shadowParams.y * (1.0 - ndotl), uDirectionalShadow.shadowParams.y * 0.25);
@@ -122,7 +119,7 @@ fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
                 compareDepth);
         }
     }
-    return visibility / 9.0;
+    return select(1.0, visibility / 9.0, inShadowFrustum);
 }
 
 @vertex
