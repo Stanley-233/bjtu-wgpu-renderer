@@ -36,6 +36,7 @@ struct PassContext {
     wgpu::TextureView                         sceneAoView = nullptr;
     wgpu::TextureView                         sceneColorView = nullptr;
     wgpu::TextureView                         sceneNormalView = nullptr;
+    wgpu::TextureView                         sceneReflectivityView = nullptr;
     int                                       viewportWidth = 0;
     int                                       viewportHeight = 0;
 };

@@ -34,12 +34,19 @@ public:
     struct SceneNormalPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
+        wgpu::raii::BindGroupLayout materialBindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
 
     struct SsaoPipeline {
         wgpu::raii::BindGroupLayout ssaoBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    struct SsrPipeline {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
@@ -52,12 +59,19 @@ public:
 
     struct ToneMapPipeline {
         wgpu::raii::BindGroupLayout sceneColorBindGroupLayout;
+        wgpu::raii::BindGroupLayout toneMapUniformBindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
 
     struct SkyboxPipeline {
         wgpu::raii::BindGroupLayout skyboxBindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
+    struct DofPipeline {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };
@@ -96,11 +110,17 @@ public:
 
     static SsaoPipeline CreateSsaoPipeline(RenderContext& renderCtx);
 
+    static SsrPipeline CreateSsrPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
     static CompositePipeline CreateCompositePipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static ToneMapPipeline CreateToneMapPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static SkyboxPipeline CreateSkyboxPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
+    static DofPipeline CreateDofCocPipeline(RenderContext& renderCtx);
+
+    static DofPipeline CreateDofBlurPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static EquirectToCubemapComputePipeline CreateEquirectToCubemapComputePipeline(RenderContext& renderCtx);
 

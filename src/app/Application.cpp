@@ -158,6 +158,9 @@ void Application::Tick(float deltaTime) {
         m_guiInputController.BuildUi(
             m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
             &m_ssaoEnabled,
+            &m_ssrSettings,
+            &m_toneMapSettings,
+            &m_dofSettings,
             &m_litShadingModel,
             &m_pbrDebugView);
     });
@@ -225,6 +228,9 @@ void Application::ApplyActiveSceneRenderSettings() const {
 
     if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
         logicScene->SetSsaoEnabled(m_ssaoEnabled);
+        logicScene->SetSsrSettings(m_ssrSettings);
+        logicScene->SetToneMapSettings(m_toneMapSettings);
+        logicScene->SetDofSettings(m_dofSettings);
         logicScene->SetLitShadingModelOverride(m_litShadingModel);
         logicScene->SetPbrDebugView(m_pbrDebugView);
     }
