@@ -12,22 +12,31 @@ struct DirectionalLightData {
 };
 
 struct PointLightData {
+    // position.xyz = world position, position.w = reserved
     position: vec4f,
+    // color.rgb = light color * intensity, color.w = reserved
     color: vec4f,
+    // attenuation.xyz = constant / linear / quadratic, attenuation.w = reserved
     attenuation: vec4f,
 };
 
 struct SpotLightData {
+    // position.xyz = world position, position.w = reserved
     position: vec4f,
+    // direction.xyz = normalized world direction, direction.w = reserved
     direction: vec4f,
+    // color.rgb = light color * intensity, color.w = reserved
     color: vec4f,
+    // angles.xy = cos(inner) / cos(outer), angles.z = range, angles.w = reserved
     angles: vec4f,
 };
 
 struct SceneUniform {
     view: mat4x4f,
     projection: mat4x4f,
+    // cameraPosition.xyz = world-space camera position, cameraPosition.w = reserved
     cameraPosition: vec4f,
+    // lightCounts.x = directional count, y = point count, z = spot count, w = reserved
     lightCounts: vec4u,
     directionalLight: DirectionalLightData,
     pointLights: array<PointLightData, 8>,
@@ -91,6 +100,10 @@ fn ResolveFaceSign(frontFacing: bool) -> f32 {
     return select(-1.0, 1.0, frontFacing);
 }
 
+fn Saturate(value: f32) -> f32 {
+    return clamp(value, 0.0, 1.0);
+}
+
 fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
     let lightSpace = uDirectionalShadow.lightViewProjection * vec4f(worldPos, 1.0);
     let projected = lightSpace.xyz / max(lightSpace.w, 1e-6);
@@ -120,6 +133,58 @@ fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
         }
     }
     return select(1.0, visibility / 9.0, inShadowFrustum);
+}
+
+fn ComputeDistanceAttenuation(attenuationParams: vec4f, distance: f32) -> f32 {
+    let d = max(distance, 0.0);
+    let denominator = attenuationParams.x + attenuationParams.y * d + attenuationParams.z * d * d;
+    return 1.0 / max(denominator, 1.0e-4);
+}
+
+fn ComputePointLightLambert(light: PointLightData, worldPos: vec3f, normal: vec3f) -> vec3f {
+    let lightVector = light.position.xyz - worldPos;
+    let distance = length(lightVector);
+    if (distance <= 1.0e-4) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let lightDir = lightVector / distance;
+    let ndotl = Saturate(dot(normal, lightDir));
+    if (ndotl <= 0.0) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let attenuation = ComputeDistanceAttenuation(light.attenuation, distance);
+    return light.color.rgb * ndotl * attenuation;
+}
+
+fn ComputeSpotLightLambert(light: SpotLightData, worldPos: vec3f, normal: vec3f) -> vec3f {
+    let lightVector = light.position.xyz - worldPos;
+    let distance = length(lightVector);
+    if (distance <= 1.0e-4) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let lightDir = lightVector / distance;
+    let ndotl = Saturate(dot(normal, lightDir));
+    if (ndotl <= 0.0) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let spotDirection = normalize(light.direction.xyz);
+    let theta = dot(-lightDir, spotDirection);
+    let innerCos = light.angles.x;
+    let outerCos = light.angles.y;
+    let angleRange = max(innerCos - outerCos, 1.0e-4);
+    let spotFactor = clamp((theta - outerCos) / angleRange, 0.0, 1.0);
+    if (spotFactor <= 0.0) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let range = max(light.angles.z, 0.1);
+    let attenuationParams = vec4f(1.0, 4.5 / range, 75.0 / (range * range), 0.0);
+    let attenuation = ComputeDistanceAttenuation(attenuationParams, distance);
+    return light.color.rgb * ndotl * attenuation * spotFactor;
 }
 
 @vertex
@@ -158,7 +223,7 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     var lighting = vec3f(0.25) * ambientOcclusion;
     if (uScene.lightCounts.x > 0u) {
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
-        let ndotl = max(dot(normal, lightDir), 0.0);
+        let ndotl = Saturate(dot(normal, lightDir));
 
         let ambientFactor = 0.2;
         let ambient = uScene.directionalLight.color.rgb * ambientFactor;
@@ -166,5 +231,14 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
 
         lighting = ambient * ambientOcclusion + direct * shadowFactor;
     }
+
+    for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.y; lightIndex = lightIndex + 1u) {
+        lighting += ComputePointLightLambert(uScene.pointLights[lightIndex], in.worldPos, normal);
+    }
+
+    for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.z; lightIndex = lightIndex + 1u) {
+        lighting += ComputeSpotLightLambert(uScene.spotLights[lightIndex], in.worldPos, normal);
+    }
+
     return vec4f(baseColor.rgb * lighting, baseColor.a);
 }

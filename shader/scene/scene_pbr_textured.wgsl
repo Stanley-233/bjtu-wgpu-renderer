@@ -13,22 +13,31 @@ struct DirectionalLightData {
 };
 
 struct PointLightData {
+    // position.xyz = world position, position.w = reserved
     position: vec4f,
+    // color.rgb = light color * intensity, color.w = reserved
     color: vec4f,
+    // attenuation.xyz = constant / linear / quadratic, attenuation.w = reserved
     attenuation: vec4f,
 };
 
 struct SpotLightData {
+    // position.xyz = world position, position.w = reserved
     position: vec4f,
+    // direction.xyz = normalized world direction, direction.w = reserved
     direction: vec4f,
+    // color.rgb = light color * intensity, color.w = reserved
     color: vec4f,
+    // angles.xy = cos(inner) / cos(outer), angles.z = range, angles.w = reserved
     angles: vec4f,
 };
 
 struct SceneUniform {
     view: mat4x4f,
     projection: mat4x4f,
+    // cameraPosition.xyz = world-space camera position, cameraPosition.w = reserved
     cameraPosition: vec4f,
+    // lightCounts.x = directional count, y = point count, z = spot count, w = reserved
     lightCounts: vec4u,
     directionalLight: DirectionalLightData,
     pointLights: array<PointLightData, 8>,
@@ -75,6 +84,11 @@ struct FragmentInput {
     @location(3) worldPos: vec3f,
     @location(4) normalWS: vec3f,
     @location(5) tangentWS: vec4f,
+};
+
+struct LocalLightSample {
+    direction: vec3f,
+    radiance: vec3f,
 };
 
 @group(0) @binding(0) var<uniform> uScene: SceneUniform;
@@ -284,6 +298,95 @@ fn GeometrySmith(normal: vec3f, viewDir: vec3f, lightDir: vec3f, roughness: f32)
     return ggxV * ggxL;
 }
 
+fn ComputeDistanceAttenuation(attenuationParams: vec4f, distance: f32) -> f32 {
+    let d = max(distance, 0.0);
+    let denominator = attenuationParams.x + attenuationParams.y * d + attenuationParams.z * d * d;
+    return 1.0 / max(denominator, 1.0e-4);
+}
+
+fn EvaluateDirectPbrLight(
+    normal: vec3f,
+    viewDir: vec3f,
+    lightDir: vec3f,
+    radiance: vec3f,
+    baseColor: vec3f,
+    metallic: f32,
+    roughness: f32,
+    f0: vec3f
+) -> vec3f {
+    if (length(radiance) <= 1.0e-6) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let ndotv = Saturate(dot(normal, viewDir));
+    let ndotl = Saturate(dot(normal, lightDir));
+    if (ndotv <= 0.0 || ndotl <= 0.0) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+
+    let halfVectorUnnormalized = viewDir + lightDir;
+    if (length(halfVectorUnnormalized) <= 1.0e-6) {
+        return vec3f(0.0, 0.0, 0.0);
+    }
+    let halfVector = normalize(halfVectorUnnormalized);
+    let hdotv = Saturate(dot(halfVector, viewDir));
+
+    let d = DistributionGGX(normal, halfVector, roughness);
+    let f = FresnelSchlick(hdotv, f0);
+    let g = GeometrySmith(normal, viewDir, lightDir, roughness);
+
+    let specularNumerator = d * g * f;
+    let specularDenominator = max(4.0 * ndotv * ndotl, 1.0e-4);
+    let specular = specularNumerator / specularDenominator;
+
+    let kS = f;
+    let kD = (vec3f(1.0, 1.0, 1.0) - kS) * (1.0 - metallic);
+    let diffuse = kD * baseColor / PI;
+
+    return (diffuse + specular) * radiance * ndotl;
+}
+
+fn ComputePointLightSample(light: PointLightData, worldPos: vec3f) -> LocalLightSample {
+    let lightVector = light.position.xyz - worldPos;
+    let distance = length(lightVector);
+    if (distance <= 1.0e-4) {
+        return LocalLightSample(vec3f(0.0, 0.0, 0.0), vec3f(0.0, 0.0, 0.0));
+    }
+
+    let attenuation = ComputeDistanceAttenuation(light.attenuation, distance);
+    return LocalLightSample(
+        lightVector / distance,
+        light.color.rgb * attenuation,
+    );
+}
+
+fn ComputeSpotLightSample(light: SpotLightData, worldPos: vec3f) -> LocalLightSample {
+    let lightVector = light.position.xyz - worldPos;
+    let distance = length(lightVector);
+    if (distance <= 1.0e-4) {
+        return LocalLightSample(vec3f(0.0, 0.0, 0.0), vec3f(0.0, 0.0, 0.0));
+    }
+
+    let lightDir = lightVector / distance;
+    let spotDirection = normalize(light.direction.xyz);
+    let theta = dot(-lightDir, spotDirection);
+    let innerCos = light.angles.x;
+    let outerCos = light.angles.y;
+    let angleRange = max(innerCos - outerCos, 1.0e-4);
+    let spotFactor = clamp((theta - outerCos) / angleRange, 0.0, 1.0);
+    if (spotFactor <= 0.0) {
+        return LocalLightSample(vec3f(0.0, 0.0, 0.0), vec3f(0.0, 0.0, 0.0));
+    }
+
+    let range = max(light.angles.z, 0.1);
+    let attenuationParams = vec4f(1.0, 4.5 / range, 75.0 / (range * range), 0.0);
+    let attenuation = ComputeDistanceAttenuation(attenuationParams, distance);
+    return LocalLightSample(
+        lightDir,
+        light.color.rgb * attenuation * spotFactor,
+    );
+}
+
 @fragment
 fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     let baseColor = SampleBaseColor(in);
@@ -325,38 +428,44 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     }
     if (uScene.lightCounts.x > 0u) {
         let lightDir = normalize(-uScene.directionalLight.direction.xyz);
-        let halfVector = normalize(viewDir + lightDir);
+        lighting += EvaluateDirectPbrLight(
+            normal,
+            viewDir,
+            lightDir,
+            uScene.directionalLight.color.rgb * shadowFactor,
+            baseColor.rgb,
+            metallic,
+            roughness,
+            f0,
+        );
+    }
 
-        let ndotv = Saturate(dot(normal, viewDir));
-        let ndotl = Saturate(dot(normal, lightDir));
-        let hdotv = Saturate(dot(halfVector, viewDir));
+    for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.y; lightIndex = lightIndex + 1u) {
+        let pointLight = ComputePointLightSample(uScene.pointLights[lightIndex], in.worldPos);
+        lighting += EvaluateDirectPbrLight(
+            normal,
+            viewDir,
+            pointLight.direction,
+            pointLight.radiance,
+            baseColor.rgb,
+            metallic,
+            roughness,
+            f0,
+        );
+    }
 
-        if (ndotv > 0.0 && ndotl > 0.0) {
-            let d = DistributionGGX(normal, halfVector, roughness);
-            let f = FresnelSchlick(hdotv, f0);
-            let g = GeometrySmith(normal, viewDir, lightDir, roughness);
-
-            // Cook-Torrance 镜面项：
-            // specular = (D * F * G) / (4 * NdotV * NdotL)
-            let specularNumerator = d * g * f;
-            let specularDenominator = max(4.0 * ndotv * ndotl, 1.0e-4);
-            let specular = specularNumerator / specularDenominator;
-
-            // 能量守恒：
-            // kS = F
-            // kD = (1 - kS) * (1 - metallic)
-            // diffuse = kD * baseColor / PI
-            // 镜面反射越强，漫反射可分配的能量越少；金属表面通常没有传统意义上的漫反射，因此乘上 (1 - metallic)
-            let kS = f;
-            let kD = (vec3f(1.0, 1.0, 1.0) - kS) * (1.0 - metallic);
-            let diffuse = kD * baseColor.rgb / PI;
-
-            let radiance = uScene.directionalLight.color.rgb;
-            // 直接光照：
-            // Lo = (diffuse + specular) * radiance * NdotL
-            let direct = (diffuse + specular) * radiance * ndotl * shadowFactor;
-            lighting += direct;
-        }
+    for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.z; lightIndex = lightIndex + 1u) {
+        let spotLight = ComputeSpotLightSample(uScene.spotLights[lightIndex], in.worldPos);
+        lighting += EvaluateDirectPbrLight(
+            normal,
+            viewDir,
+            spotLight.direction,
+            spotLight.radiance,
+            baseColor.rgb,
+            metallic,
+            roughness,
+            f0,
+        );
     }
     return vec4f(lighting, baseColor.a);
 }
