@@ -33,6 +33,8 @@ public:
 
     void SetSsaoEnabled(bool enabled);
 
+    void SetToneMapSettings(const ToneMapSettings& settings);
+
     void SetClearColor(double r, double g, double b, double a);
 
     void PrepareSkybox(RenderContext& renderCtx, const HdrImageAsset& hdrImage, uint32_t faceSize);

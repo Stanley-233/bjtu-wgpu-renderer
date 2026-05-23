@@ -5,6 +5,11 @@ struct VertexOutput {
 
 @group(0) @binding(0) var uSceneColor: texture_2d<f32>;
 @group(0) @binding(1) var uSceneColorSampler: sampler;
+@group(1) @binding(0) var<uniform> uToneMap: ToneMapUniform;
+
+struct ToneMapUniform {
+    params: vec4f,
+};
 
 // ACES 曲线拟合中的中间有理函数
 fn RrtAndOdtFit(color: vec3f) -> vec3f {
@@ -62,8 +67,12 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     // 这里输入的是 HDR 线性空间颜色
     let hdrColor = textureSample(uSceneColor, uSceneColorSampler, in.uv).rgb;
-    // 首版曝光固定为 1.0，后续如果要做调参，可以在这里乘 exposure
-    let exposed = hdrColor;
+    let exposureMode = u32(uToneMap.params.x);
+    var exposure = 1.0;
+    if (exposureMode == 0u) {
+        exposure = exp2(uToneMap.params.y);
+    }
+    let exposed = hdrColor * exposure;
     let mapped = AcesFitted(exposed);
     let srgb = LinearToSrgb(mapped);
     return vec4f(srgb, 1.0);

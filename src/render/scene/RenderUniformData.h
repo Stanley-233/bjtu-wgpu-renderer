@@ -18,6 +18,16 @@ enum class EPbrDebugView : uint32_t {
     NormalDelta = 3,
 };
 
+enum class EToneMapExposureMode : uint32_t {
+    ManualEv = 0,
+    AutoExposure = 1,
+};
+
+struct ToneMapSettings {
+    EToneMapExposureMode exposureMode = EToneMapExposureMode::ManualEv;
+    float                exposureEv = 0.0f;
+};
+
 struct alignas(16) SceneUniformData {
     glm::mat4 view{1.0f};
     glm::mat4 projection{1.0f};
@@ -40,6 +50,11 @@ struct alignas(16) DirectionalShadowUniformData {
 struct alignas(16) SkyboxUniformData {
     glm::mat4 invViewRotation{1.0f};
     glm::mat4 invProjection{1.0f};
+};
+
+struct alignas(16) ToneMapUniformData {
+    // x=exposureMode, y=manualExposureEv, zw=reserved
+    glm::vec4 params{0.0f, 0.0f, 0.0f, 0.0f};
 };
 
 struct alignas(16) ObjectUniformData {

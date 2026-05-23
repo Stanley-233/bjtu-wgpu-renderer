@@ -253,6 +253,20 @@ static raii::BindGroupLayout CreateSceneColorBindGroupLayout(RenderContext& rend
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
+static raii::BindGroupLayout CreateToneMapUniformBindGroupLayout(RenderContext& renderCtx) {
+    BindGroupLayoutEntry binding{};
+    binding.binding = 0;
+    binding.visibility = ShaderStage::Fragment;
+    binding.buffer.type = BufferBindingType::Uniform;
+    binding.buffer.minBindingSize = sizeof(ToneMapUniformData);
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/ToneMapUniformBindGroupLayout";
+    desc.entryCount = 1;
+    desc.entries = &binding;
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
 static raii::BindGroupLayout CreateSkyboxBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 3> bindings{};
     bindings[0].binding = 0;
@@ -752,9 +766,11 @@ Scene3DPipelineFactory::CreateToneMapPipeline(RenderContext& renderCtx, const Te
 
     ToneMapPipeline result;
     result.sceneColorBindGroupLayout = CreateSceneColorBindGroupLayout(renderCtx);
+    result.toneMapUniformBindGroupLayout = CreateToneMapUniformBindGroupLayout(renderCtx);
 
-    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+    std::array<WGPUBindGroupLayout, 2> bindGroupLayouts{
         *result.sceneColorBindGroupLayout,
+        *result.toneMapUniformBindGroupLayout,
     };
 
     PipelineLayoutDescriptor layoutDesc{};

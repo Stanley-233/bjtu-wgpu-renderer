@@ -30,6 +30,10 @@ void Renderer::SetSsaoEnabled(const bool enabled) {
     m_ssaoPass.SetEnabled(enabled);
 }
 
+void Renderer::SetToneMapSettings(const ToneMapSettings& settings) {
+    m_toneMapPass.SetSettings(settings);
+}
+
 void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;

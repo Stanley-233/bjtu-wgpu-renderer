@@ -15,6 +15,7 @@ public:
     void BuildUi(
         const char* activeSceneName,
         bool* ssaoEnabled,
+        ToneMapSettings* toneMapSettings,
         EMaterialShadingModel* litShadingModel,
         EPbrDebugView* pbrDebugView);
 

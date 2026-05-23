@@ -52,6 +52,7 @@ public:
 
     struct ToneMapPipeline {
         wgpu::raii::BindGroupLayout sceneColorBindGroupLayout;
+        wgpu::raii::BindGroupLayout toneMapUniformBindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
         wgpu::raii::RenderPipeline  pipeline;
     };

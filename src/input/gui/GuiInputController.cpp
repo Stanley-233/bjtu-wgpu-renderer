@@ -19,6 +19,16 @@ static const char* PbrDebugViewLabel(const EPbrDebugView debugView) {
     return "Unknown";
 }
 
+static const char* ToneMapExposureModeLabel(const EToneMapExposureMode mode) {
+    switch (mode) {
+        case EToneMapExposureMode::ManualEv:
+            return "Manual EV";
+        case EToneMapExposureMode::AutoExposure:
+            return "Auto Exposure";
+    }
+    return "Unknown";
+}
+
 void GuiInputController::SetEventBus(InputEventBus* eventBus) {
     m_eventBus = eventBus;
 }
@@ -26,6 +36,7 @@ void GuiInputController::SetEventBus(InputEventBus* eventBus) {
 void GuiInputController::BuildUi(
     const char*            activeSceneName,
     bool*                  ssaoEnabled,
+    ToneMapSettings*       toneMapSettings,
     EMaterialShadingModel* litShadingModel,
     EPbrDebugView*         pbrDebugView) {
     m_sceneNameCache = (activeSceneName == nullptr) ? "Unknown" : activeSceneName;
@@ -92,6 +103,30 @@ void GuiInputController::BuildUi(
     if (ImGui::CollapsingHeader("Postprocessing", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ssaoEnabled != nullptr) {
             ImGui::Checkbox("Enable SSAO", ssaoEnabled);
+        }
+        if (toneMapSettings != nullptr) {
+            int exposureMode = static_cast<int>(toneMapSettings->exposureMode);
+            if (ImGui::BeginCombo("Exposure Mode", ToneMapExposureModeLabel(toneMapSettings->exposureMode))) {
+                constexpr EToneMapExposureMode modes[] = {
+                    EToneMapExposureMode::ManualEv,
+                    EToneMapExposureMode::AutoExposure,
+                };
+                for (const EToneMapExposureMode mode : modes) {
+                    const bool isSelected = toneMapSettings->exposureMode == mode;
+                    if (ImGui::Selectable(ToneMapExposureModeLabel(mode), isSelected)) {
+                        exposureMode = static_cast<int>(mode);
+                    }
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            toneMapSettings->exposureMode = static_cast<EToneMapExposureMode>(exposureMode);
+
+            ImGui::BeginDisabled(toneMapSettings->exposureMode != EToneMapExposureMode::ManualEv);
+            ImGui::SliderFloat("Exposure EV", &toneMapSettings->exposureEv, -8.0f, 8.0f, "%.2f EV");
+            ImGui::EndDisabled();
         }
     }
 }

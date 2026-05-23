@@ -181,6 +181,10 @@ void LogicScene::SetSsaoEnabled(const bool enabled) {
     m_renderer.SetSsaoEnabled(enabled);
 }
 
+void LogicScene::SetToneMapSettings(const ToneMapSettings& settings) {
+    m_renderer.SetToneMapSettings(settings);
+}
+
 void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingModel) {
     if (shadingModel != EMaterialShadingModel::Lambert && shadingModel != EMaterialShadingModel::Pbr) {
         return;
