@@ -31,7 +31,7 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
-    struct SceneNormalPipeline {
+    struct SurfacePrepassPipeline {
         wgpu::raii::BindGroupLayout sceneBindGroupLayout;
         wgpu::raii::BindGroupLayout objectBindGroupLayout;
         wgpu::raii::BindGroupLayout materialBindGroupLayout;
@@ -106,7 +106,8 @@ public:
 
     static DepthPrepassPipeline CreateDepthPrepassPipeline(RenderContext& renderCtx);
 
-    static SceneNormalPipeline CreateSceneNormalPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+    static SurfacePrepassPipeline
+    CreateSurfacePrepassPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static SsaoPipeline CreateSsaoPipeline(RenderContext& renderCtx);
 

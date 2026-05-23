@@ -114,7 +114,7 @@ src
     │   ├── PBRPass              # PBR 不透明 pass，输出到 HDR scene color
     │   ├── PreparedDrawItem     # RenderObject 预处理结果，汇总 GPU buffer、bind group、uniform 数据
     │   ├── SSAOPass             # SSAO 屏幕空间环境遮蔽 pass，输出 scene AO
-    │   ├── SceneNormalPass      # 法线预通道，输出 scene normal
+    │   ├── SurfacePrepass       # 表面属性预通道，输出 scene normal / scene reflectivity
     │   ├── ShadowPass           # 方向光 shadow map pass
     │   ├── SkyboxPass           # cubemap 天空盒 pass，先写 HDR scene color 背景
     │   └── ToneMapPass          # HDR scene color -> surface 的末端 tone mapping pass
@@ -159,7 +159,7 @@ src
 5. 所有 pass 顺序写入同一个 command encoder：
    - `ShadowPass`
    - `DepthPrepass`
-   - `SceneNormalPass`
+   - `SurfacePrepass`
    - `SSAOPass`
    - `SkyboxPass`
    - `ForwardOpaquePass`

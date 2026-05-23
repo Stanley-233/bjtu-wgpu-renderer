@@ -1,4 +1,4 @@
-#include "SceneNormalPass.h"
+#include "SurfacePrepass.h"
 
 #include "render/RenderContext.h"
 #include "render/frame/RenderFrame.h"
@@ -14,8 +14,8 @@ static SceneUniformData BuildSceneUniformData(const PassContext& passCtx) {
     return uniformData;
 }
 
-void SceneNormalPass::Initialize(RenderContext& renderCtx) {
-    auto pipeline = Scene3DPipelineFactory::CreateSceneNormalPipeline(renderCtx, wgpu::TextureFormat::RGBA16Float);
+void SurfacePrepass::Initialize(RenderContext& renderCtx) {
+    auto pipeline = Scene3DPipelineFactory::CreateSurfacePrepassPipeline(renderCtx, wgpu::TextureFormat::RGBA16Float);
     m_sceneBindGroupLayout = std::move(pipeline.sceneBindGroupLayout);
     m_objectBindGroupLayout = std::move(pipeline.objectBindGroupLayout);
     m_materialBindGroupLayout = std::move(pipeline.materialBindGroupLayout);
@@ -23,7 +23,7 @@ void SceneNormalPass::Initialize(RenderContext& renderCtx) {
     m_pipeline = std::move(pipeline.pipeline);
 }
 
-void SceneNormalPass::EnsureSceneResources(RenderContext& renderCtx) {
+void SurfacePrepass::EnsureSceneResources(RenderContext& renderCtx) {
     if (!m_sceneResources.sceneUniformBuffer) {
         wgpu::BufferDescriptor uniformBufferDesc{};
         uniformBufferDesc.size = sizeof(SceneUniformData);
@@ -33,7 +33,7 @@ void SceneNormalPass::EnsureSceneResources(RenderContext& renderCtx) {
     }
 }
 
-void SceneNormalPass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
+void SurfacePrepass::EnsureObjectResources(RenderContext& renderCtx, const std::size_t objectCount) {
     if (m_objectResources.size() < objectCount) {
         m_objectResources.resize(objectCount);
     }
@@ -50,7 +50,7 @@ void SceneNormalPass::EnsureObjectResources(RenderContext& renderCtx, const std:
     }
 }
 
-void SceneNormalPass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
+void SurfacePrepass::UpdateSceneResources(RenderContext& renderCtx, const PassContext& passCtx) {
     if (!m_sceneResources.sceneUniformBuffer || !m_sceneBindGroupLayout || passCtx.queue == nullptr) {
         return;
     }
@@ -75,7 +75,7 @@ void SceneNormalPass::UpdateSceneResources(RenderContext& renderCtx, const PassC
     m_sceneResources.sceneBindGroup = renderCtx.GetDevice()->createBindGroup(bindGroupDesc);
 }
 
-void SceneNormalPass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
+void SurfacePrepass::UpdateObjectResources(RenderContext& renderCtx, const std::span<const PreparedDrawItem> drawItems) {
     if (!m_objectBindGroupLayout) {
         return;
     }
@@ -107,7 +107,7 @@ void SceneNormalPass::UpdateObjectResources(RenderContext& renderCtx, const std:
     }
 }
 
-void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
+void SurfacePrepass::Render(RenderContext& renderCtx, RenderFrame& frame, const PassContext& passCtx) {
     if (!frame.encoder
         || frame.sceneDepthView == nullptr
         || frame.sceneNormalView == nullptr
@@ -166,7 +166,7 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
                 i < m_objectResources.size() && m_objectResources[i].objectBindGroup
                     ? *m_objectResources[i].objectBindGroup
                     : nullptr;
-            const wgpu::BindGroup materialBindGroup = drawItem.sceneNormalMaterialBindGroup;
+            const wgpu::BindGroup materialBindGroup = drawItem.surfacePrepassMaterialBindGroup;
             if (objectBindGroup == nullptr
                 || materialBindGroup == nullptr
                 || drawItem.vertexBuffer == nullptr
@@ -185,6 +185,6 @@ void SceneNormalPass::Render(RenderContext& renderCtx, RenderFrame& frame, const
     renderPass->end();
 }
 
-const wgpu::raii::BindGroupLayout& SceneNormalPass::GetMaterialBindGroupLayout() const {
+const wgpu::raii::BindGroupLayout& SurfacePrepass::GetMaterialBindGroupLayout() const {
     return m_materialBindGroupLayout;
 }

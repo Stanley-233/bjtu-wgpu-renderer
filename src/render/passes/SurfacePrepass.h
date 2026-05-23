@@ -1,5 +1,5 @@
-#ifndef BJTU_WGPU_RENDERER_SCENENORMALPASS_H
-#define BJTU_WGPU_RENDERER_SCENENORMALPASS_H
+#ifndef BJTU_WGPU_RENDERER_SURFACEPREPASS_H
+#define BJTU_WGPU_RENDERER_SURFACEPREPASS_H
 
 #include <vector>
 
@@ -8,7 +8,7 @@
 
 class RenderContext;
 
-class SceneNormalPass final : public IRenderPass {
+class SurfacePrepass final : public IRenderPass {
 public:
     void Initialize(RenderContext& renderCtx);
 
@@ -44,4 +44,4 @@ private:
     std::vector<ObjectResources> m_objectResources;
 };
 
-#endif // BJTU_WGPU_RENDERER_SCENENORMALPASS_H
+#endif // BJTU_WGPU_RENDERER_SURFACEPREPASS_H

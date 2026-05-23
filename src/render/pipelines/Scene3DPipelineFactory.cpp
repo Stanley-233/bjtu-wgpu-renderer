@@ -655,10 +655,10 @@ Scene3DPipelineFactory::DepthPrepassPipeline Scene3DPipelineFactory::CreateDepth
     return result;
 }
 
-Scene3DPipelineFactory::SceneNormalPipeline
-Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
-    constexpr const char* label = "Scene3DPipelineFactory/SceneNormal";
-    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_normal_prepass.wgsl"), label);
+Scene3DPipelineFactory::SurfacePrepassPipeline
+Scene3DPipelineFactory::CreateSurfacePrepassPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/SurfacePrepass";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_surface_prepass.wgsl"), label);
 
     wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
 
@@ -696,7 +696,7 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, cons
     fragmentState.targets = colorTargets.data();
     pipelineDesc.fragment = &fragmentState;
 
-    SceneNormalPipeline result;
+    SurfacePrepassPipeline result;
     result.sceneBindGroupLayout = CreateSceneUniformBindGroupLayout(renderCtx);
     result.objectBindGroupLayout = CreateObjectBindGroupLayout(renderCtx, sizeof(ObjectUniformData));
     result.materialBindGroupLayout = CreateMaterialBindGroupLayout(renderCtx);
@@ -708,7 +708,7 @@ Scene3DPipelineFactory::CreateSceneNormalPipeline(RenderContext& renderCtx, cons
     };
 
     PipelineLayoutDescriptor layoutDesc{};
-    layoutDesc.label = "Scene3D/SceneNormalPipelineLayout";
+    layoutDesc.label = "Scene3D/SurfacePrepassPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
     result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);

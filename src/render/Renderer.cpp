@@ -16,7 +16,7 @@ static ObjectUniformData BuildObjectUniformData(const glm::mat4& worldMatrix) {
 void Renderer::Initialize(RenderContext& renderCtx) {
     m_shadowPass.Initialize(renderCtx);
     m_depthPrepass.Initialize(renderCtx);
-    m_sceneNormalPass.Initialize(renderCtx);
+    m_surfacePrepass.Initialize(renderCtx);
     m_ssaoPass.Initialize(renderCtx);
     m_skyboxPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
@@ -247,7 +247,7 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
         }
 
         if (!m_forwardOpaquePass.GetMaterialBindGroupLayout()
-            || !m_sceneNormalPass.GetMaterialBindGroupLayout()
+            || !m_surfacePrepass.GetMaterialBindGroupLayout()
             || !m_pbrPass.GetMaterialBindGroupLayout()) {
             continue;
         }
@@ -276,13 +276,13 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
         pbrMaterialBindGroupDesc.entryCount = 5;
         pbrMaterialBindGroupDesc.entries = materialBindings;
 
-        wgpu::BindGroupDescriptor sceneNormalMaterialBindGroupDesc{};
-        sceneNormalMaterialBindGroupDesc.layout = *m_sceneNormalPass.GetMaterialBindGroupLayout();
-        sceneNormalMaterialBindGroupDesc.entryCount = 5;
-        sceneNormalMaterialBindGroupDesc.entries = materialBindings;
+        wgpu::BindGroupDescriptor surfacePrepassMaterialBindGroupDesc{};
+        surfacePrepassMaterialBindGroupDesc.layout = *m_surfacePrepass.GetMaterialBindGroupLayout();
+        surfacePrepassMaterialBindGroupDesc.entryCount = 5;
+        surfacePrepassMaterialBindGroupDesc.entries = materialBindings;
         m_drawItemResources.push_back(DrawItemResources{
             .forwardMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(forwardMaterialBindGroupDesc),
-            .sceneNormalMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(sceneNormalMaterialBindGroupDesc),
+            .surfacePrepassMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(surfacePrepassMaterialBindGroupDesc),
             .pbrMaterialBindGroup = renderCtx.GetDevice()->createBindGroup(pbrMaterialBindGroupDesc),
         });
         const DrawItemResources& resources = m_drawItemResources.back();
@@ -295,8 +295,8 @@ void Renderer::BuildPreparedDrawItems(RenderContext& renderCtx, const RenderScen
             .vertexBuffer = *gpuMesh->vertexBuffer,
             .indexBuffer = *gpuMesh->indexBuffer,
             .forwardMaterialBindGroup = resources.forwardMaterialBindGroup ? *resources.forwardMaterialBindGroup : nullptr,
-            .sceneNormalMaterialBindGroup =
-                resources.sceneNormalMaterialBindGroup ? *resources.sceneNormalMaterialBindGroup : nullptr,
+            .surfacePrepassMaterialBindGroup =
+                resources.surfacePrepassMaterialBindGroup ? *resources.surfacePrepassMaterialBindGroup : nullptr,
             .pbrMaterialBindGroup = resources.pbrMaterialBindGroup ? *resources.pbrMaterialBindGroup : nullptr,
             .vertexBufferSize = gpuMesh->vertexBufferSize,
             .indexBufferSize = gpuMesh->indexBufferSize,
@@ -358,7 +358,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     };
     m_shadowPass.Render(renderCtx, frame, passCtx);
     m_depthPrepass.Render(renderCtx, frame, passCtx);
-    m_sceneNormalPass.Render(renderCtx, frame, passCtx);
+    m_surfacePrepass.Render(renderCtx, frame, passCtx);
     m_ssaoPass.Render(renderCtx, frame, passCtx);
     m_skyboxPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);

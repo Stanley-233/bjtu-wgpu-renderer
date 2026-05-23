@@ -13,7 +13,7 @@
 #include "passes/PBRPass.h"
 #include "passes/PreparedDrawItem.h"
 #include "passes/SSRPass.h"
-#include "passes/SceneNormalPass.h"
+#include "passes/SurfacePrepass.h"
 #include "passes/SSAOPass.h"
 #include "passes/SkyboxPass.h"
 #include "passes/ShadowPass.h"
@@ -50,7 +50,7 @@ private:
 
     struct DrawItemResources {
         wgpu::raii::BindGroup forwardMaterialBindGroup;
-        wgpu::raii::BindGroup sceneNormalMaterialBindGroup;
+        wgpu::raii::BindGroup surfacePrepassMaterialBindGroup;
         wgpu::raii::BindGroup pbrMaterialBindGroup;
     };
 
@@ -65,7 +65,7 @@ private:
     GpuResourceCache                m_resourceCache;
     ShadowPass                      m_shadowPass;
     DepthPrepass                    m_depthPrepass;
-    SceneNormalPass                 m_sceneNormalPass;
+    SurfacePrepass                  m_surfacePrepass;
     SSAOPass                        m_ssaoPass;
     SkyboxPass                      m_skyboxPass;
     ForwardOpaquePass               m_forwardOpaquePass;
