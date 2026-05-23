@@ -1,6 +1,7 @@
 #include "LogicScene.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -18,6 +19,8 @@
 #include "Entity.h"
 #include "components/CameraComponent.h"
 #include "components/light/DirectionalLightComponent.h"
+#include "components/light/PointLightComponent.h"
+#include "components/light/SpotLightComponent.h"
 #include "components/StaticMeshComponent.h"
 #include "components/TransformComponent.h"
 #include "input/InputEventBus.h"
@@ -85,6 +88,25 @@ glm::vec3 NormalizeDirectionOrDefault(const glm::vec3& direction) {
         return {0.0f, -1.0f, 0.0f};
     }
     return glm::normalize(direction);
+}
+
+float SanitizeLightRange(const float range) {
+    constexpr float kMinLightRange = 0.1f;
+    return std::max(range, kMinLightRange);
+}
+
+glm::vec4 BuildPointLightAttenuation(const float range) {
+    const float safeRange = SanitizeLightRange(range);
+    return {
+        1.0f,
+        4.5f / safeRange,
+        75.0f / (safeRange * safeRange),
+        0.0f,
+    };
+}
+
+glm::vec3 ExtractWorldPosition(const glm::mat4& worldMatrix) {
+    return glm::vec3(worldMatrix[3]);
 }
 
 DirectionalShadowSceneData BuildDirectionalShadowSceneData(const glm::vec3& lightDirection) {
@@ -415,17 +437,58 @@ RenderScene LogicScene::BuildRenderScene(const RenderContext& renderCtx) const {
 RenderLightSet LogicScene::BuildRenderLightSet() const {
     RenderLightSet lightSet{};
     const Entity   directionalLightEntity = m_world.DirectionalLight();
-    if (!directionalLightEntity || !directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
-        return lightSet;
+    if (directionalLightEntity && directionalLightEntity.HasComponent<DirectionalLightComponent>()) {
+        const auto&     directionalLight    = directionalLightEntity.GetComponent<DirectionalLightComponent>();
+        const glm::vec3 direction           = NormalizeDirectionOrDefault(directionalLight.direction);
+        lightSet.directionalLight.direction = glm::vec4{direction, 0.0f};
+        lightSet.directionalLight.color     = glm::vec4{
+            directionalLight.color * directionalLight.intensity,
+            1.0f,
+        };
+        lightSet.directionalLightCount = 1;
     }
-    const auto&     directionalLight    = directionalLightEntity.GetComponent<DirectionalLightComponent>();
-    const glm::vec3 direction           = NormalizeDirectionOrDefault(directionalLight.direction);
-    lightSet.directionalLight.direction = glm::vec4{direction, 0.0f};
-    lightSet.directionalLight.color     = glm::vec4{
-        directionalLight.color * directionalLight.intensity,
-        1.0f,
-    };
-    lightSet.directionalLightCount = 1;
-    // TODO: 从 World 收集 Point/Spot Light
+
+    auto pointView = m_world.View<TransformComponent, PointLightComponent>();
+    for (const entt::entity entityHandle : pointView) {
+        if (lightSet.pointLightCount >= RenderLightSet::kMaxPointLights) {
+            break;
+        }
+
+        const PointLightComponent& pointLight = pointView.get<PointLightComponent>(entityHandle);
+        const Entity               entity{entityHandle, const_cast<World*>(&m_world)};
+        const glm::mat4            worldMatrix = m_world.WorldMatrixOf(entity);
+        const glm::vec3            worldPosition = ExtractWorldPosition(worldMatrix);
+
+        PointLightData& lightData = lightSet.pointLights[lightSet.pointLightCount++];
+        lightData.position = glm::vec4{worldPosition, 1.0f};
+        lightData.color = glm::vec4{pointLight.color * pointLight.intensity, 1.0f};
+        lightData.attenuation = BuildPointLightAttenuation(pointLight.range);
+    }
+
+    auto spotView = m_world.View<TransformComponent, SpotLightComponent>();
+    for (const entt::entity entityHandle : spotView) {
+        if (lightSet.spotLightCount >= RenderLightSet::kMaxSpotLights) {
+            break;
+        }
+
+        const SpotLightComponent& spotLight = spotView.get<SpotLightComponent>(entityHandle);
+        const Entity              entity{entityHandle, const_cast<World*>(&m_world)};
+        const glm::mat4           worldMatrix = m_world.WorldMatrixOf(entity);
+        const glm::vec3           worldPosition = ExtractWorldPosition(worldMatrix);
+        const glm::vec3           direction = NormalizeDirectionOrDefault(spotLight.direction);
+        const float               safeRange = SanitizeLightRange(spotLight.range);
+
+        SpotLightData& lightData = lightSet.spotLights[lightSet.spotLightCount++];
+        lightData.position = glm::vec4{worldPosition, 1.0f};
+        lightData.direction = glm::vec4{direction, 0.0f};
+        lightData.color = glm::vec4{spotLight.color * spotLight.intensity, 1.0f};
+        lightData.angles = glm::vec4{
+            std::cos(spotLight.innerConeAngle),
+            std::cos(spotLight.outerConeAngle),
+            safeRange,
+            0.0f,
+        };
+    }
+
     return lightSet;
 }

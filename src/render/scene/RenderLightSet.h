@@ -14,22 +14,36 @@ enum class ELightType : uint32_t {
 };
 
 struct alignas(16) DirectionalLightData {
+    // direction.xyz = normalized world direction, direction.w = reserved
     glm::vec4 direction{0.0f, -1.0f, 0.0f, 0.0f};
+    // color.rgb = light color * intensity, color.w = reserved
     glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f};
 };
 
 struct alignas(16) PointLightData {
+    // position.xyz = world position, position.w = reserved (1.0)
     glm::vec4 position{0.0f, 0.0f, 0.0f, 1.0f};
+    // color.rgb = light color * intensity, color.w = reserved
     glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f};
+    // attenuation.xyz = constant / linear / quadratic, attenuation.w = reserved
     glm::vec4 attenuation{1.0f, 0.0f, 0.0f, 0.0f};
 };
 
 struct alignas(16) SpotLightData {
+    // position.xyz = world position, position.w = reserved (1.0)
     glm::vec4 position{0.0f, 0.0f, 0.0f, 1.0f};
+    // direction.xyz = normalized world direction, direction.w = reserved
     glm::vec4 direction{0.0f, -1.0f, 0.0f, 0.0f};
+    // color.rgb = light color * intensity, color.w = reserved
     glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f};
+    // angles.xy = cos(inner) / cos(outer), angles.z = range, angles.w = reserved
     glm::vec4 angles{0.0f, 0.0f, 0.0f, 0.0f};
 };
+
+static_assert(alignof(PointLightData) == 16, "PointLightData must remain 16-byte aligned.");
+static_assert(sizeof(PointLightData) == sizeof(glm::vec4) * 3, "PointLightData layout changed.");
+static_assert(alignof(SpotLightData) == 16, "SpotLightData must remain 16-byte aligned.");
+static_assert(sizeof(SpotLightData) == sizeof(glm::vec4) * 4, "SpotLightData layout changed.");
 
 struct RenderLightSet {
     static constexpr std::size_t kMaxPointLights = 8;

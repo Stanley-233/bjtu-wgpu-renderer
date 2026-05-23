@@ -21,9 +21,12 @@ enum class EPbrDebugView : uint32_t {
 struct alignas(16) SceneUniformData {
     glm::mat4 view{1.0f};
     glm::mat4 projection{1.0f};
+    // cameraPosition.xyz = world-space camera position, cameraPosition.w = reserved
     glm::vec4 cameraPosition{0.0f, 0.0f, 0.0f, 1.0f};
+    // lightCounts.x = directional count, y = point count, z = spot count, w = reserved
     glm::uvec4 lightCounts{0U, 0U, 0U, 0U};
     DirectionalLightData directionalLight{};
+    // PointLightData / SpotLightData field semantics must stay in sync with RenderLightSet.h and WGSL.
     std::array<PointLightData, RenderLightSet::kMaxPointLights> pointLights{};
     std::array<SpotLightData, RenderLightSet::kMaxSpotLights> spotLights{};
 };

@@ -7,6 +7,8 @@
 #include "components/CameraComponent.h"
 #include "components/TransformComponent.h"
 #include "components/light/DirectionalLightComponent.h"
+#include "components/light/PointLightComponent.h"
+#include "components/light/SpotLightComponent.h"
 #include "math/Transform3D.h"
 
 namespace {
@@ -15,6 +17,17 @@ constexpr glm::vec3 kArkZfyTranslation{1.5f, 0.0f, 0.0f};
 constexpr glm::vec3 kFanTranslation{0.2f, 3.0f, -1.8f};
 constexpr glm::vec3 kFanScale{0.05f, 0.05f, 0.05f};
 constexpr float kFanRotationSpeed = 12.0f;
+constexpr glm::vec3 kPointLightTranslation{-1.51f, 1.04f, -2.005f};
+constexpr glm::vec3 kPointLightColor{1.0f, 0.75f, 0.45f};
+constexpr float kPointLightIntensity = 6.0f;
+constexpr float kPointLightRange = 4.5f;
+constexpr glm::vec3 kSpotLightTranslation{1.6f, 2.2f, 1.2f};
+constexpr glm::vec3 kSpotLightDirection{-0.15f, -1.0f, -0.35f};
+constexpr glm::vec3 kSpotLightColor{0.55f, 0.75f, 1.0f};
+constexpr float kSpotLightIntensity = 10.0f;
+constexpr float kSpotLightRange = 7.0f;
+constexpr float kSpotLightInnerConeAngle = 0.22f;
+constexpr float kSpotLightOuterConeAngle = 0.38f;
 }
 
 const char* ScenePlayground::Name() const {
@@ -88,6 +101,32 @@ bool ScenePlayground::BuildSceneContent() {
 
     auto& [cornelBoxTransform] = cornelBoxRoot.GetComponent<TransformComponent>();
     cornelBoxTransform.SetTranslation(-1.5f, 0.0f, -3.0f);
+
+    Entity pointLight = GetWorld().CreateEntity("playground point light");
+    auto& pointLightTransform = pointLight.AddComponent<TransformComponent>().transform;
+    pointLightTransform.SetTranslation(
+        kPointLightTranslation.x,
+        kPointLightTranslation.y,
+        kPointLightTranslation.z);
+    auto& pointLightComponent = pointLight.AddComponent<PointLightComponent>();
+    pointLightComponent.color = kPointLightColor;
+    pointLightComponent.intensity = kPointLightIntensity;
+    pointLightComponent.range = kPointLightRange;
+
+    Entity spotLight = GetWorld().CreateEntity("playground spot light");
+    auto& spotLightTransform = spotLight.AddComponent<TransformComponent>().transform;
+    spotLightTransform.SetTranslation(
+        kSpotLightTranslation.x,
+        kSpotLightTranslation.y,
+        kSpotLightTranslation.z);
+    auto& spotLightComponent = spotLight.AddComponent<SpotLightComponent>();
+    spotLightComponent.direction = kSpotLightDirection;
+    spotLightComponent.color = kSpotLightColor;
+    spotLightComponent.intensity = kSpotLightIntensity;
+    spotLightComponent.range = kSpotLightRange;
+    spotLightComponent.innerConeAngle = kSpotLightInnerConeAngle;
+    spotLightComponent.outerConeAngle = kSpotLightOuterConeAngle;
+
     return true;
 }
 

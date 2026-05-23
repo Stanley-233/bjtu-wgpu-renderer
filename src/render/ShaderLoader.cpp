@@ -1,19 +1,27 @@
 #include "ShaderLoader.h"
 
 #include <fstream>
+#include <iterator>
 #include <string>
 
 wgpu::ShaderModule ShaderLoader::Load(const std::filesystem::path& path, wgpu::Device device) {
-    std::ifstream file(path);
+    std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
         return nullptr;
     }
 
-    file.seekg(0, std::ios::end);
-    const size_t size = file.tellg();
-    std::string  shaderSource(size, ' ');
-    file.seekg(0);
-    file.read(shaderSource.data(), static_cast<std::streamsize>(size));
+    std::string shaderSource{
+        std::istreambuf_iterator<char>(file),
+        std::istreambuf_iterator<char>()
+    };
+
+    // Strip UTF-8 BOM if present. Some WGSL parsers reject it as source text.
+    if (shaderSource.size() >= 3
+        && static_cast<unsigned char>(shaderSource[0]) == 0xEF
+        && static_cast<unsigned char>(shaderSource[1]) == 0xBB
+        && static_cast<unsigned char>(shaderSource[2]) == 0xBF) {
+        shaderSource.erase(0, 3);
+    }
 
     wgpu::ShaderModuleWGSLDescriptor shaderCodeDesc{};
     shaderCodeDesc.chain.next = nullptr;
