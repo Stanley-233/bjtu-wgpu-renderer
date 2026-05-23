@@ -19,7 +19,10 @@ public:
         ToneMapSettings* toneMapSettings,
         DofSettings* dofSettings,
         EMaterialShadingModel* litShadingModel,
-        EPbrDebugView* pbrDebugView);
+        EPbrDebugView* pbrDebugView,
+        bool* playgroundMagentaPointLightEnabled,
+        bool* playgroundBluePointLightEnabled,
+        bool* roomSpotLightEnabled);
 
 private:
     InputEventBus* m_eventBus = nullptr;

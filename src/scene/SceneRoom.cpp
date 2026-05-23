@@ -13,8 +13,8 @@
 namespace {
 constexpr glm::vec3 kRoomSpotLightTranslation{1.2f, 2.3f, -0.65f};
 constexpr glm::vec3 kRoomSpotLightDirection{0.0f, -1.0f, 0.0f};
-constexpr glm::vec3 kRoomSpotLightColor{1.0f, 0.92f, 0.82f};
-constexpr float kRoomSpotLightIntensity = 20.0f;
+constexpr glm::vec3 kRoomSpotLightColor{1.0f, 0.84f, 0.68f};
+constexpr float kRoomSpotLightIntensity = 8.0f;
 constexpr float kRoomSpotLightRange = 4.8f;
 constexpr float kRoomSpotLightInnerConeAngle = 0.28f;
 constexpr float kRoomSpotLightOuterConeAngle = 0.46f;
@@ -22,6 +22,15 @@ constexpr float kRoomSpotLightOuterConeAngle = 0.46f;
 
 const char* SceneRoom::Name() const {
     return "SceneRoom";
+}
+
+bool SceneRoom::IsSpotLightEnabled() const {
+    return m_spotLightEnabled;
+}
+
+void SceneRoom::SetSpotLightEnabled(const bool enabled) {
+    m_spotLightEnabled = enabled;
+    ApplySpotLightEnabledState();
 }
 
 bool SceneRoom::BuildSceneContent() {
@@ -34,20 +43,21 @@ bool SceneRoom::BuildSceneContent() {
         return false;
     }
 
-    Entity spotLight = GetWorld().CreateEntity("room spotlight");
-    auto& spotLightTransform = spotLight.AddComponent<TransformComponent>().transform;
+    m_spotLight = GetWorld().CreateEntity("room spotlight");
+    auto& spotLightTransform = m_spotLight.AddComponent<TransformComponent>().transform;
     spotLightTransform.SetTranslation(
         kRoomSpotLightTranslation.x,
         kRoomSpotLightTranslation.y,
         kRoomSpotLightTranslation.z);
 
-    auto& spotLightComponent = spotLight.AddComponent<SpotLightComponent>();
+    auto& spotLightComponent = m_spotLight.AddComponent<SpotLightComponent>();
     spotLightComponent.direction = kRoomSpotLightDirection;
     spotLightComponent.color = kRoomSpotLightColor;
     spotLightComponent.intensity = kRoomSpotLightIntensity;
     spotLightComponent.range = kRoomSpotLightRange;
     spotLightComponent.innerConeAngle = kRoomSpotLightInnerConeAngle;
     spotLightComponent.outerConeAngle = kRoomSpotLightOuterConeAngle;
+    ApplySpotLightEnabledState();
 
     return true;
 }
@@ -65,4 +75,11 @@ void SceneRoom::ConfigureInitialDirectionalLight(DirectionalLightComponent& ligh
     light.direction = glm::normalize(glm::vec3{0.769f, -0.572f, 0.285f});
     light.intensity = 1.5f;
     light.color = glm::vec3{1.0f, 0.97f, 0.92f};
+}
+
+void SceneRoom::ApplySpotLightEnabledState() {
+    if (m_spotLight && m_spotLight.HasComponent<SpotLightComponent>()) {
+        auto& spotLight = m_spotLight.GetComponent<SpotLightComponent>();
+        spotLight.intensity = m_spotLightEnabled ? kRoomSpotLightIntensity : 0.0f;
+    }
 }

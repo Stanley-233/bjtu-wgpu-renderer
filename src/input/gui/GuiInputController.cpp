@@ -50,7 +50,10 @@ void GuiInputController::BuildUi(
     ToneMapSettings*       toneMapSettings,
     DofSettings*           dofSettings,
     EMaterialShadingModel* litShadingModel,
-    EPbrDebugView*         pbrDebugView) {
+    EPbrDebugView*         pbrDebugView,
+    bool*                  playgroundMagentaPointLightEnabled,
+    bool*                  playgroundBluePointLightEnabled,
+    bool*                  roomSpotLightEnabled) {
     m_sceneNameCache = (activeSceneName == nullptr) ? "Unknown" : activeSceneName;
 
     if (ImGui::CollapsingHeader("Application", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -73,6 +76,19 @@ void GuiInputController::BuildUi(
             ImGui::SameLine();
             if (ImGui::Button("Switch Room")) {
                 m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneRoom});
+            }
+        }
+
+        if (m_sceneNameCache == "ScenePlayground") {
+            if (playgroundMagentaPointLightEnabled != nullptr) {
+                ImGui::Checkbox("Magenta Point Light", playgroundMagentaPointLightEnabled);
+            }
+            if (playgroundBluePointLightEnabled != nullptr) {
+                ImGui::Checkbox("Blue Point Light", playgroundBluePointLightEnabled);
+            }
+        } else if (m_sceneNameCache == "SceneRoom") {
+            if (roomSpotLightEnabled != nullptr) {
+                ImGui::Checkbox("Room Spot Light", roomSpotLightEnabled);
             }
         }
     }

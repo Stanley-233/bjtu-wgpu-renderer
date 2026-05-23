@@ -17,7 +17,7 @@ struct PointLightData {
     position: vec4f,
     // color.rgb = light color * intensity, color.w = reserved
     color: vec4f,
-    // attenuation.xyz = constant / linear / quadratic, attenuation.w = reserved
+    // attenuation.xyz = legacy constant / linear / quadratic, attenuation.w = range
     attenuation: vec4f,
 };
 
@@ -106,6 +106,8 @@ struct LocalLightSample {
 @group(3) @binding(0) var<uniform> uPbrDebug: PbrDebugUniform;
 
 const PI: f32 = 3.14159265;
+const PBR_DIRECTIONAL_LIGHT_SCALE: f32 = 0.75;
+const PBR_LOCAL_LIGHT_SCALE: f32 = 0.35;
 
 fn SelectUv(texCoordSet: u32, uv0: vec2f, uv1: vec2f) -> vec2f {
     return select(uv0, uv1, texCoordSet == 1u);
@@ -304,6 +306,20 @@ fn ComputeDistanceAttenuation(attenuationParams: vec4f, distance: f32) -> f32 {
     return 1.0 / max(denominator, 1.0e-4);
 }
 
+fn ComputeSmoothRangeFalloff(distance: f32, range: f32) -> f32 {
+    let safeRange = max(range, 1.0e-4);
+    let normalizedDistance = clamp(distance / safeRange, 0.0, 1.0);
+    let falloff = 1.0 - pow(normalizedDistance, 4.0);
+    return falloff * falloff;
+}
+
+fn ComputeInverseSquareRangeAttenuation(distance: f32, range: f32) -> f32 {
+    let safeRange = max(range, 1.0e-4);
+    let normalizedDistance = max(distance / safeRange, 1.0e-4);
+    let inverseSquare = 1.0 / (1.0 + normalizedDistance * normalizedDistance);
+    return inverseSquare * ComputeSmoothRangeFalloff(distance, safeRange);
+}
+
 fn EvaluateDirectPbrLight(
     normal: vec3f,
     viewDir: vec3f,
@@ -353,10 +369,11 @@ fn ComputePointLightSample(light: PointLightData, worldPos: vec3f) -> LocalLight
         return LocalLightSample(vec3f(0.0, 0.0, 0.0), vec3f(0.0, 0.0, 0.0));
     }
 
-    let attenuation = ComputeDistanceAttenuation(light.attenuation, distance);
+    let range = max(light.attenuation.w, 0.1);
+    let attenuation = ComputeInverseSquareRangeAttenuation(distance, range);
     return LocalLightSample(
         lightVector / distance,
-        light.color.rgb * attenuation,
+        light.color.rgb * attenuation * PBR_LOCAL_LIGHT_SCALE,
     );
 }
 
@@ -379,11 +396,10 @@ fn ComputeSpotLightSample(light: SpotLightData, worldPos: vec3f) -> LocalLightSa
     }
 
     let range = max(light.angles.z, 0.1);
-    let attenuationParams = vec4f(1.0, 4.5 / range, 75.0 / (range * range), 0.0);
-    let attenuation = ComputeDistanceAttenuation(attenuationParams, distance);
+    let attenuation = ComputeInverseSquareRangeAttenuation(distance, range);
     return LocalLightSample(
         lightDir,
-        light.color.rgb * attenuation * spotFactor,
+        light.color.rgb * attenuation * spotFactor * PBR_LOCAL_LIGHT_SCALE,
     );
 }
 
@@ -432,7 +448,7 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
             normal,
             viewDir,
             lightDir,
-            uScene.directionalLight.color.rgb * shadowFactor,
+            uScene.directionalLight.color.rgb * shadowFactor * PBR_DIRECTIONAL_LIGHT_SCALE,
             baseColor.rgb,
             metallic,
             roughness,

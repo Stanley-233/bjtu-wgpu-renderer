@@ -8,7 +8,6 @@
 #include "components/TransformComponent.h"
 #include "components/light/DirectionalLightComponent.h"
 #include "components/light/PointLightComponent.h"
-#include "components/light/SpotLightComponent.h"
 #include "math/Transform3D.h"
 
 namespace {
@@ -17,21 +16,34 @@ constexpr glm::vec3 kArkZfyTranslation{1.5f, 0.0f, 0.0f};
 constexpr glm::vec3 kFanTranslation{0.2f, 3.0f, -1.8f};
 constexpr glm::vec3 kFanScale{0.05f, 0.05f, 0.05f};
 constexpr float kFanRotationSpeed = 12.0f;
-constexpr glm::vec3 kPointLightTranslation{-1.51f, 1.04f, -2.005f};
-constexpr glm::vec3 kPointLightColor{1.0f, 0.75f, 0.45f};
-constexpr float kPointLightIntensity = 6.0f;
-constexpr float kPointLightRange = 4.5f;
-constexpr glm::vec3 kSpotLightTranslation{1.6f, 2.2f, 1.2f};
-constexpr glm::vec3 kSpotLightDirection{-0.15f, -1.0f, -0.35f};
-constexpr glm::vec3 kSpotLightColor{0.55f, 0.75f, 1.0f};
-constexpr float kSpotLightIntensity = 10.0f;
-constexpr float kSpotLightRange = 7.0f;
-constexpr float kSpotLightInnerConeAngle = 0.22f;
-constexpr float kSpotLightOuterConeAngle = 0.38f;
+constexpr glm::vec3 kCornellPointLightLeftTranslation{-1.95f, 1.08f, -2.18f};
+constexpr glm::vec3 kCornellPointLightRightTranslation{-1.22f, 1.08f, -2.35f};
+constexpr glm::vec3 kCornellPointLightLeftColor{1.0f, 0.15f, 0.75f};
+constexpr glm::vec3 kCornellPointLightRightColor{0.2f, 0.45f, 1.0f};
+constexpr float kCornellPointLightIntensity = 10.0f;
+constexpr float kCornellPointLightRange = 4.5f;
 }
 
 const char* ScenePlayground::Name() const {
     return "ScenePlayground";
+}
+
+bool ScenePlayground::IsMagentaPointLightEnabled() const {
+    return m_magentaPointLightEnabled;
+}
+
+bool ScenePlayground::IsBluePointLightEnabled() const {
+    return m_bluePointLightEnabled;
+}
+
+void ScenePlayground::SetMagentaPointLightEnabled(const bool enabled) {
+    m_magentaPointLightEnabled = enabled;
+    ApplyPointLightEnabledStates();
+}
+
+void ScenePlayground::SetBluePointLightEnabled(const bool enabled) {
+    m_bluePointLightEnabled = enabled;
+    ApplyPointLightEnabledStates();
 }
 
 void ScenePlayground::Update(const float dt) {
@@ -102,30 +114,29 @@ bool ScenePlayground::BuildSceneContent() {
     auto& [cornelBoxTransform] = cornelBoxRoot.GetComponent<TransformComponent>();
     cornelBoxTransform.SetTranslation(-1.5f, 0.0f, -3.0f);
 
-    Entity pointLight = GetWorld().CreateEntity("playground point light");
-    auto& pointLightTransform = pointLight.AddComponent<TransformComponent>().transform;
-    pointLightTransform.SetTranslation(
-        kPointLightTranslation.x,
-        kPointLightTranslation.y,
-        kPointLightTranslation.z);
-    auto& pointLightComponent = pointLight.AddComponent<PointLightComponent>();
-    pointLightComponent.color = kPointLightColor;
-    pointLightComponent.intensity = kPointLightIntensity;
-    pointLightComponent.range = kPointLightRange;
+    m_magentaPointLight = GetWorld().CreateEntity("playground magenta point light");
+    auto& leftPointLightTransform = m_magentaPointLight.AddComponent<TransformComponent>().transform;
+    leftPointLightTransform.SetTranslation(
+        kCornellPointLightLeftTranslation.x,
+        kCornellPointLightLeftTranslation.y,
+        kCornellPointLightLeftTranslation.z);
+    auto& leftPointLightComponent = m_magentaPointLight.AddComponent<PointLightComponent>();
+    leftPointLightComponent.color = kCornellPointLightLeftColor;
+    leftPointLightComponent.intensity = kCornellPointLightIntensity;
+    leftPointLightComponent.range = kCornellPointLightRange;
 
-    Entity spotLight = GetWorld().CreateEntity("playground spot light");
-    auto& spotLightTransform = spotLight.AddComponent<TransformComponent>().transform;
-    spotLightTransform.SetTranslation(
-        kSpotLightTranslation.x,
-        kSpotLightTranslation.y,
-        kSpotLightTranslation.z);
-    auto& spotLightComponent = spotLight.AddComponent<SpotLightComponent>();
-    spotLightComponent.direction = kSpotLightDirection;
-    spotLightComponent.color = kSpotLightColor;
-    spotLightComponent.intensity = kSpotLightIntensity;
-    spotLightComponent.range = kSpotLightRange;
-    spotLightComponent.innerConeAngle = kSpotLightInnerConeAngle;
-    spotLightComponent.outerConeAngle = kSpotLightOuterConeAngle;
+    m_bluePointLight = GetWorld().CreateEntity("playground blue point light");
+    auto& rightPointLightTransform = m_bluePointLight.AddComponent<TransformComponent>().transform;
+    rightPointLightTransform.SetTranslation(
+        kCornellPointLightRightTranslation.x,
+        kCornellPointLightRightTranslation.y,
+        kCornellPointLightRightTranslation.z);
+    auto& rightPointLightComponent = m_bluePointLight.AddComponent<PointLightComponent>();
+    rightPointLightComponent.color = kCornellPointLightRightColor;
+    rightPointLightComponent.intensity = kCornellPointLightIntensity;
+    rightPointLightComponent.range = kCornellPointLightRange;
+
+    ApplyPointLightEnabledStates();
 
     return true;
 }
@@ -143,4 +154,15 @@ void ScenePlayground::ConfigureInitialDirectionalLight(DirectionalLightComponent
     light.direction = glm::vec3{-0.35f, -1.0f, -0.25f};
     light.intensity = 1.8f;
     light.color = glm::vec3{1.0f, 1.0f, 1.0f};
+}
+
+void ScenePlayground::ApplyPointLightEnabledStates() {
+    if (m_magentaPointLight && m_magentaPointLight.HasComponent<PointLightComponent>()) {
+        auto& pointLight = m_magentaPointLight.GetComponent<PointLightComponent>();
+        pointLight.intensity = m_magentaPointLightEnabled ? kCornellPointLightIntensity : 0.0f;
+    }
+    if (m_bluePointLight && m_bluePointLight.HasComponent<PointLightComponent>()) {
+        auto& pointLight = m_bluePointLight.GetComponent<PointLightComponent>();
+        pointLight.intensity = m_bluePointLightEnabled ? kCornellPointLightIntensity : 0.0f;
+    }
 }

@@ -3,8 +3,11 @@
 #include <iostream>
 #include <memory>
 
+#include <imgui.h>
+
 #include "scene/LogicScene.h"
 #include "scene/ScenePlayground.h"
+#include "scene/SceneRoom.h"
 #include "scene/SceneRoom.h"
 #include "scene/SceneSponza.h"
 #include "scene/legacy/Scene2D.h"
@@ -155,6 +158,29 @@ void Application::Tick(float deltaTime) {
     m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
     m_guiRenderer.SetDebugPanelContentCallback([this]() {
+        bool* magentaPointLightEnabled = nullptr;
+        bool* bluePointLightEnabled = nullptr;
+        bool* roomSpotLightEnabled = nullptr;
+        auto* playgroundScene = m_sceneManager.HasActiveScene() ?
+                                    dynamic_cast<ScenePlayground*>(&m_sceneManager.ActiveScene()) :
+                                    nullptr;
+        auto* roomScene = m_sceneManager.HasActiveScene() ?
+                              dynamic_cast<SceneRoom*>(&m_sceneManager.ActiveScene()) :
+                              nullptr;
+        bool  magentaEnabledValue = false;
+        bool  blueEnabledValue = false;
+        bool  roomSpotLightEnabledValue = false;
+        if (playgroundScene != nullptr) {
+            magentaEnabledValue = playgroundScene->IsMagentaPointLightEnabled();
+            blueEnabledValue = playgroundScene->IsBluePointLightEnabled();
+            magentaPointLightEnabled = &magentaEnabledValue;
+            bluePointLightEnabled = &blueEnabledValue;
+        }
+        if (roomScene != nullptr) {
+            roomSpotLightEnabledValue = roomScene->IsSpotLightEnabled();
+            roomSpotLightEnabled = &roomSpotLightEnabledValue;
+        }
+
         m_guiInputController.BuildUi(
             m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
             &m_ssaoEnabled,
@@ -162,7 +188,18 @@ void Application::Tick(float deltaTime) {
             &m_toneMapSettings,
             &m_dofSettings,
             &m_litShadingModel,
-            &m_pbrDebugView);
+            &m_pbrDebugView,
+            magentaPointLightEnabled,
+            bluePointLightEnabled,
+            roomSpotLightEnabled);
+
+        if (playgroundScene != nullptr) {
+            playgroundScene->SetMagentaPointLightEnabled(magentaEnabledValue);
+            playgroundScene->SetBluePointLightEnabled(blueEnabledValue);
+        }
+        if (roomScene != nullptr) {
+            roomScene->SetSpotLightEnabled(roomSpotLightEnabledValue);
+        }
     });
 
     if (m_sceneManager.HasActiveScene()) {
@@ -218,6 +255,12 @@ void Application::SwitchScene(ESceneType type) {
         std::cout << "[Application] Scene switch failed; keeping current scene." << std::endl;
         return;
     }
+
+    if (type == ESceneType::SceneRoom) {
+        m_toneMapSettings.exposureMode = EToneMapExposureMode::ManualEv;
+        m_toneMapSettings.exposureEv = 1.25f;
+    }
+
     ApplyActiveSceneRenderSettings();
 }
 

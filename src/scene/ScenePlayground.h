@@ -12,6 +12,14 @@ public:
 
     void Update(float dt) override;
 
+    [[nodiscard]] bool IsMagentaPointLightEnabled() const;
+
+    [[nodiscard]] bool IsBluePointLightEnabled() const;
+
+    void SetMagentaPointLightEnabled(bool enabled);
+
+    void SetBluePointLightEnabled(bool enabled);
+
 protected:
     [[nodiscard]] bool BuildSceneContent() override;
 
@@ -20,6 +28,12 @@ protected:
     void ConfigureInitialDirectionalLight(DirectionalLightComponent& light) override;
 
 private:
+    void ApplyPointLightEnabledStates();
+
+    Entity    m_magentaPointLight{};
+    Entity    m_bluePointLight{};
+    bool      m_magentaPointLightEnabled = true;
+    bool      m_bluePointLightEnabled = true;
     Entity    m_fanRotor{};
     glm::mat4 m_fanRotorBaseMatrix{1.0f};
     float     m_fanRotationRadians = 0.0f;

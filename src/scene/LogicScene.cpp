@@ -105,7 +105,7 @@ glm::vec4 BuildPointLightAttenuation(const float range) {
         1.0f,
         4.5f / safeRange,
         75.0f / (safeRange * safeRange),
-        0.0f,
+        safeRange,
     };
 }
 

@@ -25,7 +25,7 @@ struct alignas(16) PointLightData {
     glm::vec4 position{0.0f, 0.0f, 0.0f, 1.0f};
     // color.rgb = light color * intensity, color.w = reserved
     glm::vec4 color{1.0f, 1.0f, 1.0f, 1.0f};
-    // attenuation.xyz = constant / linear / quadratic, attenuation.w = reserved
+    // attenuation.xyz = legacy constant / linear / quadratic, attenuation.w = range
     glm::vec4 attenuation{1.0f, 0.0f, 0.0f, 0.0f};
 };
 
