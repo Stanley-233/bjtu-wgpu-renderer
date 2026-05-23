@@ -21,6 +21,10 @@ MaterialUniformData BuildMaterialUniformData(
             material.normalScale,
             0.0f,
         },
+        .specularParams = glm::vec4{
+            material.specular.has_value() ? material.specular->specularColorFactor : glm::vec3{1.0f, 1.0f, 1.0f},
+            material.specular.has_value() ? material.specular->specularFactor : 1.0f,
+        },
         .textureCoordSets = glm::uvec4{
             material.baseColorTexture.has_value() ? material.baseColorTexture->texCoord : 0U,
             material.normalTexture.has_value() ? material.normalTexture->texCoord : 0U,

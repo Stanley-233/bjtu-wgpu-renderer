@@ -43,6 +43,7 @@ struct ObjectUniform {
 struct MaterialUniform {
     baseColorFactor: vec4f,
     pbrParams: vec4f,
+    specularParams: vec4f,
     textureCoordSets: vec4u,
     surfaceOptions: vec4u,
 };

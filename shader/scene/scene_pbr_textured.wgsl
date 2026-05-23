@@ -61,6 +61,7 @@ struct DirectionalShadowUniform {
 struct MaterialUniform {
     baseColorFactor: vec4f,
     pbrParams: vec4f,
+    specularParams: vec4f,
     textureCoordSets: vec4u,
     surfaceOptions: vec4u,
 };
@@ -428,10 +429,12 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
 
     let viewDir = normalize(uScene.cameraPosition.xyz - in.worldPos);
 
-    // F0 混合规则：
-    // F0 = mix(vec3(0.04), baseColor.rgb, metallic)
-    // 非金属通常取 0.04，金属的镜面反射颜色来自 baseColor
-    let f0 = mix(vec3f(0.04, 0.04, 0.04), baseColor.rgb, vec3f(metallic, metallic, metallic));
+    // glTF metallic-roughness 的基础 F0：
+    // dielectricF0 = 0.04
+    // metalF0 = baseColor
+    // KHR_materials_specular 用 specularFactor / specularColorFactor 调整 dielectric F0
+    let dielectricF0 = vec3f(0.04, 0.04, 0.04) * uMaterial.specularParams.xyz * uMaterial.specularParams.w;
+    let f0 = mix(dielectricF0, baseColor.rgb, vec3f(metallic, metallic, metallic));
 
     // TODO: 接入 IBL 后，这里应替换为更合理的环境漫反射/环境镜面反射模型
     // 当前先故意提高 ambient 来补偿缺失的间接光，因此这里不严格满足能量守恒

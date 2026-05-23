@@ -146,7 +146,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
         0.0
     ).rgb;
     let fresnel = fresnelSchlick(ndotv, f0);
-    let roughnessWeight = pow(1.0 - roughness, 2.0);
+    let roughnessWeight = pow(1.0 - roughness, 1.25);
     let edgeUv = abs(hitUv * 2.0 - 1.0);
     let edgeFade = saturate(1.0 - max(edgeUv.x, edgeUv.y));
     let distanceFade = saturate(1.0 - hitT / maxDistance);

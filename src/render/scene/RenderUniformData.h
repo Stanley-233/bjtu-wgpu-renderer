@@ -113,6 +113,8 @@ struct alignas(16) MaterialUniformData {
     glm::vec4 baseColorFactor{1.0f, 1.0f, 1.0f, 1.0f};
     // x=metallicFactor, y=roughnessFactor, z=normalScale, w=reserved
     glm::vec4 pbrParams{1.0f, 1.0f, 1.0f, 0.0f};
+    // xyz=specularColorFactor, w=specularFactor
+    glm::vec4 specularParams{1.0f, 1.0f, 1.0f, 1.0f};
     // x=baseColorTexCoord, y=normalTexCoord, z=metallicRoughnessTexCoord, w=reserved
     glm::uvec4 textureCoordSets{0U, 0U, 0U, 0U};
     // x=shadingModel, y=useVertexColor, z=hasNormalTexture, w=doubleSided
