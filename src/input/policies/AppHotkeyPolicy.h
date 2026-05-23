@@ -33,11 +33,6 @@ public:
             return true;
         }
         if (key == GLFW_KEY_3) {
-            dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneSponza});
-            handledPress = true;
-            return true;
-        }
-        if (key == GLFW_KEY_4) {
             dispatcher.trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneRoom});
             handledPress = true;
             return true;
@@ -54,7 +49,6 @@ public:
         return key == GLFW_KEY_1
             || key == GLFW_KEY_2
             || key == GLFW_KEY_3
-            || key == GLFW_KEY_4
             || key == GLFW_KEY_C;
     }
 };

@@ -50,7 +50,7 @@ just dev-web
 ### 1. 应用层
 - `Application` 负责生命周期：初始化、主循环、事件回调、场景切换
 - 将 GLFW 键盘输入分发给 `InputManager`
-- 当前支持快捷切换场景：`1`（2D场景）、`2`（Playground）、`3`（Sponza）、`4`（Room）
+- 当前支持快捷切换场景：`1`（2D场景）、`2`（Playground）、`3`（Room）
 
 ### 2. 渲染层
 - `RenderContext`：封装 WebGPU 设备与窗口上下文，负责初始化 `Instance/Adapter/Device/Queue/Surface`，并提供每帧的渲染结果、命令提交入口
@@ -72,7 +72,7 @@ just dev-web
 - `SceneManager` 管理场景注册、激活、更新、渲染
 - `Scene2D`：2D 几何与矩阵变换演示
 - `LogicScene`：新版 3D 场景基类，负责共享相机输入、世界装配与 RenderScene 提取
-- `ScenePlayground / SceneSponza / SceneRoom`：三个具体 3D 场景
+- `ScenePlayground / SceneRoom`：两个具体 3D 场景
 
 ### 5. 资源与加载层
 - `ResourceManager` 提供统一入口：

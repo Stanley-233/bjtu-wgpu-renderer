@@ -70,9 +70,6 @@ void GuiInputController::BuildUi(
             if (ImGui::Button("Switch Playground")) {
                 m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::ScenePlayground});
             }
-            if (ImGui::Button("Switch Sponza")) {
-                m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneSponza});
-            }
             ImGui::SameLine();
             if (ImGui::Button("Switch Room")) {
                 m_eventBus->Dispatcher().trigger<SceneSwitchRequest>(SceneSwitchRequest{ESceneType::SceneRoom});

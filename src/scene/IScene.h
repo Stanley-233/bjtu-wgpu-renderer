@@ -9,7 +9,6 @@ enum class ESceneType {
     Scene2D,
     LegacyScene3D,
     ScenePlayground,
-    SceneSponza,
     SceneRoom,
 };
 

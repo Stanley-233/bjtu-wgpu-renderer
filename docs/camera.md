@@ -8,4 +8,4 @@
 5. 现在所有新版 3D 场景都继承 LogicScene 基类；基类统一订阅 CameraMoveInputEvent 和 CameraLookInputEvent，并把输入转交给 FreeCameraController
 6. 真正的相机位移和视角变化发生在 LogicScene::Update(dt) 里：
    它从 World 找主相机 entity，拿到 CameraComponent.camera，再调用 CameraController::Update(dt, camera)
-7. 渲染时 LogicScene::BuildRenderScene() 继续从同一个主相机取 View/Projection 填进 RenderScene，所以 ScenePlayground、SceneSponza、SceneRoom 共用同一套相机输入与渲染提交流程
+7. 渲染时 LogicScene::BuildRenderScene() 继续从同一个主相机取 View/Projection 填进 RenderScene，所以 ScenePlayground、SceneRoom 共用同一套相机输入与渲染提交流程

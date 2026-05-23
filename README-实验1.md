@@ -5,8 +5,7 @@
 ## 通用键位（场景管理）
 - `1`：切换到 Scene2D
 - `2`：切换到 ScenePlayground
-- `3`：切换到 SceneSponza
-- `4`：切换到 SceneRoom
+- `3`：切换到 SceneRoom
 
 ## 3D 场景键位（实验1重点）
 
