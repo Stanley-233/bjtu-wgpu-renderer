@@ -72,6 +72,7 @@ private:
     bool                      m_inputDebugEnabled       = false;
     bool                      m_ssaoEnabled             = true;
     ToneMapSettings           m_toneMapSettings{};
+    DofSettings               m_dofSettings{};
     EMaterialShadingModel     m_litShadingModel         = EMaterialShadingModel::Lambert;
     EPbrDebugView             m_pbrDebugView            = EPbrDebugView::Off;
     std::optional<ESceneType> m_pendingSceneSwitch;

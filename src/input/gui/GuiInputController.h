@@ -16,6 +16,7 @@ public:
         const char* activeSceneName,
         bool* ssaoEnabled,
         ToneMapSettings* toneMapSettings,
+        DofSettings* dofSettings,
         EMaterialShadingModel* litShadingModel,
         EPbrDebugView* pbrDebugView);
 

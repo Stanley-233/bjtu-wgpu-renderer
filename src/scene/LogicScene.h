@@ -38,6 +38,8 @@ public:
 
     void SetToneMapSettings(const ToneMapSettings& settings);
 
+    void SetDofSettings(const DofSettings& settings);
+
     void SetLitShadingModelOverride(EMaterialShadingModel shadingModel);
 
     void SetPbrDebugView(EPbrDebugView debugView);

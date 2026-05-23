@@ -24,8 +24,8 @@ bool SceneRoom::BuildSceneContent() {
 void SceneRoom::ConfigureInitialCamera(CameraComponent& camera) {
     if (camera.camera != nullptr) {
         camera.camera->SetPose(
-            glm::vec3{0.0f, 1.6f, 4.0f},
-            glm::vec3{0.0f, 1.2f, 0.0f},
+            glm::vec3{3.6f, 1.6f, 1.78f},
+            glm::vec3{1.05f, 1.18f, -1.30f},
             glm::vec3{0.0f, 1.0f, 0.0f});
     }
 }

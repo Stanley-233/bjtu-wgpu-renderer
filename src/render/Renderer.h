@@ -7,6 +7,7 @@
 #include "frame/RenderFrame.h"
 #include "gpu/GpuResourceCache.h"
 #include "passes/DepthPrepass.h"
+#include "passes/DofPass.h"
 #include "passes/ForwardOpaquePass.h"
 #include "passes/GuiPass.h"
 #include "passes/PBRPass.h"
@@ -34,6 +35,8 @@ public:
     void SetSsaoEnabled(bool enabled);
 
     void SetToneMapSettings(const ToneMapSettings& settings);
+
+    void SetDofSettings(const DofSettings& settings);
 
     void SetClearColor(double r, double g, double b, double a);
 
@@ -65,6 +68,7 @@ private:
     SkyboxPass                      m_skyboxPass;
     ForwardOpaquePass               m_forwardOpaquePass;
     PBRPass                         m_pbrPass;
+    DofPass                         m_dofPass;
     ToneMapPass                     m_toneMapPass;
     GuiPass                         m_guiPass;
     wgpu::raii::Texture             m_sceneDepthTexture;
@@ -75,6 +79,12 @@ private:
     wgpu::raii::TextureView         m_sceneColorView;
     wgpu::raii::Texture             m_sceneNormalTexture;
     wgpu::raii::TextureView         m_sceneNormalView;
+    wgpu::raii::Texture             m_sceneCocTexture;
+    wgpu::raii::TextureView         m_sceneCocView;
+    wgpu::raii::Texture             m_sceneDofPingTexture;
+    wgpu::raii::TextureView         m_sceneDofPingView;
+    wgpu::raii::Texture             m_sceneDofColorTexture;
+    wgpu::raii::TextureView         m_sceneDofColorView;
     wgpu::raii::Texture             m_directionalShadowTexture;
     wgpu::raii::TextureView         m_directionalShadowView;
     wgpu::raii::Sampler             m_directionalShadowSampler;

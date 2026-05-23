@@ -185,6 +185,10 @@ void LogicScene::SetToneMapSettings(const ToneMapSettings& settings) {
     m_renderer.SetToneMapSettings(settings);
 }
 
+void LogicScene::SetDofSettings(const DofSettings& settings) {
+    m_renderer.SetDofSettings(settings);
+}
+
 void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingModel) {
     if (shadingModel != EMaterialShadingModel::Lambert && shadingModel != EMaterialShadingModel::Pbr) {
         return;

@@ -63,6 +63,12 @@ public:
         wgpu::raii::RenderPipeline  pipeline;
     };
 
+    struct DofPipeline {
+        wgpu::raii::BindGroupLayout bindGroupLayout;
+        wgpu::raii::PipelineLayout  layout;
+        wgpu::raii::RenderPipeline  pipeline;
+    };
+
     struct EquirectToCubemapComputePipeline {
         wgpu::raii::BindGroupLayout bindGroupLayout;
         wgpu::raii::PipelineLayout  layout;
@@ -102,6 +108,10 @@ public:
     static ToneMapPipeline CreateToneMapPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static SkyboxPipeline CreateSkyboxPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
+
+    static DofPipeline CreateDofCocPipeline(RenderContext& renderCtx);
+
+    static DofPipeline CreateDofBlurPipeline(RenderContext& renderCtx, wgpu::TextureFormat colorTargetFormat);
 
     static EquirectToCubemapComputePipeline CreateEquirectToCubemapComputePipeline(RenderContext& renderCtx);
 

@@ -5,7 +5,7 @@
 - `Application` 负责应用生命周期、主循环编排、场景切换、输入系统接线和 GUI 帧驱动。
 - `WindowContext` 负责 GLFW 窗口生命周期、事件轮询和 drawable size 查询。
 - `RenderContext` 负责 WebGPU `device / queue / surface`，以及 `acquire / submit / present` 和共享 GPU 缓存入口。
-- `Renderer` 负责新版 3D 渲染路径的整帧编排，内部调度 shadow、prepass、SSAO、skybox、forward、PBR、tone mapping 和 GUI。
+- `Renderer` 负责新版 3D 渲染路径的整帧编排，内部调度 shadow、prepass、SSAO、skybox、forward、PBR、DoF、tone mapping 和 GUI。
 - `AssetServer` 负责 CPU 侧资产缓存与 importer 分发，当前覆盖 glTF 模型和 HDR 图像。
 - `LegacyGuiRenderer`、`LegacyFrameContext`、`LegacyPipeline2D`、`LegacyRenderer3D` 都是兼容层，不扩散到新 3D 渲染架构内部。
 
@@ -108,6 +108,7 @@ src
     ├── passes
     │   ├── IRenderPass          # 统一 pass 接口和 PassContext 结构
     │   ├── DepthPrepass         # 主场景深度预通道，输出 scene depth
+    │   ├── DofPass              # 基础景深 pass：CoC 计算 + 双向 blur，输出 HDR DoF 结果
     │   ├── ForwardOpaquePass    # Unlit/Lambert 前向不透明 pass，输出到 HDR scene color
     │   ├── GuiPass              # 在最终 surface 上叠加 ImGui
     │   ├── PBRPass              # PBR 不透明 pass，输出到 HDR scene color
@@ -152,7 +153,7 @@ src
 
 1. `Renderer` 调用 `RenderContext::AcquireSurfaceFrame()` 获取 swapchain 当前帧。
 2. `Renderer` 在 `EnsureFrameResources(...)` 中按窗口尺寸准备中间目标：
-   `sceneDepth(Depth24Plus)`、`sceneAo(R8Unorm)`、`sceneColor(RGBA16Float)`、`sceneNormal(RGBA16Float)`。
+   `sceneDepth(Depth24Plus)`、`sceneAo(R8Unorm)`、`sceneColor(RGBA16Float)`、`sceneNormal(RGBA16Float)`、`sceneCoc(R16Float)`、`sceneDofPing(RGBA16Float)`、`sceneDofColor(RGBA16Float)`。
 3. `Renderer` 通过 `GpuResourceCache` 把 `RenderObject` 依赖的 CPU mesh/material/image 同步到 GPU。
 4. 如果 `RenderScene` 带 skybox，`Renderer` 通过 `EnvironmentMapCache` 把 `HdrImageAsset` 上传为 HDR 2D 纹理，并在首次需要时用 compute shader 预计算 cubemap。
 5. 所有 pass 顺序写入同一个 command encoder：
@@ -163,6 +164,7 @@ src
    - `SkyboxPass`
    - `ForwardOpaquePass`
    - `PBRPass`
+   - `DofPass`
    - `ToneMapPass`
    - `GuiPass`
 6. `Renderer` 调用 `RenderContext::Submit(...)` 和 `RenderContext::Present(...)`。
@@ -183,10 +185,19 @@ src
   - 用途：AO 结果，供前向/PBR pass 采样
 - `SceneColorTexture`
   - 格式：`RGBA16Float`
-  - 用途：HDR 主颜色缓冲，skybox/forward/PBR 都写入这里
+  - 用途：HDR 主颜色缓冲，skybox/forward/PBR 都写入这里，DoF 关闭时直接进入 tone mapping
+- `SceneCocTexture`
+  - 格式：`R16Float`
+  - 用途：保存带符号 CoC，供 DoF blur 判断前后景与模糊半径
+- `SceneDofPingTexture`
+  - 格式：`RGBA16Float`
+  - 用途：DoF 横向 blur 临时结果
+- `SceneDofColorTexture`
+  - 格式：`RGBA16Float`
+  - 用途：DoF 最终 HDR 输出，供 `ToneMapPass` 采样
 - `Surface Texture`
   - 格式：取决于 `render.surface_format`，通常是 `BGRA8Unorm` 或 `RGBA8Unorm`
-  - 用途：`ToneMapPass` 把 HDR `sceneColor` 转到 surface，`GuiPass` 再叠加 GUI
+  - 用途：`ToneMapPass` 把 HDR `sceneColor` 或 `sceneDofColor` 转到 surface，`GuiPass` 再叠加 GUI
 
 ## 设计约束
 

@@ -267,6 +267,56 @@ static raii::BindGroupLayout CreateToneMapUniformBindGroupLayout(RenderContext& 
     return renderCtx.GetDevice()->createBindGroupLayout(desc);
 }
 
+static raii::BindGroupLayout CreateDofCocBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 2> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].texture.sampleType = TextureSampleType::Depth;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].buffer.type = BufferBindingType::Uniform;
+    bindings[1].buffer.minBindingSize = sizeof(DofUniformData);
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/DofCocBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
+static raii::BindGroupLayout CreateDofBlurBindGroupLayout(RenderContext& renderCtx) {
+    std::array<BindGroupLayoutEntry, 6> bindings{};
+    bindings[0].binding = 0;
+    bindings[0].visibility = ShaderStage::Fragment;
+    bindings[0].texture.sampleType = TextureSampleType::Float;
+    bindings[0].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[1].binding = 1;
+    bindings[1].visibility = ShaderStage::Fragment;
+    bindings[1].texture.sampleType = TextureSampleType::Float;
+    bindings[1].texture.viewDimension = TextureViewDimension::_2D;
+    bindings[2].binding = 2;
+    bindings[2].visibility = ShaderStage::Fragment;
+    bindings[2].sampler.type = SamplerBindingType::Filtering;
+    bindings[3].binding = 3;
+    bindings[3].visibility = ShaderStage::Fragment;
+    bindings[3].sampler.type = SamplerBindingType::Filtering;
+    bindings[4].binding = 4;
+    bindings[4].visibility = ShaderStage::Fragment;
+    bindings[4].buffer.type = BufferBindingType::Uniform;
+    bindings[4].buffer.minBindingSize = sizeof(DofUniformData);
+    bindings[5].binding = 5;
+    bindings[5].visibility = ShaderStage::Fragment;
+    bindings[5].texture.sampleType = TextureSampleType::Depth;
+    bindings[5].texture.viewDimension = TextureViewDimension::_2D;
+
+    BindGroupLayoutDescriptor desc{};
+    desc.label = "Scene3D/DofBlurBindGroupLayout";
+    desc.entryCount = static_cast<uint32_t>(bindings.size());
+    desc.entries = bindings.data();
+    return renderCtx.GetDevice()->createBindGroupLayout(desc);
+}
+
 static raii::BindGroupLayout CreateSkyboxBindGroupLayout(RenderContext& renderCtx) {
     std::array<BindGroupLayoutEntry, 3> bindings{};
     bindings[0].binding = 0;
@@ -828,6 +878,111 @@ Scene3DPipelineFactory::CreateSkyboxPipeline(RenderContext& renderCtx, const Tex
 
     PipelineLayoutDescriptor layoutDesc{};
     layoutDesc.label = "Scene3D/SkyboxPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::DofPipeline Scene3DPipelineFactory::CreateDofCocPipeline(RenderContext& renderCtx) {
+    constexpr const char* label = "Scene3DPipelineFactory/DoFCoc";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_dof_coc.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = TextureFormat::R16Float;
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    DofPipeline result;
+    result.bindGroupLayout = CreateDofCocBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.bindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/DofCocPipelineLayout";
+    layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
+    layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
+    result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);
+
+    pipelineDesc.layout = *result.layout;
+    result.pipeline = renderCtx.GetDevice()->createRenderPipeline(pipelineDesc);
+#ifndef WEBGPU_BACKEND_EMSCRIPTEN
+    PopValidationScope(renderCtx, label);
+#endif
+    return result;
+}
+
+Scene3DPipelineFactory::DofPipeline
+Scene3DPipelineFactory::CreateDofBlurPipeline(RenderContext& renderCtx, const TextureFormat colorTargetFormat) {
+    constexpr const char* label = "Scene3DPipelineFactory/DoFBlur";
+    ShaderModule shaderModule = LoadShaderModule(renderCtx, ShaderPaths::Resolve("scene/scene_dof_blur.wgsl"), label);
+
+    wgpuDevicePushErrorScope(*renderCtx.GetDevice(), WGPUErrorFilter_Validation);
+
+    RenderPipelineDescriptor pipelineDesc{};
+    pipelineDesc.label = label;
+    pipelineDesc.vertex.bufferCount = 0;
+    pipelineDesc.vertex.buffers = nullptr;
+    pipelineDesc.vertex.module = shaderModule;
+    pipelineDesc.vertex.entryPoint = "vs_main";
+    pipelineDesc.vertex.constantCount = 0;
+    pipelineDesc.vertex.constants = nullptr;
+    SetCommonPrimitiveState(pipelineDesc, PrimitiveTopology::TriangleList, CullMode::None);
+    pipelineDesc.depthStencil = nullptr;
+
+    ColorTargetState colorTarget{};
+    colorTarget.format = ToNativeTextureFormat(colorTargetFormat);
+    colorTarget.blend = nullptr;
+    colorTarget.writeMask = ColorWriteMask::All;
+
+    FragmentState fragmentState{};
+    fragmentState.module = shaderModule;
+    fragmentState.entryPoint = "fs_main";
+    fragmentState.constantCount = 0;
+    fragmentState.constants = nullptr;
+    fragmentState.targetCount = 1;
+    fragmentState.targets = &colorTarget;
+    pipelineDesc.fragment = &fragmentState;
+
+    DofPipeline result;
+    result.bindGroupLayout = CreateDofBlurBindGroupLayout(renderCtx);
+
+    std::array<WGPUBindGroupLayout, 1> bindGroupLayouts{
+        *result.bindGroupLayout,
+    };
+
+    PipelineLayoutDescriptor layoutDesc{};
+    layoutDesc.label = "Scene3D/DofBlurPipelineLayout";
     layoutDesc.bindGroupLayoutCount = static_cast<uint32_t>(bindGroupLayouts.size());
     layoutDesc.bindGroupLayouts = bindGroupLayouts.data();
     result.layout = renderCtx.GetDevice()->createPipelineLayout(layoutDesc);

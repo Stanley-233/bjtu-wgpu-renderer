@@ -29,6 +29,16 @@ static const char* ToneMapExposureModeLabel(const EToneMapExposureMode mode) {
     return "Unknown";
 }
 
+static const char* DofDebugModeLabel(const EDoFDebugMode mode) {
+    switch (mode) {
+        case EDoFDebugMode::Off:
+            return "Off";
+        case EDoFDebugMode::FocusPlaneTint:
+            return "Focus Plane Tint";
+    }
+    return "Unknown";
+}
+
 void GuiInputController::SetEventBus(InputEventBus* eventBus) {
     m_eventBus = eventBus;
 }
@@ -37,6 +47,7 @@ void GuiInputController::BuildUi(
     const char*            activeSceneName,
     bool*                  ssaoEnabled,
     ToneMapSettings*       toneMapSettings,
+    DofSettings*           dofSettings,
     EMaterialShadingModel* litShadingModel,
     EPbrDebugView*         pbrDebugView) {
     m_sceneNameCache = (activeSceneName == nullptr) ? "Unknown" : activeSceneName;
@@ -126,6 +137,36 @@ void GuiInputController::BuildUi(
 
             ImGui::BeginDisabled(toneMapSettings->exposureMode != EToneMapExposureMode::ManualEv);
             ImGui::SliderFloat("Exposure EV", &toneMapSettings->exposureEv, -8.0f, 8.0f, "%.2f EV");
+            ImGui::EndDisabled();
+        }
+        if (dofSettings != nullptr) {
+            ImGui::SeparatorText("Depth of Field");
+            ImGui::Checkbox("Enable DoF", &dofSettings->enabled);
+            ImGui::SliderFloat("Focus Distance", &dofSettings->focusDistance, 0.1f, 50.0f, "%.2f");
+            ImGui::SliderFloat("Focus Range", &dofSettings->focusRange, 0.01f, 10.0f, "%.2f");
+            ImGui::SliderFloat("Max Blur Radius", &dofSettings->maxBlurRadiusPixels, 0.0f, 32.0f, "%.1f px");
+
+            int debugMode = static_cast<int>(dofSettings->debugMode);
+            if (ImGui::BeginCombo("DoF Debug", DofDebugModeLabel(dofSettings->debugMode))) {
+                constexpr EDoFDebugMode modes[] = {
+                    EDoFDebugMode::Off,
+                    EDoFDebugMode::FocusPlaneTint,
+                };
+                for (const EDoFDebugMode mode : modes) {
+                    const bool isSelected = dofSettings->debugMode == mode;
+                    if (ImGui::Selectable(DofDebugModeLabel(mode), isSelected)) {
+                        debugMode = static_cast<int>(mode);
+                    }
+                    if (isSelected) {
+                        ImGui::SetItemDefaultFocus();
+                    }
+                }
+                ImGui::EndCombo();
+            }
+            dofSettings->debugMode = static_cast<EDoFDebugMode>(debugMode);
+
+            ImGui::BeginDisabled(dofSettings->debugMode != EDoFDebugMode::FocusPlaneTint);
+            ImGui::SliderFloat("Debug Plane Thickness", &dofSettings->debugPlaneHalfThickness, 0.005f, 1.0f, "%.3f");
             ImGui::EndDisabled();
         }
     }

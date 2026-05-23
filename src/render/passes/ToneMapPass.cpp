@@ -41,7 +41,7 @@ void ToneMapPass::Render(RenderContext& renderCtx, RenderFrame& frame, const Pas
         || !m_sceneColorSampler
         || !m_uniformBuffer
         || passCtx.queue == nullptr
-        || passCtx.sceneColorView == nullptr) {
+        || frame.postProcessColorView == nullptr) {
         return;
     }
 
@@ -57,7 +57,7 @@ void ToneMapPass::Render(RenderContext& renderCtx, RenderFrame& frame, const Pas
 
     wgpu::BindGroupEntry bindings[2]{};
     bindings[0].binding = 0;
-    bindings[0].textureView = passCtx.sceneColorView;
+    bindings[0].textureView = frame.postProcessColorView;
     bindings[1].binding = 1;
     bindings[1].sampler = *m_sceneColorSampler;
 

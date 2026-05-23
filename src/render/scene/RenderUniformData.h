@@ -23,9 +23,23 @@ enum class EToneMapExposureMode : uint32_t {
     AutoExposure = 1,
 };
 
+enum class EDoFDebugMode : uint32_t {
+    Off = 0,
+    FocusPlaneTint = 1,
+};
+
 struct ToneMapSettings {
     EToneMapExposureMode exposureMode = EToneMapExposureMode::ManualEv;
-    float                exposureEv = 0.0f;
+    float                exposureEv  = 0.0f;
+};
+
+struct DofSettings {
+    bool           enabled                 = false;
+    float          focusDistance           = 3.1f;
+    float          focusRange              = 5.0f;
+    float          maxBlurRadiusPixels     = 10.0f;
+    float          debugPlaneHalfThickness = 0.08f;
+    EDoFDebugMode  debugMode               = EDoFDebugMode::Off;
 };
 
 struct alignas(16) SceneUniformData {
@@ -55,6 +69,16 @@ struct alignas(16) SkyboxUniformData {
 struct alignas(16) ToneMapUniformData {
     // x=exposureMode, y=manualExposureEv, zw=reserved
     glm::vec4 params{0.0f, 0.0f, 0.0f, 0.0f};
+};
+
+struct alignas(16) DofUniformData {
+    glm::mat4 invProjection{1.0f};
+    // x=viewportWidth, y=viewportHeight, z=maxBlurRadiusPixels, w=passMode(0=coc, 1=blur)
+    glm::vec4 viewportAndBlur{1.0f, 1.0f, 10.0f, 0.0f};
+    // x=focusDistance, y=focusRange, z=debugPlaneHalfThickness, w=debugMode
+    glm::vec4 focusParams{3.1f, 5.0f, 0.08f, 0.0f};
+    // x=blurDirX, y=blurDirY, zw=reserved
+    glm::vec4 blurDirection{1.0f, 0.0f, 0.0f, 0.0f};
 };
 
 struct alignas(16) ObjectUniformData {

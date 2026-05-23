@@ -21,6 +21,7 @@ void Renderer::Initialize(RenderContext& renderCtx) {
     m_skyboxPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_forwardOpaquePass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_pbrPass.Initialize(renderCtx, kHdrSceneColorFormat);
+    m_dofPass.Initialize(renderCtx, kHdrSceneColorFormat);
     m_toneMapPass.Initialize(renderCtx);
     EnsureFallbackShadowResources(renderCtx);
 }
@@ -34,6 +35,10 @@ void Renderer::SetToneMapSettings(const ToneMapSettings& settings) {
     m_toneMapPass.SetSettings(settings);
 }
 
+void Renderer::SetDofSettings(const DofSettings& settings) {
+    m_dofPass.SetSettings(settings);
+}
+
 void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, const int height) {
     if (width <= 0 || height <= 0) {
         return;
@@ -42,6 +47,9 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
         && m_sceneAoTexture
         && m_sceneColorTexture
         && m_sceneNormalTexture
+        && m_sceneCocTexture
+        && m_sceneDofPingTexture
+        && m_sceneDofColorTexture
         && m_frameResourceWidth == width
         && m_frameResourceHeight == height) {
         return;
@@ -94,6 +102,32 @@ void Renderer::EnsureFrameResources(RenderContext& renderCtx, const int width, c
     sceneNormalDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
     m_sceneNormalTexture = renderCtx.GetDevice()->createTexture(sceneNormalDesc);
     m_sceneNormalView = m_sceneNormalTexture->createView();
+
+    wgpu::TextureDescriptor sceneCocDesc{};
+    sceneCocDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneCocDesc.size.width = static_cast<uint32_t>(width);
+    sceneCocDesc.size.height = static_cast<uint32_t>(height);
+    sceneCocDesc.size.depthOrArrayLayers = 1;
+    sceneCocDesc.sampleCount = 1;
+    sceneCocDesc.mipLevelCount = 1;
+    sceneCocDesc.format = wgpu::TextureFormat::R16Float;
+    sceneCocDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneCocTexture = renderCtx.GetDevice()->createTexture(sceneCocDesc);
+    m_sceneCocView = m_sceneCocTexture->createView();
+
+    wgpu::TextureDescriptor sceneDofDesc{};
+    sceneDofDesc.dimension = wgpu::TextureDimension::_2D;
+    sceneDofDesc.size.width = static_cast<uint32_t>(width);
+    sceneDofDesc.size.height = static_cast<uint32_t>(height);
+    sceneDofDesc.size.depthOrArrayLayers = 1;
+    sceneDofDesc.sampleCount = 1;
+    sceneDofDesc.mipLevelCount = 1;
+    sceneDofDesc.format = kHdrSceneColorFormat;
+    sceneDofDesc.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::TextureBinding;
+    m_sceneDofPingTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneDofPingView = m_sceneDofPingTexture->createView();
+    m_sceneDofColorTexture = renderCtx.GetDevice()->createTexture(sceneDofDesc);
+    m_sceneDofColorView = m_sceneDofColorTexture->createView();
 
     m_frameResourceWidth = width;
     m_frameResourceHeight = height;
@@ -198,6 +232,16 @@ RenderFrame Renderer::BeginRenderFrame(RenderContext& renderCtx) {
     if (m_sceneNormalView) {
         frame.sceneNormalView = *m_sceneNormalView;
     }
+    if (m_sceneCocView) {
+        frame.sceneCocView = *m_sceneCocView;
+    }
+    if (m_sceneDofPingView) {
+        frame.sceneDofPingView = *m_sceneDofPingView;
+    }
+    if (m_sceneDofColorView) {
+        frame.sceneDofColorView = *m_sceneDofColorView;
+    }
+    frame.postProcessColorView = frame.sceneColorView;
     return frame;
 }
 
@@ -325,6 +369,7 @@ void Renderer::Render(RenderContext& renderCtx, const RenderScene& scene, Legacy
     m_skyboxPass.Render(renderCtx, frame, passCtx);
     m_forwardOpaquePass.Render(renderCtx, frame, passCtx);
     m_pbrPass.Render(renderCtx, frame, passCtx);
+    m_dofPass.Render(renderCtx, frame, passCtx);
     m_toneMapPass.Render(renderCtx, frame, passCtx);
     m_guiPass.Render(renderCtx, frame, passCtx);
     renderCtx.Submit(frame.encoder);
