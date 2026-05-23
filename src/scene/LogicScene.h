@@ -19,6 +19,17 @@ struct CameraComponent;
 struct DirectionalLightComponent;
 struct ModelAsset;
 
+struct DirectionalLightGuiData {
+    glm::vec3 direction{0.0f, -1.0f, 0.0f};
+    float     intensity = 1.0f;
+    glm::vec3 color{1.0f, 1.0f, 1.0f};
+};
+
+struct CameraGuiData {
+    glm::vec3 position{0.0f, 0.0f, 0.0f};
+    glm::vec3 target{0.0f, 0.0f, -1.0f};
+};
+
 class LogicScene : public IScene, public ICameraMoveInputSink, public ICameraLookInputSink {
 public:
     struct ModelSpawnOptions {
@@ -54,6 +65,10 @@ public:
 
     // 获取摄像机数据（用于 GUI）
     [[nodiscard]] CameraGuiData GetCameraData() const;
+
+    [[nodiscard]] std::optional<float> GetPerspectiveCameraFovDegrees() const;
+
+    void SetPerspectiveCameraFovDegrees(float fovDegrees);
 
     [[nodiscard]] virtual const char* Name() const override = 0;
 

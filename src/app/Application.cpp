@@ -3,8 +3,6 @@
 #include <iostream>
 #include <memory>
 
-#include <imgui.h>
-
 #include "scene/LogicScene.h"
 #include "scene/ScenePlayground.h"
 #include "scene/SceneRoom.h"
@@ -152,72 +150,53 @@ void Application::Tick(float deltaTime) {
     int drawableHeight = 0;
     m_windowContext.GetDrawableSize(drawableWidth, drawableHeight);
     m_guiRenderer.BeginFrame(drawableWidth, drawableHeight);
-    m_guiRenderer.SetDebugPanelContentCallback([this]() {
-        bool* magentaPointLightEnabled = nullptr;
-        bool* bluePointLightEnabled = nullptr;
-        bool* roomSpotLightEnabled = nullptr;
-        auto* playgroundScene = m_sceneManager.HasActiveScene() ?
-                                    dynamic_cast<ScenePlayground*>(&m_sceneManager.ActiveScene()) :
-                                    nullptr;
-        auto* roomScene = m_sceneManager.HasActiveScene() ?
-                              dynamic_cast<SceneRoom*>(&m_sceneManager.ActiveScene()) :
-                              nullptr;
-        bool  magentaEnabledValue = false;
-        bool  blueEnabledValue = false;
-        bool  roomSpotLightEnabledValue = false;
-        if (playgroundScene != nullptr) {
-            magentaEnabledValue = playgroundScene->IsMagentaPointLightEnabled();
-            blueEnabledValue = playgroundScene->IsBluePointLightEnabled();
-            magentaPointLightEnabled = &magentaEnabledValue;
-            bluePointLightEnabled = &blueEnabledValue;
-        }
-        if (roomScene != nullptr) {
-            roomSpotLightEnabledValue = roomScene->IsSpotLightEnabled();
-            roomSpotLightEnabled = &roomSpotLightEnabledValue;
-        }
-
-        m_guiInputController.BuildUi(
-            m_sceneManager.HasActiveScene() ? m_sceneManager.ActiveScene().Name() : nullptr,
-            &m_ssaoEnabled,
-            &m_ssrSettings,
-            &m_toneMapSettings,
-            &m_dofSettings,
-            &m_litShadingModel,
-            &m_pbrDebugView,
-            magentaPointLightEnabled,
-            bluePointLightEnabled,
-            roomSpotLightEnabled);
-
-        if (playgroundScene != nullptr) {
-            playgroundScene->SetMagentaPointLightEnabled(magentaEnabledValue);
-            playgroundScene->SetBluePointLightEnabled(blueEnabledValue);
-        }
-        if (roomScene != nullptr) {
-            roomScene->SetSpotLightEnabled(roomSpotLightEnabledValue);
-        }
-    });
-
-    if (m_sceneManager.HasActiveScene()) {
-        if (auto* logicScene = dynamic_cast<LogicScene*>(&m_sceneManager.ActiveScene())) {
-            m_guiRenderer.SetDirectionalLightCallbacks(
-                [logicScene]() { return logicScene->GetDirectionalLightData(); },
-                [logicScene](const DirectionalLightGuiData& data) { logicScene->SetDirectionalLightData(data); }
-            );
-            m_guiRenderer.SetCameraInfoCallback(
-                [logicScene]() { return logicScene->GetCameraData(); }
-            );
-        } else {
-            m_guiRenderer.SetDirectionalLightCallbacks({}, {});
-            m_guiRenderer.SetCameraInfoCallback({});
-        }
-    } else {
-        m_guiRenderer.SetDirectionalLightCallbacks({}, {});
-        m_guiRenderer.SetCameraInfoCallback({});
+    bool* magentaPointLightEnabled = nullptr;
+    bool* bluePointLightEnabled = nullptr;
+    bool* roomSpotLightEnabled = nullptr;
+    auto* playgroundScene = m_sceneManager.HasActiveScene() ?
+                                dynamic_cast<ScenePlayground*>(&m_sceneManager.ActiveScene()) :
+                                nullptr;
+    auto* roomScene = m_sceneManager.HasActiveScene() ?
+                          dynamic_cast<SceneRoom*>(&m_sceneManager.ActiveScene()) :
+                          nullptr;
+    bool  magentaEnabledValue = false;
+    bool  blueEnabledValue = false;
+    bool  roomSpotLightEnabledValue = false;
+    if (playgroundScene != nullptr) {
+        magentaEnabledValue = playgroundScene->IsMagentaPointLightEnabled();
+        blueEnabledValue = playgroundScene->IsBluePointLightEnabled();
+        magentaPointLightEnabled = &magentaEnabledValue;
+        bluePointLightEnabled = &blueEnabledValue;
     }
+    if (roomScene != nullptr) {
+        roomSpotLightEnabledValue = roomScene->IsSpotLightEnabled();
+        roomSpotLightEnabled = &roomSpotLightEnabledValue;
+    }
+
+    m_guiInputController.ConfigureDebugPanel(
+        m_guiRenderer,
+        m_sceneManager.HasActiveScene() ? &m_sceneManager.ActiveScene() : nullptr,
+        &m_ssaoEnabled,
+        &m_ssrSettings,
+        &m_toneMapSettings,
+        &m_dofSettings,
+        &m_litShadingModel,
+        &m_pbrDebugView,
+        magentaPointLightEnabled,
+        bluePointLightEnabled,
+        roomSpotLightEnabled);
 
     m_guiRenderer.DrawDebugPanel();
 
     m_guiRenderer.EndFrame();
+
+    if (playgroundScene != nullptr) {
+        playgroundScene->SetMagentaPointLightEnabled(magentaEnabledValue);
+        playgroundScene->SetBluePointLightEnabled(blueEnabledValue);
+    }
+    if (roomScene != nullptr) {
+        roomScene->SetSpotLightEnabled(roomSpotLightEnabledValue);
+    }
 
     if (m_pendingSceneSwitch.has_value()) {
         SwitchScene(*m_pendingSceneSwitch);

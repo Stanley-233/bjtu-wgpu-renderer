@@ -362,6 +362,47 @@ CameraGuiData LogicScene::GetCameraData() const {
     return data;
 }
 
+std::optional<float> LogicScene::GetPerspectiveCameraFovDegrees() const {
+    Entity primaryCameraEntity = FindPrimaryCamera(const_cast<World&>(m_world));
+    if (!primaryCameraEntity || !primaryCameraEntity.HasComponent<CameraComponent>()) {
+        return std::nullopt;
+    }
+
+    const CameraComponent& cameraComponent = primaryCameraEntity.GetComponent<CameraComponent>();
+    if (cameraComponent.camera == nullptr) {
+        return std::nullopt;
+    }
+
+    const auto* perspectiveCamera = dynamic_cast<const PerspectiveCamera*>(cameraComponent.camera.get());
+    if (perspectiveCamera == nullptr) {
+        return std::nullopt;
+    }
+
+    constexpr float kRadiansToDegrees = 57.29577951308232f;
+    return perspectiveCamera->FovYRadians() * kRadiansToDegrees;
+}
+
+void LogicScene::SetPerspectiveCameraFovDegrees(const float fovDegrees) {
+    Entity primaryCameraEntity = FindPrimaryCamera(m_world);
+    if (!primaryCameraEntity || !primaryCameraEntity.HasComponent<CameraComponent>()) {
+        return;
+    }
+
+    CameraComponent& cameraComponent = primaryCameraEntity.GetComponent<CameraComponent>();
+    if (cameraComponent.camera == nullptr) {
+        return;
+    }
+
+    auto* perspectiveCamera = dynamic_cast<PerspectiveCamera*>(cameraComponent.camera.get());
+    if (perspectiveCamera == nullptr) {
+        return;
+    }
+
+    constexpr float kDegreesToRadians = 0.017453292519943295f;
+    const float     clampedFovDegrees = std::clamp(fovDegrees, 15.0f, 120.0f);
+    perspectiveCamera->SetFovYRadians(clampedFovDegrees * kDegreesToRadians);
+}
+
 void LogicScene::RegisterInputHandlers(InputEventBus& eventBus) {
     eventBus.Dispatcher().sink<CameraMoveInputEvent>().connect<&LogicScene::OnCameraMoveInputEvent>(*this);
     eventBus.Dispatcher().sink<CameraLookInputEvent>().connect<&LogicScene::OnCameraLookInputEvent>(*this);

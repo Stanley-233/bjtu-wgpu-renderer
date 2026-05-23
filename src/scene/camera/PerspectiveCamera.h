@@ -7,6 +7,10 @@ class PerspectiveCamera final : public Camera {
 public:
     void SetPerspective(float fovYRadians, float nearPlane, float farPlane);
 
+    void SetFovYRadians(float fovYRadians);
+
+    [[nodiscard]] float FovYRadians() const;
+
     glm::mat4 View() const override;
 
     glm::mat4 Projection(float aspect) const override;

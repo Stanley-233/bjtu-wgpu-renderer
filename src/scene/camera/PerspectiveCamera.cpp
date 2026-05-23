@@ -9,6 +9,14 @@ void PerspectiveCamera::SetPerspective(const float fovYRadians, const float near
     m_farPlane    = farPlane;
 }
 
+void PerspectiveCamera::SetFovYRadians(const float fovYRadians) {
+    m_fovYRadians = fovYRadians;
+}
+
+float PerspectiveCamera::FovYRadians() const {
+    return m_fovYRadians;
+}
+
 glm::mat4 PerspectiveCamera::View() const {
     return glm::lookAtRH(m_position, m_target, m_up);
 }
