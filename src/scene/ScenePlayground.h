@@ -32,6 +32,9 @@ private:
 
     Entity    m_magentaPointLight{};
     Entity    m_bluePointLight{};
+    Entity    m_fanRotor{};
+    glm::mat4 m_fanRotorBaseMatrix{1.0f};
+    float     m_fanRotationRadians = 0.0f;
     bool      m_magentaPointLightEnabled = true;
     bool      m_bluePointLightEnabled = true;
 };
