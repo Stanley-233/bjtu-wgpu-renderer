@@ -47,18 +47,18 @@ void ForwardOpaquePass::Initialize(RenderContext& renderCtx, const wgpu::Texture
         wgpu::CullMode::None);
     m_unlitPipelineDoubleSided = std::move(unlitDoubleSidedPipeline.pipeline);
 
-    auto lambertPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(
+    auto blinnPhongPipeline = Scene3DPipelineFactory::CreateBlinnPhongForwardPipeline(
         renderCtx,
         colorTargetFormat,
         wgpu::CullMode::Back);
-    m_litSceneBindGroupLayout = std::move(lambertPipeline.sceneBindGroupLayout);
-    m_lambertPipelineSingleSided = std::move(lambertPipeline.pipeline);
+    m_litSceneBindGroupLayout = std::move(blinnPhongPipeline.sceneBindGroupLayout);
+    m_blinnPhongPipelineSingleSided = std::move(blinnPhongPipeline.pipeline);
 
-    auto lambertDoubleSidedPipeline = Scene3DPipelineFactory::CreateLambertForwardPipeline(
+    auto blinnPhongDoubleSidedPipeline = Scene3DPipelineFactory::CreateBlinnPhongForwardPipeline(
         renderCtx,
         colorTargetFormat,
         wgpu::CullMode::None);
-    m_lambertPipelineDoubleSided = std::move(lambertDoubleSidedPipeline.pipeline);
+    m_blinnPhongPipelineDoubleSided = std::move(blinnPhongDoubleSidedPipeline.pipeline);
 
     wgpu::SamplerDescriptor samplerDesc{};
     samplerDesc.addressModeU = wgpu::AddressMode::ClampToEdge;
@@ -286,7 +286,7 @@ wgpu::BindGroup ForwardOpaquePass::SelectSceneBindGroup(const EMaterialShadingMo
     switch (shadingModel) {
     case EMaterialShadingModel::Unlit:
         return m_sceneResources.unlitSceneBindGroup ? *m_sceneResources.unlitSceneBindGroup : nullptr;
-    case EMaterialShadingModel::Lambert:
+    case EMaterialShadingModel::BlinnPhong:
         return m_sceneResources.litSceneBindGroup ? *m_sceneResources.litSceneBindGroup : nullptr;
     case EMaterialShadingModel::Pbr:
         return nullptr;
@@ -300,10 +300,10 @@ wgpu::RenderPipeline ForwardOpaquePass::SelectPipeline(const EMaterialShadingMod
         return doubleSided
                    ? (m_unlitPipelineDoubleSided ? *m_unlitPipelineDoubleSided : nullptr)
                    : (m_unlitPipelineSingleSided ? *m_unlitPipelineSingleSided : nullptr);
-    case EMaterialShadingModel::Lambert:
+    case EMaterialShadingModel::BlinnPhong:
         return doubleSided
-                   ? (m_lambertPipelineDoubleSided ? *m_lambertPipelineDoubleSided : nullptr)
-                   : (m_lambertPipelineSingleSided ? *m_lambertPipelineSingleSided : nullptr);
+                   ? (m_blinnPhongPipelineDoubleSided ? *m_blinnPhongPipelineDoubleSided : nullptr)
+                   : (m_blinnPhongPipelineSingleSided ? *m_blinnPhongPipelineSingleSided : nullptr);
     case EMaterialShadingModel::Pbr:
         return nullptr;
     }

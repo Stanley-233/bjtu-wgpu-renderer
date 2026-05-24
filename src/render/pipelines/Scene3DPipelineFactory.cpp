@@ -519,14 +519,14 @@ Scene3DPipelineFactory::CreateUnlitForwardPipeline(
 }
 
 Scene3DPipelineFactory::ForwardPipeline
-Scene3DPipelineFactory::CreateLambertForwardPipeline(
+Scene3DPipelineFactory::CreateBlinnPhongForwardPipeline(
     RenderContext& renderCtx,
     const TextureFormat colorTargetFormat,
     const wgpu::CullMode cullMode) {
     return CreateForwardPipeline(
         renderCtx,
-        ShaderPaths::Resolve("scene/scene_lambert_textured.wgsl"),
-        "Scene3DPipelineFactory/ForwardLambert",
+        ShaderPaths::Resolve("scene/scene_blinn_phong_textured.wgsl"),
+        "Scene3DPipelineFactory/ForwardBlinnPhong",
         colorTargetFormat,
         cullMode,
         true);

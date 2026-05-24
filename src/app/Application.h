@@ -74,7 +74,7 @@ private:
     SsrSettings               m_ssrSettings{};
     ToneMapSettings           m_toneMapSettings{};
     DofSettings               m_dofSettings{};
-    EMaterialShadingModel     m_litShadingModel         = EMaterialShadingModel::Lambert;
+    EMaterialShadingModel     m_litShadingModel         = EMaterialShadingModel::BlinnPhong;
     EPbrDebugView             m_pbrDebugView            = EPbrDebugView::Off;
     std::optional<ESceneType> m_pendingSceneSwitch;
     bool                      m_commandHandlersConnected = false;

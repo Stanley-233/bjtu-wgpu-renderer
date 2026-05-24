@@ -629,7 +629,7 @@ static void LoadNodeRecursive(
         for (std::size_t primitiveIndex = 0; primitiveIndex < mesh.primitives.size(); ++primitiveIndex) {
             const tinygltf::Primitive& primitive = mesh.primitives[primitiveIndex];
             MaterialAsset materialAsset{};
-            materialAsset.shadingModel = EMaterialShadingModel::Lambert;
+            materialAsset.shadingModel = EMaterialShadingModel::BlinnPhong;
 
             if (primitive.material >= 0) {
                 const tinygltf::Material& material = model.materials[static_cast<std::size_t>(primitive.material)];

@@ -302,7 +302,7 @@ void LogicScene::SetSsrSettings(const SsrSettings& settings) {
 }
 
 void LogicScene::SetLitShadingModelOverride(const EMaterialShadingModel shadingModel) {
-    if (shadingModel != EMaterialShadingModel::Lambert && shadingModel != EMaterialShadingModel::Pbr) {
+    if (shadingModel != EMaterialShadingModel::BlinnPhong && shadingModel != EMaterialShadingModel::Pbr) {
         return;
     }
 

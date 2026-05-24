@@ -109,7 +109,7 @@ src
     │   ├── IRenderPass          # 统一 pass 接口和 PassContext 结构
     │   ├── DepthPrepass         # 主场景深度预通道，输出 scene depth
     │   ├── DofPass              # 基础景深 pass：CoC 计算 + 双向 blur，输出 HDR DoF 结果
-    │   ├── ForwardOpaquePass    # Unlit/Lambert 前向不透明 pass，输出到 HDR scene color
+    │   ├── ForwardOpaquePass    # Unlit/Blinn-Phong 前向不透明 pass，输出到 HDR scene color
     │   ├── GuiPass              # 在最终 surface 上叠加 ImGui
     │   ├── PBRPass              # PBR 不透明 pass，输出到 HDR scene color
     │   ├── PreparedDrawItem     # RenderObject 预处理结果，汇总 GPU buffer、bind group、uniform 数据

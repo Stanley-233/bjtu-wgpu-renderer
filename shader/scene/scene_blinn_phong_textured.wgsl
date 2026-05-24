@@ -93,6 +93,10 @@ struct FragmentInput {
 @group(2) @binding(3) var uMetallicRoughnessTexture: texture_2d<f32>;
 @group(2) @binding(4) var uMaterialSampler: sampler;
 
+const kAmbientStrength = 0.2;
+const kSpecularStrength = 0.35;
+const kShininess = 32.0;
+
 fn SelectUv(texCoordSet: u32, uv0: vec2f, uv1: vec2f) -> vec2f {
     return select(uv0, uv1, texCoordSet == 1u);
 }
@@ -103,6 +107,11 @@ fn ResolveFaceSign(frontFacing: bool) -> f32 {
 
 fn Saturate(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
+}
+
+fn ComputeSpecular(lightDir: vec3f, viewDir: vec3f, normal: vec3f) -> f32 {
+    let halfDir = normalize(lightDir + viewDir);
+    return pow(Saturate(dot(normal, halfDir)), kShininess);
 }
 
 fn SampleDirectionalShadow(worldPos: vec3f, normal: vec3f) -> f32 {
@@ -142,24 +151,18 @@ fn ComputeDistanceAttenuation(attenuationParams: vec4f, distance: f32) -> f32 {
     return 1.0 / max(denominator, 1.0e-4);
 }
 
-fn ComputePointLightLambert(light: PointLightData, worldPos: vec3f, normal: vec3f) -> vec3f {
-    let lightVector = light.position.xyz - worldPos;
-    let distance = length(lightVector);
-    if (distance <= 1.0e-4) {
-        return vec3f(0.0, 0.0, 0.0);
-    }
-
-    let lightDir = lightVector / distance;
+fn ComputeBlinnPhongLight(lightColor: vec3f, lightDir: vec3f, viewDir: vec3f, normal: vec3f) -> vec3f {
     let ndotl = Saturate(dot(normal, lightDir));
     if (ndotl <= 0.0) {
-        return vec3f(0.0, 0.0, 0.0);
+        return vec3f(0.0);
     }
 
-    let attenuation = ComputeDistanceAttenuation(light.attenuation, distance);
-    return light.color.rgb * ndotl * attenuation;
+    let diffuse = lightColor * ndotl;
+    let specular = lightColor * ComputeSpecular(lightDir, viewDir, normal) * kSpecularStrength;
+    return diffuse + specular;
 }
 
-fn ComputeSpotLightLambert(light: SpotLightData, worldPos: vec3f, normal: vec3f) -> vec3f {
+fn ComputePointLightBlinnPhong(light: PointLightData, worldPos: vec3f, viewDir: vec3f, normal: vec3f) -> vec3f {
     let lightVector = light.position.xyz - worldPos;
     let distance = length(lightVector);
     if (distance <= 1.0e-4) {
@@ -167,11 +170,18 @@ fn ComputeSpotLightLambert(light: SpotLightData, worldPos: vec3f, normal: vec3f)
     }
 
     let lightDir = lightVector / distance;
-    let ndotl = Saturate(dot(normal, lightDir));
-    if (ndotl <= 0.0) {
+    let attenuation = ComputeDistanceAttenuation(light.attenuation, distance);
+    return ComputeBlinnPhongLight(light.color.rgb, lightDir, viewDir, normal) * attenuation;
+}
+
+fn ComputeSpotLightBlinnPhong(light: SpotLightData, worldPos: vec3f, viewDir: vec3f, normal: vec3f) -> vec3f {
+    let lightVector = light.position.xyz - worldPos;
+    let distance = length(lightVector);
+    if (distance <= 1.0e-4) {
         return vec3f(0.0, 0.0, 0.0);
     }
 
+    let lightDir = lightVector / distance;
     let spotDirection = normalize(light.direction.xyz);
     let theta = dot(-lightDir, spotDirection);
     let innerCos = light.angles.x;
@@ -185,7 +195,7 @@ fn ComputeSpotLightLambert(light: SpotLightData, worldPos: vec3f, normal: vec3f)
     let range = max(light.angles.z, 0.1);
     let attenuationParams = vec4f(1.0, 4.5 / range, 75.0 / (range * range), 0.0);
     let attenuation = ComputeDistanceAttenuation(attenuationParams, distance);
-    return light.color.rgb * ndotl * attenuation * spotFactor;
+    return ComputeBlinnPhongLight(light.color.rgb, lightDir, viewDir, normal) * attenuation * spotFactor;
 }
 
 @vertex
@@ -212,6 +222,7 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     let faceSign = ResolveFaceSign(in.frontFacing);
     let isDoubleSided = uMaterial.surfaceOptions.w != 0u;
     let normal = normalize(select(in.normalWS, in.normalWS * faceSign, isDoubleSided));
+    let viewDir = normalize(uScene.cameraPosition.xyz - in.worldPos);
 
     let aoSize = max(vec2f(textureDimensions(uAmbientOcclusionTexture)), vec2f(1.0, 1.0));
     let aoUv = clamp(in.position.xy / aoSize, vec2f(0.0, 0.0), vec2f(1.0, 1.0));
@@ -221,24 +232,21 @@ fn fs_main(in: FragmentInput) -> @location(0) vec4f {
     if (uDirectionalShadow.shadowParams.x > 0.0) {
         shadowFactor = SampleDirectionalShadow(in.worldPos, normal);
     }
+
     var lighting = vec3f(0.25) * ambientOcclusion;
     if (uScene.lightCounts.x > 0u) {
-        let lightDir = normalize(-uScene.directionalLight.direction.xyz);
-        let ndotl = Saturate(dot(normal, lightDir));
-
-        let ambientFactor = 0.2;
-        let ambient = uScene.directionalLight.color.rgb * ambientFactor;
-        let direct = uScene.directionalLight.color.rgb * ndotl;
-
-        lighting = ambient * ambientOcclusion + direct * shadowFactor;
+        let directionalLightDir = normalize(-uScene.directionalLight.direction.xyz);
+        let ambient = uScene.directionalLight.color.rgb * kAmbientStrength * ambientOcclusion;
+        let direct = ComputeBlinnPhongLight(uScene.directionalLight.color.rgb, directionalLightDir, viewDir, normal);
+        lighting = ambient + direct * shadowFactor;
     }
 
     for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.y; lightIndex = lightIndex + 1u) {
-        lighting += ComputePointLightLambert(uScene.pointLights[lightIndex], in.worldPos, normal);
+        lighting += ComputePointLightBlinnPhong(uScene.pointLights[lightIndex], in.worldPos, viewDir, normal);
     }
 
     for (var lightIndex: u32 = 0u; lightIndex < uScene.lightCounts.z; lightIndex = lightIndex + 1u) {
-        lighting += ComputeSpotLightLambert(uScene.spotLights[lightIndex], in.worldPos, normal);
+        lighting += ComputeSpotLightBlinnPhong(uScene.spotLights[lightIndex], in.worldPos, viewDir, normal);
     }
 
     return vec4f(baseColor.rgb * lighting, baseColor.a);

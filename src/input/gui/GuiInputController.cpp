@@ -221,12 +221,12 @@ void GuiInputController::DrawUi(
             if (litShadingModel != nullptr) {
                 int shadingModeIndex = *litShadingModel == EMaterialShadingModel::Pbr ? 1 : 0;
                 ImGui::Text("Lit Shading");
-                ImGui::RadioButton("Lambert", &shadingModeIndex, 0);
+                ImGui::RadioButton("Blinn-Phong", &shadingModeIndex, 0);
                 ImGui::SameLine();
                 ImGui::RadioButton("PBR", &shadingModeIndex, 1);
                 *litShadingModel = shadingModeIndex == 1 ?
                                        EMaterialShadingModel::Pbr :
-                                       EMaterialShadingModel::Lambert;
+                                       EMaterialShadingModel::BlinnPhong;
             }
             if (pbrDebugView != nullptr) {
                 ImGui::BeginDisabled(litShadingModel == nullptr || *litShadingModel != EMaterialShadingModel::Pbr);

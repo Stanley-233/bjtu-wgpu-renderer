@@ -11,7 +11,7 @@
 
 enum class EMaterialShadingModel : uint32_t {
     Unlit = 0,
-    Lambert = 1,
+    BlinnPhong = 1,
     Pbr = 2,
 };
 

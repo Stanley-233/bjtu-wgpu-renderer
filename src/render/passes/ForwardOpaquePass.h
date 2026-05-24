@@ -52,8 +52,8 @@ private:
     wgpu::raii::Sampler          m_sceneAoSampler;
     wgpu::raii::RenderPipeline   m_unlitPipelineSingleSided;
     wgpu::raii::RenderPipeline   m_unlitPipelineDoubleSided;
-    wgpu::raii::RenderPipeline   m_lambertPipelineSingleSided;
-    wgpu::raii::RenderPipeline   m_lambertPipelineDoubleSided;
+    wgpu::raii::RenderPipeline   m_blinnPhongPipelineSingleSided;
+    wgpu::raii::RenderPipeline   m_blinnPhongPipelineDoubleSided;
     SceneResources               m_sceneResources;
     std::vector<ObjectResources> m_objectResources;
 };

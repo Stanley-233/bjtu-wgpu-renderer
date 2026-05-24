@@ -94,7 +94,7 @@ public:
         wgpu::TextureFormat colorTargetFormat,
         wgpu::CullMode cullMode = wgpu::CullMode::Back);
 
-    static ForwardPipeline CreateLambertForwardPipeline(
+    static ForwardPipeline CreateBlinnPhongForwardPipeline(
         RenderContext& renderCtx,
         wgpu::TextureFormat colorTargetFormat,
         wgpu::CullMode cullMode = wgpu::CullMode::Back);
