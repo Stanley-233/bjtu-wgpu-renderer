@@ -301,6 +301,20 @@ fn GeometrySmith(normal: vec3f, viewDir: vec3f, lightDir: vec3f, roughness: f32)
     return ggxV * ggxL;
 }
 
+fn DisneyDiffuse(baseColor: vec3f, ndotv: f32, ndotl: f32, ldoth: f32, roughness: f32) -> vec3f {
+    // Disney / Burley diffuse
+    // fd = baseColor / PI
+    //    * (1 + (Fd90 - 1) * (1 - NdotL)^5)
+    //    * (1 + (Fd90 - 1) * (1 - NdotV)^5)
+    //
+    // 其中 Fd90 常用近似：
+    // Fd90 = 0.5 + 2 * roughness * (LdotH^2)
+    let fd90 = 0.5 + 2.0 * roughness * ldoth * ldoth;
+    let lightScatter = 1.0 + (fd90 - 1.0) * Pow5(1.0 - ndotl);
+    let viewScatter = 1.0 + (fd90 - 1.0) * Pow5(1.0 - ndotv);
+    return baseColor * (lightScatter * viewScatter) / PI;
+}
+
 fn ComputeDistanceAttenuation(attenuationParams: vec4f, distance: f32) -> f32 {
     let d = max(distance, 0.0);
     let denominator = attenuationParams.x + attenuationParams.y * d + attenuationParams.z * d * d;
@@ -347,6 +361,7 @@ fn EvaluateDirectPbrLight(
     }
     let halfVector = normalize(halfVectorUnnormalized);
     let hdotv = Saturate(dot(halfVector, viewDir));
+    let ldoth = Saturate(dot(lightDir, halfVector));
 
     let d = DistributionGGX(normal, halfVector, roughness);
     let f = FresnelSchlick(hdotv, f0);
@@ -358,7 +373,7 @@ fn EvaluateDirectPbrLight(
 
     let kS = f;
     let kD = (vec3f(1.0, 1.0, 1.0) - kS) * (1.0 - metallic);
-    let diffuse = kD * baseColor / PI;
+    let diffuse = kD * DisneyDiffuse(baseColor, ndotv, ndotl, ldoth, roughness);
 
     return (diffuse + specular) * radiance * ndotl;
 }
